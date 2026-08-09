@@ -1,0 +1,9 @@
+export type Role = 'STUDENT'|'TEACHER'|'PARENT'|'ADMIN'|'SUPER_ADMIN';
+export interface User { id:string; email:string; role:Role; name:string; profile:Record<string,unknown>; }
+export interface Package {id:string;name:string;classes:number;duration:number;price:number;features:string[]}
+export interface Teacher {id:string;userId:string;headline:string;bio:string;education:string;institution:string;subjects:string[];skills:string[];experienceYears:number;languages:string[];location:string;hourlyRate:number;rating:number;reviewCount:number;classes:number;students:number;verified:boolean;verificationStatus:string;level:string;availability:Record<string,string[]>;blockedDates:string[];demoUrl:string;profileViews:number;gigViews:number;responseRate:number;cancellationRate:number;user:User;gigs?:Gig[];matchScore?:number}
+export interface Gig {id:string;teacherId:string;title:string;description:string;subject:string;topic:string;level:string;language:string;tags:string[];packages:Package[];demoUrl:string;includes:string[];requirements:string;faqs:{q:string;a:string}[];teacher?:Teacher;active:boolean;createdAt:string}
+export interface Booking {id:string;studentId:string;teacherId:string;gigId:string;packageId:string;date:string;time:string;price:number;status:string;history:{status:string;at:string;note:string}[];createdAt:string;notes?:string;attendance?:{teacher:boolean;student:boolean};recording?:{name:string;duration:number;url?:string}}
+export interface Subject {id:string;name:string;icon:string;topics:string[]}
+export interface Notification {id:string;type:string;title:string;body:string;href:string;readAt?:string;createdAt:string}
+export interface Exam {id:string;teacherId:string;title:string;subject:string;topic:string;duration:number;passMark:number;questionIds:string[];questions?: {id:string;text:string;options:string[];marks:number}[]}

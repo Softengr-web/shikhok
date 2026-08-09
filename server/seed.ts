@@ -1,0 +1,44 @@
+import { randomUUID, scryptSync, randomBytes } from 'node:crypto';
+import type { AppState, Role, User } from './types.js';
+
+const now = () => new Date().toISOString();
+export const passwordHash = (value: string) => {
+  const salt = randomBytes(16).toString('hex');
+  return `${salt}:${scryptSync(value, salt, 64).toString('hex')}`;
+};
+export const verifyPassword = (value: string, saved: string) => {
+  const [salt, digest] = saved.split(':');
+  return Boolean(salt && digest) && scryptSync(value, salt, 64).toString('hex') === digest;
+};
+const bnNames = ['আরিফ হোসেন','নুসরাত জাহান','তানভীর আহমেদ','মিতু রহমান','সাদিয়া ইসলাম','রাফি হাসান','তামান্না আক্তার','মাহিন চৌধুরী','সাবিনা ইয়াসমিন','ফারহান কবির','নাবিলা সুলতানা','শাওন মিয়া','রুবাইয়া ইসলাম','তৌহিদুল আলম','ইশরাত জাহান','সজীব খান','রিমি আক্তার','শাহরিয়ার রাফি','মেহেদী হাসান','প্রিয়ন্তী দাস'];
+const subjects = [
+  ['গণিত','➗',['বীজগণিত','ক্যালকুলাস','জ্যামিতি']], ['পদার্থবিজ্ঞান','⚛️',['বিদ্যুৎ','গতিবিদ্যা','তরঙ্গ']], ['রসায়ন','🧪',['জৈব রসায়ন','পর্যায় সারণি','মোল']], ['জীববিজ্ঞান','🧬',['কোষ','জিনতত্ত্ব','প্রাণিবিজ্ঞান']], ['ইংরেজি','🔤',['গ্রামার','রাইটিং','স্পিকিং']], ['বাংলা','📖',['ব্যাকরণ','সাহিত্য','রচনা']], ['আইসিটি','💻',['ডেটাবেজ','ওয়েব ডিজাইন','সংখ্যা পদ্ধতি']], ['হিসাববিজ্ঞান','📊',['জার্নাল','লেজার','ফিন্যান্স']], ['ফিন্যান্স','💳',['বিনিয়োগ','ব্যাংকিং','বাজেট']], ['প্রোগ্রামিং','⌨️',['Python','JavaScript','অ্যালগরিদম']], ['IELTS','🌐',['Speaking','Writing','Reading']], ['ভর্তি প্রস্তুতি','🎯',['গণিত','ইংরেজি','সাধারণ জ্ঞান']]
+];
+const makeUser = (id: string, email: string, role: Role, name: string): User => ({ id, email, role, name, passwordHash: passwordHash('demo123'), createdAt: now(), active: true, profile: {} });
+
+export function createDemoState(): AppState {
+  const state: AppState = { users: [], subjects: [], teachers: [], gigs: [], bookings: [], payments: [], ledger: [], messages: [], notifications: [], reviews: [], questions: [], exams: [], attempts: [], favorites: [], problems: [], offers: [], parentChildren: [], reports: [], audit: [] };
+  state.subjects = subjects.map(([name, icon, topics], i) => ({ id: `sub-${i + 1}`, name: name as string, icon: icon as string, topics: topics as string[] }));
+  state.users.push(makeUser('admin-1', 'admin@demo.local', 'ADMIN', 'ডেমো অ্যাডমিন'));
+  for (let i = 1; i <= 20; i++) state.users.push(makeUser(`student-${i}`, i === 1 ? 'student@demo.local' : `student${i}@demo.local`, 'STUDENT', `শিক্ষার্থী ${i}`));
+  for (let i = 1; i <= 10; i++) state.users.push(makeUser(`parent-${i}`, i === 1 ? 'parent@demo.local' : `parent${i}@demo.local`, 'PARENT', `অভিভাবক ${i}`));
+  bnNames.forEach((name, i) => {
+    const n = i + 1; const subject = state.subjects[i % state.subjects.length];
+    const userId = `teacher-${n}`; state.users.push(makeUser(userId, n === 1 ? 'teacher@demo.local' : `teacher${n}@demo.local`, 'TEACHER', name));
+    const teacher = { id: userId, userId, headline: `${subject.name} সহজ করে শেখানোর অভিজ্ঞ শিক্ষক`, bio: `আমি ${name}। নিয়মিত অনুশীলন ও বোঝার মাধ্যমে ${subject.name} শেখাতে ভালোবাসি। এটি সম্পূর্ণ কাল্পনিক ডেমো প্রোফাইল।`, education: n % 2 ? 'স্নাতকোত্তর' : 'স্নাতক', institution: n % 2 ? 'ঢাকা বিশ্ববিদ্যালয়' : 'বুয়েট', subjects: [subject.name], skills: subject.topics, experienceYears: 2 + (i % 11), languages: ['বাংলা', ...(i % 3 ? ['ইংরেজি'] : [])], location: i % 2 ? 'ঢাকা' : 'চট্টগ্রাম', hourlyRate: 350 + (i % 6) * 100, rating: Number((4.2 + (i % 8) / 10).toFixed(1)), reviewCount: 5 + (i * 3), classes: 20 + i * 9, students: 8 + i * 4, verified: i % 4 !== 3, verificationStatus: (i % 4 === 3 ? 'PENDING' : 'APPROVED') as 'PENDING' | 'APPROVED', level: i > 14 ? 'সেরা শিক্ষক' : i > 6 ? 'লেভেল ২' : 'যাচাইকৃত শিক্ষক', availability: { 'শনিবার': ['১০:০০','১৪:০০','১৯:০০'], 'সোমবার': ['১০:০০','১৬:০০','২০:০০'], 'বুধবার': ['১১:০০','১৮:০০'] }, blockedDates: [], demoUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ', profileViews: 40 + i * 17, gigViews: 60 + i * 22, responseRate: 90 + (i % 10), cancellationRate: i % 4, };
+    state.teachers.push(teacher);
+    for (let g = 1; g <= 3; g++) { const topic = subject.topics[(g - 1) % subject.topics.length]; state.gigs.push({ id: `gig-${n}-${g}`, teacherId: userId, title: `${subject.name} ${topic} সহজে আয়ত্ত করুন`, description: `এই ${subject.name} ক্লাসে ${topic} ধাপে ধাপে শেখানো হবে। প্রতিটি ক্লাসে অনুশীলন, নোট ও প্রশ্নোত্তর থাকবে।`, subject: subject.name, topic, level: g === 3 ? 'ভর্তি প্রস্তুতি' : 'HSC', language: 'বাংলা', tags: [subject.name, topic, 'লাইভ ক্লাস'], packages: [{ id: `pkg-${n}-${g}-basic`, name: 'বেসিক', classes: 1, duration: 60, price: teacher.hourlyRate, features: ['১টি লাইভ ক্লাস','ক্লাস নোট'] }, { id: `pkg-${n}-${g}-standard`, name: 'স্ট্যান্ডার্ড', classes: 5, duration: 60, price: teacher.hourlyRate * 4, features: ['৫টি লাইভ ক্লাস','ক্লাস নোট','ছোট পরীক্ষা'] }, { id: `pkg-${n}-${g}-premium`, name: 'প্রিমিয়াম', classes: 10, duration: 60, price: teacher.hourlyRate * 7, features: ['১০টি লাইভ ক্লাস','ক্লাস নোট','পরীক্ষা ও ফিডব্যাক'] }], demoUrl: teacher.demoUrl, includes: ['লাইভ ইন্টারঅ্যাক্টিভ ক্লাস','ক্লাস-পরবর্তী নোট','অনুশীলনের দিকনির্দেশনা'], requirements: 'খাতা, কলম এবং শেখার আগ্রহ সঙ্গে রাখুন।', faqs: [{ q: 'ক্লাসটি কার জন্য?', a: 'নির্বাচিত স্তরের সকল শিক্ষার্থীর জন্য।' }], active: true, createdAt: now() }); }
+  });
+  for (let i = 1; i <= 120; i++) { const subject = state.subjects[i % state.subjects.length]; const teacherId = state.teachers[i % state.teachers.length].id; const answer = i % 4; state.questions.push({ id: `q-${i}`, teacherId, subject: subject.name, topic: subject.topics[i % subject.topics.length], difficulty: ['সহজ','মাঝারি','কঠিন'][i % 3], text: `${subject.name} বিষয়ে ডেমো প্রশ্ন ${i} — সঠিক উত্তরটি নির্বাচন করুন।`, options: ['বিকল্প ক','বিকল্প খ','বিকল্প গ','বিকল্প ঘ'], answer, explanation: 'এটি লোকাল ডেমোর জন্য তৈরি ব্যাখ্যা।', marks: 1, tags: [subject.name, 'ডেমো'] }); }
+  for (let i = 1; i <= 3; i++) { const qs = state.questions.slice((i - 1) * 10, i * 10); state.exams.push({ id: `exam-${i}`, teacherId: 'teacher-1', title: `${i === 1 ? 'HSC পদার্থবিজ্ঞান' : 'অনুশীলনী'} ডেমো পরীক্ষা`, subject: qs[0].subject, topic: qs[0].topic, duration: 20, passMark: 50, questionIds: qs.map(q => q.id), active: true }); }
+  for (let i = 1; i <= 120; i++) { const teacher = state.teachers[i % state.teachers.length]; state.reviews.push({ id: `review-${i}`, bookingId: `old-booking-${i}`, studentId: `student-${(i % 20) + 1}`, teacherId: teacher.id, rating: (i % 5) + 1, comment: 'খুব গুছিয়ে ও যত্ন নিয়ে বুঝিয়েছেন। এটি একটি সিনথেটিক ডেমো রিভিউ।', createdAt: now() }); }
+  const gig = state.gigs[0]; const pkg = gig.packages[1]; const booking = { id: 'booking-demo-1', studentId: 'student-1', teacherId: 'teacher-1', gigId: gig.id, packageId: pkg.id, date: new Date(Date.now() + 86400000).toISOString().slice(0,10), time: '১৬:০০', price: pkg.price, status: 'CONFIRMED' as const, history: [{ status: 'PENDING' as const, at: now(), note: 'বুকিং তৈরি হয়েছে' }, { status: 'CONFIRMED' as const, at: now(), note: 'ডেমো পেমেন্ট সম্পন্ন হয়েছে' }], createdAt: now(), notes: 'আগামী ক্লাসে গতির সমীকরণ অনুশীলন করা হবে।', attendance: { teacher: true, student: true } }; state.bookings.push(booking);
+  state.payments.push({ id: 'payment-demo-1', bookingId: booking.id, studentId: booking.studentId, amount: booking.price, status: 'PAID', transactionId: 'DEMO-2026-0001', createdAt: now() });
+  state.ledger.push({ id: 'ledger-demo-1', userId: booking.teacherId, type: 'PENDING_EARNING', amount: Math.round(booking.price * .8), ref: booking.id, note: 'ডেমো বুকিং থেকে প্রাপ্য', createdAt: now() }, { id: 'ledger-demo-2', userId: booking.teacherId, type: 'PLATFORM_FEE', amount: -Math.round(booking.price * .2), ref: booking.id, note: 'প্ল্যাটফর্ম কমিশন', createdAt: now() });
+  state.messages.push({ id: 'message-demo-1', conversationId: 'student-1:teacher-1', senderId: 'teacher-1', receiverId: 'student-1', body: 'স্বাগতম! ক্লাসের আগে আপনার প্রশ্নগুলো পাঠাতে পারেন।', createdAt: now() });
+  state.notifications.push({ id: 'notification-demo-1', userId: 'student-1', type: 'BOOKING', title: 'আপনার বুকিং নিশ্চিত হয়েছে', body: 'আগামীকাল বিকাল ৪টায় আপনার ক্লাস আছে।', href: '/booking-demo-1', createdAt: now() }, { id: 'notification-demo-2', userId: 'teacher-1', type: 'PAYMENT', title: 'ডেমো আয় যোগ হয়েছে', body: 'একটি নিশ্চিত বুকিংয়ের আয় আপনার ডেমো ওয়ালেটে যোগ হয়েছে।', href: '/dashboard', createdAt: now() });
+  state.parentChildren.push({ id: 'pc-1', parentId: 'parent-1', childId: 'student-1', createdAt: now() });
+  state.problems.push({ id: 'problem-1', studentId: 'student-1', title: 'ক্যালকুলাসের সীমা বুঝতে পারছি না', description: 'এই অধ্যায়ের কয়েকটি অঙ্ক ধাপে ধাপে বুঝতে চাই।', subject: 'গণিত', topic: 'ক্যালকুলাস', budget: 400, deadline: new Date(Date.now() + 172800000).toISOString().slice(0,10), status: 'OPEN', createdAt: now() });
+  return state;
+}
+export const id = (prefix: string) => `${prefix}-${randomUUID()}`;

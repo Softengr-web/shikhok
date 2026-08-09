@@ -1,0 +1,704 @@
+// Production PostgreSQL target. The zero-setup local demo currently uses server/store.ts
+
+// this schema preserves the normalized Prisma data model for a PostgreSQL deployment.
+generator client {
+ provider = "prisma-client-js" 
+}
+
+datasource db {
+ provider = "postgresql"
+ url = env("DATABASE_URL") 
+}
+
+
+enum Role {
+  STUDENT
+  TEACHER
+  PARENT
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum VerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CHANGES_REQUESTED
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+  DISPUTED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum LedgerType {
+  PAYMENT
+  PENDING_EARNING
+  AVAILABLE_EARNING
+  PLATFORM_FEE
+  PAYOUT
+  REFUND
+}
+
+enum ProblemStatus {
+  OPEN
+  ACCEPTED
+  DELIVERED
+  CLOSED
+  CANCELLED
+}
+
+enum OfferStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  WITHDRAWN
+}
+
+enum ReportStatus {
+  OPEN
+  REVIEWING
+  RESOLVED
+  DISMISSED
+}
+
+
+model User {
+
+  id String @id @default(uuid())
+  email String @unique
+  passwordHash String
+  role Role
+  name String
+  phone String?
+  emailVerifiedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+  studentProfile StudentProfile?
+  teacherProfile TeacherProfile?
+  parentProfile ParentProfile?
+  studentBookings Booking[] @relation("StudentBookings")
+  sentMessages Message[] @relation("SentMessages")
+  receivedMessages Message[] @relation("ReceivedMessages")
+  notifications Notification[]
+  payments Payment[]
+  wallet Wallet?
+  examAttempts ExamAttempt[]
+  favorites Favorite[]
+  reports Report[] @relation("Reporter")
+  auditLogs AuditLog[] @relation("Actor")
+  conversations ConversationMember[]
+  problems Problem[]
+  @@index([role, deletedAt])
+
+}
+
+model StudentProfile {
+
+  id String @id @default(uuid())
+  userId String @unique
+  educationLevel String?
+  institution String?
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  parentLinks ParentChild[]
+  progress StudentProgress[]
+  mastery SkillMastery[]
+  @@index([educationLevel])
+
+}
+
+model TeacherProfile {
+
+  id String @id @default(uuid())
+  userId String @unique
+  bio String? @db.Text
+  headline String?
+  education String?
+  institution String?
+  experienceYears Int @default(0)
+  location String?
+  hourlyRate Int @default(0)
+  rating Decimal @default(0) @db.Decimal(3,2)
+  reviewCount Int @default(0)
+  verified Boolean @default(false)
+  level String @default("à¦¨à¦¤à§à¦¨ à¦¶à¦¿à¦•à§à¦·à¦•")
+  demoUrl String?
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  verification TeacherVerification?
+  educationRecords EducationRecord[]
+  experiences ExperienceRecord[]
+  gigs Gig[]
+  availabilities Availability[]
+  bookings Booking[] @relation("TeacherBookings")
+  reviews Review[]
+  exams Exam[]
+  questions Question[]
+  courses Course[]
+  problemOffers ProblemOffer[]
+  @@index([verified, rating])
+
+}
+
+model ParentProfile {
+ id String @id @default(uuid())
+ userId String @unique
+ user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+ children ParentChild[] 
+}
+
+model ParentChild {
+ id String @id @default(uuid())
+ parentId String
+ childId String
+ createdAt DateTime @default(now())
+ parent ParentProfile @relation(fields:[parentId],references:[id],onDelete:Cascade)
+ child StudentProfile @relation(fields:[childId],references:[id],onDelete:Cascade)
+ @@unique([parentId,childId])
+ @@index([childId]) 
+}
+
+model TeacherVerification {
+ id String @id @default(uuid())
+ teacherId String @unique
+ status VerificationStatus @default(PENDING)
+ identityDocumentPath String?
+ reviewedAt DateTime?
+ reviewedBy String?
+ teacher TeacherProfile @relation(fields:[teacherId],references:[id],onDelete:Cascade)
+ @@index([status]) 
+}
+
+model EducationRecord {
+ id String @id @default(uuid())
+ teacherId String
+ degree String
+ institution String
+ year Int?
+ verified Boolean @default(false)
+ teacher TeacherProfile @relation(fields:[teacherId],references:[id],onDelete:Cascade) 
+}
+
+model ExperienceRecord {
+ id String @id @default(uuid())
+ teacherId String
+ title String
+ organization String?
+ years Int @default(0)
+ teacher TeacherProfile @relation(fields:[teacherId],references:[id],onDelete:Cascade) 
+}
+
+model Subject {
+ id String @id @default(uuid())
+ name String @unique
+ slug String @unique
+ active Boolean @default(true)
+ topics Topic[]
+ gigs Gig[]
+ questions Question[]
+ exams Exam[]
+ courses Course[]
+ problems Problem[] 
+}
+
+model Topic {
+ id String @id @default(uuid())
+ subjectId String
+ name String
+ slug String
+ subject Subject @relation(fields:[subjectId],references:[id],onDelete:Cascade)
+ gigs Gig[]
+ questions Question[]
+ exams Exam[]
+ problems Problem[]
+ @@unique([subjectId,name]) 
+}
+
+model Gig {
+ id String @id @default(uuid())
+ teacherId String
+ subjectId String
+ topicId String?
+ title String
+ slug String @unique
+ description String @db.Text
+ level String
+ language String @default("à¦¬à¦¾à¦‚à¦²à¦¾")
+ requirements String? @db.Text
+ active Boolean @default(true)
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ teacher TeacherProfile @relation(fields:[teacherId],references:[id],onDelete:Cascade)
+ subject Subject @relation(fields:[subjectId],references:[id])
+ topic Topic? @relation(fields:[topicId],references:[id])
+ packages GigPackage[]
+ media GigMedia[]
+ bookings Booking[]
+ @@index([teacherId,active])
+ @@index([subjectId,level]) 
+}
+
+model GigPackage {
+ id String @id @default(uuid())
+ gigId String
+ name String
+ classCount Int
+ durationMinutes Int
+ price Int
+ features Json
+ gig Gig @relation(fields:[gigId],references:[id],onDelete:Cascade)
+ bookings Booking[] 
+}
+
+model GigMedia {
+ id String @id @default(uuid())
+ gigId String
+ kind String
+ url String
+ sortOrder Int @default(0)
+ gig Gig @relation(fields:[gigId],references:[id],onDelete:Cascade) 
+}
+
+model Availability {
+ id String @id @default(uuid())
+ teacherId String
+ weekday Int
+ startMinute Int
+ endMinute Int
+ blockedDate DateTime? @db.Date
+ teacher TeacherProfile @relation(fields:[teacherId],references:[id],onDelete:Cascade)
+ @@index([teacherId,weekday])
+ @@index([teacherId,blockedDate]) 
+}
+
+model Booking {
+ id String @id @default(uuid())
+ studentId String
+ teacherId String
+ gigId String
+ packageId String
+ startsAt DateTime
+ endsAt DateTime
+ price Int
+ status BookingStatus @default(PENDING)
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ student User @relation("StudentBookings",fields:[studentId],references:[id])
+ teacher TeacherProfile @relation("TeacherBookings",fields:[teacherId],references:[id])
+ gig Gig @relation(fields:[gigId],references:[id])
+ package GigPackage @relation(fields:[packageId],references:[id])
+ history BookingStatusHistory[]
+ payment Payment?
+ classroom Classroom?
+ review Review?
+ dispute Dispute?
+ @@index([teacherId,startsAt])
+ @@index([studentId,status]) 
+}
+
+model BookingStatusHistory {
+ id String @id @default(uuid())
+ bookingId String
+ status BookingStatus
+ note String?
+ createdAt DateTime @default(now())
+ booking Booking @relation(fields:[bookingId],references:[id],onDelete:Cascade)
+ @@index([bookingId,createdAt]) 
+}
+
+model Payment {
+ id String @id @default(uuid())
+ bookingId String @unique
+ studentId String
+ amount Int
+ status PaymentStatus @default(PENDING)
+ provider String
+ providerReference String @unique
+ createdAt DateTime @default(now())
+ booking Booking @relation(fields:[bookingId],references:[id])
+ student User @relation(fields:[studentId],references:[id])
+ transactions Transaction[] 
+}
+
+model Transaction {
+ id String @id @default(uuid())
+ paymentId String
+ type LedgerType
+ amount Int
+ reference String @unique
+ createdAt DateTime @default(now())
+ payment Payment @relation(fields:[paymentId],references:[id],onDelete:Cascade) 
+}
+
+model Wallet {
+ id String @id @default(uuid())
+ userId String @unique
+ user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+ transactions WalletTransaction[]
+ payouts Payout[] 
+}
+
+model WalletTransaction {
+ id String @id @default(uuid())
+ walletId String
+ type LedgerType
+ amount Int
+ balanceAfter Int
+ reference String @unique
+ createdAt DateTime @default(now())
+ wallet Wallet @relation(fields:[walletId],references:[id],onDelete:Cascade)
+ @@index([walletId,createdAt]) 
+}
+
+model Payout {
+ id String @id @default(uuid())
+ walletId String
+ amount Int
+ status String
+ createdAt DateTime @default(now())
+ wallet Wallet @relation(fields:[walletId],references:[id],onDelete:Cascade) 
+}
+
+model Classroom {
+ id String @id @default(uuid())
+ bookingId String @unique
+ status String @default("SCHEDULED")
+ whiteboardState Json?
+ booking Booking @relation(fields:[bookingId],references:[id],onDelete:Cascade)
+ sessions ClassSession[] 
+}
+
+model ClassSession {
+ id String @id @default(uuid())
+ classroomId String
+ startedAt DateTime?
+ endedAt DateTime?
+ classroom Classroom @relation(fields:[classroomId],references:[id],onDelete:Cascade)
+ attendance Attendance[]
+ recordings Recording[]
+ notes ClassNote[] 
+}
+
+model Attendance {
+ id String @id @default(uuid())
+ sessionId String
+ userId String
+ joinedAt DateTime @default(now())
+ leftAt DateTime?
+ session ClassSession @relation(fields:[sessionId],references:[id],onDelete:Cascade)
+ @@unique([sessionId,userId]) 
+}
+
+model Recording {
+ id String @id @default(uuid())
+ sessionId String
+ storagePath String
+ durationSeconds Int @default(0)
+ createdAt DateTime @default(now())
+ session ClassSession @relation(fields:[sessionId],references:[id],onDelete:Cascade) 
+}
+
+model ClassNote {
+ id String @id @default(uuid())
+ sessionId String
+ teacherId String
+ content String @db.Text
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ session ClassSession @relation(fields:[sessionId],references:[id],onDelete:Cascade) 
+}
+
+model Conversation {
+ id String @id @default(uuid())
+ createdAt DateTime @default(now())
+ members ConversationMember[]
+ messages Message[] 
+}
+
+model ConversationMember {
+ id String @id @default(uuid())
+ conversationId String
+ userId String
+ conversation Conversation @relation(fields:[conversationId],references:[id],onDelete:Cascade)
+ user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+ @@unique([conversationId,userId])
+ @@index([userId]) 
+}
+
+model Message {
+ id String @id @default(uuid())
+ conversationId String
+ senderId String
+ receiverId String
+ body String @db.Text
+ readAt DateTime?
+ createdAt DateTime @default(now())
+ conversation Conversation @relation(fields:[conversationId],references:[id],onDelete:Cascade)
+ sender User @relation("SentMessages",fields:[senderId],references:[id])
+ receiver User @relation("ReceivedMessages",fields:[receiverId],references:[id])
+ @@index([conversationId,createdAt]) 
+}
+
+model Notification {
+ id String @id @default(uuid())
+ userId String
+ type String
+ title String
+ body String
+ href String?
+ readAt DateTime?
+ createdAt DateTime @default(now())
+ user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+ @@index([userId,readAt]) 
+}
+
+model Review {
+ id String @id @default(uuid())
+ bookingId String @unique
+ studentId String
+ teacherId String
+ rating Int
+ comment String @db.Text
+ response String? @db.Text
+ createdAt DateTime @default(now())
+ booking Booking @relation(fields:[bookingId],references:[id])
+ teacher TeacherProfile @relation(fields:[teacherId],references:[id])
+ @@index([teacherId,createdAt]) 
+}
+
+model Exam {
+ id String @id @default(uuid())
+ teacherId String
+ subjectId String
+ topicId String?
+ title String
+ durationMinutes Int
+ passMark Int
+ active Boolean @default(true)
+ teacher TeacherProfile @relation(fields:[teacherId],references:[id])
+ subject Subject @relation(fields:[subjectId],references:[id])
+ topic Topic? @relation(fields:[topicId],references:[id])
+ examQuestions ExamQuestion[]
+ attempts ExamAttempt[]
+ @@index([subjectId,active]) 
+}
+
+model Question {
+ id String @id @default(uuid())
+ teacherId String
+ subjectId String
+ topicId String?
+ difficulty String
+ text String @db.Text
+ explanation String? @db.Text
+ marks Int @default(1)
+ teacher TeacherProfile @relation(fields:[teacherId],references:[id])
+ subject Subject @relation(fields:[subjectId],references:[id])
+ topic Topic? @relation(fields:[topicId],references:[id])
+ options QuestionOption[]
+ examQuestions ExamQuestion[]
+ answers ExamAnswer[]
+ @@index([subjectId,topicId]) 
+}
+
+model QuestionOption {
+ id String @id @default(uuid())
+ questionId String
+ text String
+ isCorrect Boolean @default(false)
+ question Question @relation(fields:[questionId],references:[id],onDelete:Cascade)
+ @@index([questionId]) 
+}
+
+model ExamQuestion {
+ id String @id @default(uuid())
+ examId String
+ questionId String
+ sortOrder Int
+ exam Exam @relation(fields:[examId],references:[id],onDelete:Cascade)
+ question Question @relation(fields:[questionId],references:[id])
+ @@unique([examId,questionId]) 
+}
+
+model ExamAttempt {
+ id String @id @default(uuid())
+ examId String
+ studentId String
+ score Int
+ total Int
+ submittedAt DateTime @default(now())
+ exam Exam @relation(fields:[examId],references:[id])
+ student User @relation(fields:[studentId],references:[id])
+ answers ExamAnswer[]
+ @@index([studentId,submittedAt]) 
+}
+
+model ExamAnswer {
+ id String @id @default(uuid())
+ attemptId String
+ questionId String
+ optionId String?
+ attempt ExamAttempt @relation(fields:[attemptId],references:[id],onDelete:Cascade)
+ question Question @relation(fields:[questionId],references:[id])
+ @@unique([attemptId,questionId]) 
+}
+
+model StudentProgress {
+ id String @id @default(uuid())
+ studentId String
+ subjectId String
+ completedClasses Int @default(0)
+ progressPercent Int @default(0)
+ student StudentProfile @relation(fields:[studentId],references:[id],onDelete:Cascade)
+ @@unique([studentId,subjectId]) 
+}
+
+model SkillMastery {
+ id String @id @default(uuid())
+ studentId String
+ skill String
+ mastery Int @default(0)
+ student StudentProfile @relation(fields:[studentId],references:[id],onDelete:Cascade)
+ @@unique([studentId,skill]) 
+}
+
+model Course {
+ id String @id @default(uuid())
+ teacherId String
+ subjectId String
+ title String
+ slug String @unique
+ description String @db.Text
+ active Boolean @default(false)
+ teacher TeacherProfile @relation(fields:[teacherId],references:[id])
+ subject Subject @relation(fields:[subjectId],references:[id])
+ modules CourseModule[]
+ enrollments Enrollment[] 
+}
+
+model CourseModule {
+ id String @id @default(uuid())
+ courseId String
+ title String
+ sortOrder Int
+ course Course @relation(fields:[courseId],references:[id],onDelete:Cascade)
+ lessons CourseLesson[] 
+}
+
+model CourseLesson {
+ id String @id @default(uuid())
+ moduleId String
+ title String
+ content String? @db.Text
+ videoPath String?
+ sortOrder Int
+ module CourseModule @relation(fields:[moduleId],references:[id],onDelete:Cascade) 
+}
+
+model Enrollment {
+ id String @id @default(uuid())
+ courseId String
+ studentId String
+ progress Int @default(0)
+ enrolledAt DateTime @default(now())
+ course Course @relation(fields:[courseId],references:[id],onDelete:Cascade)
+ certificate Certificate?
+ @@unique([courseId,studentId]) 
+}
+
+model Certificate {
+ id String @id @default(uuid())
+ enrollmentId String @unique
+ code String @unique
+ issuedAt DateTime @default(now())
+ enrollment Enrollment @relation(fields:[enrollmentId],references:[id],onDelete:Cascade) 
+}
+
+model Problem {
+ id String @id @default(uuid())
+ studentId String
+ subjectId String
+ topicId String?
+ title String
+ description String @db.Text
+ budget Int
+ deadline DateTime
+ status ProblemStatus @default(OPEN)
+ createdAt DateTime @default(now())
+ student User @relation(fields:[studentId],references:[id])
+ subject Subject @relation(fields:[subjectId],references:[id])
+ topic Topic? @relation(fields:[topicId],references:[id])
+ offers ProblemOffer[]
+ @@index([status,subjectId]) 
+}
+
+model ProblemOffer {
+ id String @id @default(uuid())
+ problemId String
+ teacherId String
+ message String @db.Text
+ price Int
+ status OfferStatus @default(PENDING)
+ createdAt DateTime @default(now())
+ problem Problem @relation(fields:[problemId],references:[id],onDelete:Cascade)
+ teacher TeacherProfile @relation(fields:[teacherId],references:[id])
+ @@unique([problemId,teacherId]) 
+}
+
+model Dispute {
+ id String @id @default(uuid())
+ bookingId String @unique
+ reason String @db.Text
+ status ReportStatus @default(OPEN)
+ createdAt DateTime @default(now())
+ booking Booking @relation(fields:[bookingId],references:[id],onDelete:Cascade) 
+}
+
+model Report {
+ id String @id @default(uuid())
+ reporterId String
+ subjectType String
+ subjectId String
+ reason String @db.Text
+ status ReportStatus @default(OPEN)
+ createdAt DateTime @default(now())
+ reporter User @relation("Reporter",fields:[reporterId],references:[id])
+ @@index([status,createdAt]) 
+}
+
+model Favorite {
+ id String @id @default(uuid())
+ userId String
+ kind String
+ itemId String
+ createdAt DateTime @default(now())
+ user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+ @@unique([userId,kind,itemId]) 
+}
+
+model AuditLog {
+ id String @id @default(uuid())
+ actorId String
+ action String
+ entity String
+ entityId String
+ metadata Json?
+ createdAt DateTime @default(now())
+ actor User @relation("Actor",fields:[actorId],references:[id])
+ @@index([entity,entityId]) 
+}
+
+
