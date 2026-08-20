@@ -19,6 +19,10 @@ export interface Gig {
   id: string; teacherId: string; title: string; description: string; subject: string; topic: string;
   level: string; language: string; tags: string[]; packages: GigPackage[]; demoUrl: string;
   includes: string[]; requirements: string; faqs: { q: string; a: string }[]; active: boolean; createdAt: string;
+  subtopic?: string; levels?: string[]; outcomes?: string[]; teachingStyle?: string; classType?: string; duration?: number;
+  pricingModel?: string; extras?: { id:string; name:string; price:number; quantity:number; description:string }[];
+  trial?: { enabled:boolean; paid:boolean; price:number; duration:number }; media?: GigDraft['media']; availability?: Record<string,string[]>;
+  cancellation?: string; reschedule?: string; visibility?: string; moderationStatus?: 'PENDING'|'APPROVED'|'REJECTED'; version?: number; badges?: string[]; discount?: number;
 }
 export interface GigDraftPackage { id: string; name: string; classes: number; duration: number; price: number; discount: number; validity: number; capacity: number; features: string[]; policy: string; }
 export interface GigDraft {
@@ -51,8 +55,12 @@ export interface ProblemOffer { id: string; problemId: string; teacherId: string
 export interface ParentChild { id: string; parentId: string; childId: string; createdAt: string; }
 export interface Report { id: string; reporterId: string; subjectType: string; subjectId: string; reason: string; status: 'OPEN' | 'RESOLVED'; createdAt: string; }
 export interface AuditLog { id: string; actorId: string; action: string; entity: string; entityId: string; at: string; }
+export interface GigCustomOffer { id:string; gigId:string; teacherId:string; studentId?:string; title:string; description:string; price:number; status:'DRAFT'|'SENT'|'ACCEPTED'|'DECLINED'; expiresAt?:string; createdAt:string; }
+export interface GigVersion { id:string; gigId:string; version:number; snapshot:Record<string, unknown>; createdAt:string; }
+export interface GigAnalytics { gigId:string; views:number; favorites:number; bookings:number; revenue:number; conversion:number; averageRating:number; }
+export interface GigModeration { gigId:string; status:'PENDING'|'APPROVED'|'REJECTED'; note:string; updatedAt:string; }
 export interface AppState {
-  users: User[]; subjects: Subject[]; teachers: Teacher[]; gigs: Gig[]; gigDrafts?: GigDraft[]; bookings: Booking[]; payments: Payment[];
+  users: User[]; subjects: Subject[]; teachers: Teacher[]; gigs: Gig[]; gigDrafts?: GigDraft[]; gigOffers?: GigCustomOffer[]; gigVersions?: GigVersion[]; gigAnalytics?: GigAnalytics[]; gigModeration?: GigModeration[]; bookings: Booking[]; payments: Payment[];
   ledger: LedgerEntry[]; messages: Message[]; notifications: Notification[]; reviews: Review[]; questions: Question[];
   exams: Exam[]; attempts: ExamAttempt[]; favorites: Favorite[]; problems: Problem[]; offers: ProblemOffer[];
   parentChildren: ParentChild[]; reports: Report[]; audit: AuditLog[];

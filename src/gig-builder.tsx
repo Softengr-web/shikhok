@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { api, put, post } from './api';
 import { go, money } from './components';
 import type { GigDraft, GigDraftPackage } from './models';
+import { MediaManager } from './gig-capabilities';
 
 type Draft = GigDraft;
 const steps = ['গিগের পরিচিতি', 'বিষয় ও ক্যাটাগরি', 'কী শেখাবেন', 'কার জন্য', 'ক্লাসের ধরন', 'মূল্য ও প্যাকেজ', 'অতিরিক্ত সেবা', 'ডেমো ও মিডিয়া', 'শিক্ষার্থীর প্রয়োজনীয় তথ্য', 'কী কী পাবেন', 'FAQ', 'Availability', 'Policies', 'Preview', 'Publish'];
@@ -28,7 +29,7 @@ export function GigBuilder() {
   const next = () => { setError(''); if (step < 15) setStep(step + 1); };
   const back = () => { setError(''); if (step > 1) setStep(step - 1); };
   const publish = async () => { setError(''); try { await post(`/teacher/gig-drafts/${draft.id}/publish`); setPublished(true); } catch (e) { setError(e instanceof Error ? e.message : 'প্রকাশ করা যায়নি'); } };
-  return <section className="gig-builder page">
+  return <section className="gig-builder page">{step === 8 && <MediaManager draft={draft} update={update} />}
     <div className="builder-head"><div><p className="eyebrow">শিক্ষকের সার্ভিস স্টোরফ্রন্ট</p><h1>নতুন গিগ তৈরি করুন</h1><p>ধাপে ধাপে সাজান, পাশে লাইভ প্রিভিউ দেখুন এবং যেকোনো সময় ফিরে আসুন।</p></div><div className="quality-meter"><span>গিগ মান</span><strong>{score}/১০০</strong><i><b style={{ width: `${score}%` }} /></i><small>{saving ? 'সংরক্ষণ হচ্ছে…' : savedAt ? `শেষ সংরক্ষণ ${savedAt}` : 'স্বয়ংক্রিয় সংরক্ষণ'}</small></div></div>
     <div className="builder-layout"><aside className="builder-steps">{steps.map((label, index) => <button key={label} className={step === index + 1 ? 'active' : step > index + 1 ? 'done' : ''} onClick={() => setStep(index + 1)}><b>{index + 1}</b><span>{label}</span></button>)}</aside><div className="builder-main"><div className="builder-panel"><StepContent draft={draft} update={update} step={step} /><div className="builder-actions"><button className="quiet-btn" onClick={back} disabled={step === 1}>পেছনে</button>{step < 14 && <button className="button" onClick={next}>পরের ধাপ</button>}{step === 14 && <button className="button" onClick={next}>প্রকাশের আগে যাচাই</button>}{step === 15 && <button className="button" onClick={() => void publish()}>গিগ প্রকাশ করুন</button>}</div>{error && <p className="form-error">{error}</p>}{published && <div className="success publish-success"><b>গিগ প্রকাশিত হয়েছে</b><p>এখন শিক্ষার্থীরা আপনার সার্ভিস দেখে বুকিং করতে পারবে।</p><button className="button" onClick={() => go('/dashboard')}>ড্যাশবোর্ডে ফিরুন</button></div>}</div></div><aside className="gig-preview"><p className="eyebrow">লাইভ প্রিভিউ</p>{preview && <><div className="preview-cover">{preview.media.find(m => m.cover)?.url || 'গিগ কভার'}</div><span className="preview-badge">{preview.subject || 'বিষয়'} · {preview.levels.join(', ')}</span><h2>{preview.title || 'আপনার গিগের শিরোনাম'}</h2><p>{preview.description || 'বর্ণনা লিখলে এখানে দেখা যাবে।'}</p><div className="preview-tags">{preview.tags.filter(Boolean).map(tag => <span key={tag}>{tag}</span>)}</div><div className="preview-price"><span>শুরু হচ্ছে</span><b>{money(preview.packages[0]?.price || 0)}</b></div><button className="button wide" disabled>বুকিং প্রিভিউ</button></>}</aside></div>
   </section>;
