@@ -5,6 +5,6 @@ import './layout-overrides.css';
 import './gig-builder.css';
 import './gig-capabilities.css';
 import './teacher-profile-gigs.css';
-import { App } from './App';
+import { RootApp } from './RootApp';
 
-createRoot(document.getElementById('root')!).render(<StrictMode><App /></StrictMode>);
+createRoot(document.getElementById('root')!).render(<StrictMode><RootApp /></StrictMode>);

@@ -1,0 +1,44 @@
+import { useEffect, useState } from 'react';
+import { api, post } from './api';
+import { Shell, Toast } from './components';
+import { GigBuilder } from './gig-builder';
+import { AuthPage, Bookings, Classroom, Compare, Dashboard, Exams, GigPage, GigsPage, Home, Messages, NotificationsPage, PaymentPage, Problems, Search, TeacherPage, Wallet } from './pages';
+import { StudentExamPage, TeacherExamDashboard, TeacherExamEditor } from './exam-pages';
+import { TeacherDashboardLivePage } from './teacher-dashboard';
+import type { User } from './models';
+
+export function RootApp() {
+  const [user, setUser] = useState<User | null>(null);
+  const [route, setRoute] = useState(location.hash || '#/');
+  const [notice, setNotice] = useState('');
+  useEffect(() => { const onHashChange = () => setRoute(location.hash || '#/'); addEventListener('hashchange', onHashChange); return () => removeEventListener('hashchange', onHashChange); }, []);
+  useEffect(() => { void api<User>('/auth/me').then(setUser).catch(() => setUser(null)); }, []);
+  const logout = async () => { try { await post('/auth/logout'); setUser(null); location.hash = '#/'; setNotice('আপনি লগআউট করেছেন।'); } catch (error) { setNotice(error instanceof Error ? error.message : 'লগআউট করা যায়নি।'); } };
+  const path = route.slice(1).split('?')[0];
+  const protectedPage = (content: React.ReactNode) => user ? content : <AuthPage kind="login" onLogin={setUser} />;
+  let content: React.ReactNode;
+  if (path === '/') content = <Home user={user} />;
+  else if (path === '/search') content = <Search user={user} />;
+  else if (path === '/gigs') content = <GigsPage />;
+  else if (path === '/teacher/gigs/new') content = protectedPage(<GigBuilder />);
+  else if (path === '/teacher/exams') content = protectedPage(<TeacherExamDashboard />);
+  else if (path === '/teacher/exams/new') content = protectedPage(<TeacherExamEditor />);
+  else if (path === '/teacher/dashboard') content = protectedPage(<TeacherDashboardLivePage />);
+  else if (path.startsWith('/teacher/')) content = <TeacherPage user={user} />;
+  else if (path.startsWith('/gig/')) content = <GigPage user={user} />;
+  else if (path.startsWith('/exam/')) content = protectedPage(<StudentExamPage user={user!} />);
+  else if (path === '/compare') content = <Compare />;
+  else if (path === '/login') content = <AuthPage kind="login" onLogin={setUser} />;
+  else if (path === '/register') content = <AuthPage kind="register" onLogin={setUser} />;
+  else if (path === '/dashboard' || path === '/profile') content = protectedPage(user?.role === 'TEACHER' ? <TeacherDashboardLivePage /> : <Dashboard user={user!} />);
+  else if (path === '/bookings') content = protectedPage(<Bookings user={user!} />);
+  else if (path.startsWith('/payment/')) content = protectedPage(<PaymentPage user={user!} />);
+  else if (path === '/wallet') content = protectedPage(<Wallet />);
+  else if (path === '/messages') content = protectedPage(<Messages user={user!} />);
+  else if (path === '/exams') content = protectedPage(<Exams user={user!} />);
+  else if (path === '/problems') content = <Problems user={user} />;
+  else if (path === '/notifications') content = protectedPage(<NotificationsPage />);
+  else if (path.startsWith('/classroom/')) content = protectedPage(<Classroom user={user!} />);
+  else content = <section className="page section"><h1>পাতাটি পাওয়া যায়নি</h1><a className="button" href="#/">হোমে ফিরুন</a></section>;
+  return <Shell user={user} onLogout={logout}>{content}{notice && <Toast message={notice} onClose={() => setNotice('')} />}</Shell>;
+}
