@@ -1,0 +1,34 @@
+/* Keep dense card rows inside their responsive container. */
+.soft {
+  overflow: hidden;
+}
+
+.card-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  min-width: 0;
+}
+
+.teacher-card {
+  min-width: 0;
+}
+
+.card-actions {
+  min-width: 0;
+}
+
+.card-actions > * {
+  min-width: 0;
+  white-space: normal;
+}
+
+@media (max-width: 900px) {
+  .card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .card-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
