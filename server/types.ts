@@ -9,10 +9,11 @@ export interface Subject { id: string; name: string; icon: string; topics: strin
 export interface Teacher {
   id: string; userId: string; headline: string; bio: string; education: string; institution: string;
   subjects: string[]; skills: string[]; experienceYears: number; languages: string[]; location: string;
-  hourlyRate: number; rating: number; reviewCount: number; classes: number; students: number;
+  hourlyRate: number; sessionPrice?: number; rating: number; reviewCount: number; classes: number; students: number;
   verified: boolean; verificationStatus: 'PENDING' | 'APPROVED' | 'REJECTED';
   level: string; availability: Record<string, string[]>; blockedDates: string[]; demoUrl: string;
   profileViews: number; gigViews: number; responseRate: number; cancellationRate: number;
+  isLive?: boolean; lastSeenAt?: string;
 }
 export interface GigPackage { id: string; name: string; classes: number; duration: number; price: number; features: string[]; }
 export interface Gig {

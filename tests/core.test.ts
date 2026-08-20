@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createDemoState } from '../server/seed.js';
-import { DomainError, authenticate, createBooking, createReview, payBooking, register, requireRole, submitExam } from '../server/services.js';
+import { DomainError, authenticate, createBooking, createProblemSession, createReview, payBooking, register, requireRole, submitExam } from '../server/services.js';
 
 test('ডেমো অ্যাকাউন্ট দিয়ে লগইন করা যায়', () => {
   const state = createDemoState();
@@ -44,4 +44,22 @@ test('একটি বুকিংয়ে কেবল একটি রিভি�
   const review = createReview(state, student, { bookingId: booking.id, rating: 5, comment: 'খুব ভালো' });
   assert.equal(review.rating, 5);
   assert.throws(() => createReview(state, student, { bookingId: booking.id, rating: 5, comment: 'আবার' }), DomainError);
+});
+
+test('সমস্যা সমাধানের এক-এক সেশন বুকিংও ডেমো পেমেন্ট দিয়ে নিশ্চিত হয়', () => {
+  const state = createDemoState();
+  const student = state.users.find(u => u.id === 'student-1')!;
+  const teacher = state.teachers[0];
+  const booking = createProblemSession(state, student, {
+    teacherId: teacher.id,
+    date: '2030-11-12',
+    time: '১৬:০০',
+    price: teacher.sessionPrice ?? teacher.hourlyRate,
+    subject: 'গণিত'
+  });
+  assert.equal(booking.teacherId, teacher.id);
+  assert.equal(booking.status, 'PENDING');
+  const receipt = payBooking(state, student, booking.id);
+  assert.equal(receipt.booking.status, 'CONFIRMED');
+  assert.match(receipt.payment.transactionId, /^DEMO-/);
 });

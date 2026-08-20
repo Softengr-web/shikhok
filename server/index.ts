@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { store } from './store.js';
-import { DomainError, authenticate, changeBookingStatus, cleanText, conversation, createBooking, createGig, createReview, findTeachers, matchTeachers, payBooking, publicTeacher, publicUser, register, requireRole, requireUser, sendMessage, submitExam, updateTeacher, wallet } from './services.js';
+import { DomainError, authenticate, changeBookingStatus, cleanText, conversation, createBooking, createGig, createProblemSession, createReview, findTeachers, matchTeachers, payBooking, publicTeacher, publicUser, register, requireRole, requireUser, sendMessage, submitExam, updateTeacher, wallet } from './services.js';
 import { id } from './seed.js';
 import type { BookingStatus, Role, User } from './types.js';
 import { getGigDraft, publishGigDraft, saveGigDraft } from './gig-builder.js';
@@ -47,6 +47,17 @@ app.post('/api/bookings/:id/notes',auth(['TEACHER']),handler((req,res)=> { const
 app.post('/api/bookings/:id/recording',auth(['TEACHER']),handler((req,res)=>ok(res,store.transaction(s=>{const b=s.bookings.find(x=>x.id===req.params.id&&x.teacherId===actor(req).id);if(!b)throw new DomainError('বুকিং পাওয়া যায়নি।',404);b.recording={name:cleanText(req.body.name,'রেকর্ডিংয়ের নাম',160),duration:Number(req.body.duration)||0};return b;}))));
 
 app.put('/api/teacher/profile',auth(['TEACHER']),handler((req,res)=>ok(res,store.transaction(s=>updateTeacher(s,actor(req),req.body)))));
+app.put('/api/teacher/availability',auth(['TEACHER']),handler((req,res)=>ok(res,store.transaction(s=>{const teacher=s.teachers.find(t=>t.userId===actor(req).id); if(!teacher) throw new DomainError('শিক্ষক প্রোফাইল পাওয়া যায়নি।',404); const price=Number(req.body.sessionPrice ?? teacher.sessionPrice ?? teacher.hourlyRate); const availability = req.body.availability && typeof req.body.availability === 'object' ? req.body.availability as Record<string,string[]> : teacher.availability; if (Number.isFinite(price) && price > 0) teacher.sessionPrice = price; teacher.availability = availability; teacher.isLive = true; teacher.lastSeenAt = new Date().toISOString(); return teacher; }))));
+app.get('/api/problem-sessions',auth(),handler((req,res)=>{
+  const teachers = store.read().teachers.map(t => ({
+    ...publicTeacher(store.read(), t),
+    isLive: t.isLive ?? false,
+    lastSeenAt: t.lastSeenAt ?? new Date().toISOString(),
+    availableSlots: Object.values(t.availability || {}).flat().slice(0, 6)
+  }));
+  return ok(res, teachers.filter(x => x.isLive || x.availableSlots.length));
+}));
+app.post('/api/problem-sessions',auth(['STUDENT']),handler((req,res)=>ok(res,store.transaction(s=>createProblemSession(s,actor(req),req.body)),201)));
 app.post('/api/teacher/gigs',auth(['TEACHER']),handler((req,res)=>ok(res,store.transaction(s=>createGig(s,actor(req),req.body)),201)));
 app.get('/api/teacher/gig-drafts',auth(['TEACHER']),handler((req,res)=>ok(res,getGigDraft(store.read(),actor(req),typeof req.query.id==='string'?req.query.id:undefined))));
 app.put('/api/teacher/gig-drafts',auth(['TEACHER']),handler((req,res)=>ok(res,store.transaction(s=>saveGigDraft(s,actor(req),req.body)))));
