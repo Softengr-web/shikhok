@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api, post } from './api';
 import { Avatar, Empty, Loading, bn, go } from './components';
 import type { Exam, ExamQuestion, User } from './models';
+import './exam-pages.css';
 
 type DraftQuestion = { id: string; text: string; options: string[]; answer: number; marks: number };
 const newQuestion = (): DraftQuestion => ({ id: `new-${Date.now()}-${Math.random()}`, text: '', options: ['', '', '', ''], answer: 0, marks: 1 });
