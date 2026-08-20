@@ -4,7 +4,7 @@ import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { store } from './store.js';
-import { DomainError, authenticate, changeBookingStatus, cleanText, conversation, createBooking, createGig, createProblemSession, createReview, findTeachers, listConversations, markConversationRead, matchTeachers, payBooking, publicTeacher, publicUser, register, requireRole, requireUser, sendMessage, submitExam, updateTeacher, wallet } from './services.js';
+import { DomainError, authenticate, changeBookingStatus, cleanText, conversation, createBooking, createExam, createGig, createProblemSession, createReview, deleteExam, duplicateExam, findTeachers, getExamForStudent, listConversations, listTeacherExams, markConversationRead, matchTeachers, payBooking, publicTeacher, publicUser, publishExam, register, requireRole, requireUser, sendMessage, setExamStatus, submitExam, teacherExamResults, updateExam, updateTeacher, wallet } from './services.js';
 import { id } from './seed.js';
 import type { BookingStatus, Role, User } from './types.js';
 import { getGigDraft, publishGigDraft, saveGigDraft } from './gig-builder.js';
@@ -87,8 +87,17 @@ app.get('/api/favorites',auth(['STUDENT']),handler((req,res)=>ok(res,store.read(
 app.post('/api/favorites',auth(['STUDENT']),handler((req,res)=>ok(res,store.transaction(s=>{const kind=req.body.kind as 'TEACHER'|'GIG'|'COURSE';const itemId=cleanText(req.body.itemId,'আইটেম',100);if(!['TEACHER','GIG','COURSE'].includes(kind))throw new DomainError('সঠিক আইটেম দিন।');const found=s.favorites.find(f=>f.userId===actor(req).id&&f.kind===kind&&f.itemId===itemId);if(found){s.favorites=s.favorites.filter(f=>f.id!==found.id);return {saved:false};}s.favorites.push({id:id('favorite'),userId:actor(req).id,kind,itemId,createdAt:new Date().toISOString()});return {saved:true};}))));
 app.post('/api/reviews',auth(['STUDENT']),handler((req,res)=>ok(res,store.transaction(s=>createReview(s,actor(req),req.body)),201)));
 
-app.get('/api/exams',auth(),handler((_req,res)=> {const state=store.read();return ok(res,state.exams.filter(e=>e.active).map(e=>({...e,questions:e.questionIds.length})));}));
-app.get('/api/exams/:id',auth(['STUDENT']),handler((req,res)=>{const state=store.read(),exam=state.exams.find(e=>e.id===String(req.params.id)&&e.active);if(!exam)throw new DomainError('পরীক্ষাটি পাওয়া যায়নি।',404);return ok(res,{...exam,questions:exam.questionIds.map(qid=>{const q=state.questions.find(x=>x.id===qid)!;return {id:q.id,text:q.text,options:q.options,marks:q.marks};})});}));
+app.get('/api/teacher/exams',auth(['TEACHER']),handler((req,res)=>ok(res,listTeacherExams(store.read(),actor(req)))));
+app.post('/api/teacher/exams',auth(['TEACHER']),handler((req,res)=>ok(res,store.transaction(s=>createExam(s,actor(req),req.body)),201)));
+app.put('/api/teacher/exams/:id',auth(['TEACHER']),handler((req,res)=>ok(res,store.transaction(s=>updateExam(s,actor(req),String(req.params.id),req.body)))));
+app.delete('/api/teacher/exams/:id',auth(['TEACHER']),handler((req,res)=>ok(res,store.transaction(s=>deleteExam(s,actor(req),String(req.params.id))))));
+app.post('/api/teacher/exams/:id/publish',auth(['TEACHER']),handler((req,res)=>ok(res,store.transaction(s=>publishExam(s,actor(req),String(req.params.id))))));
+app.post('/api/teacher/exams/:id/status',auth(['TEACHER']),handler((req,res)=>{const status=req.body.status as 'PUBLISHED'|'CLOSED';if(!['PUBLISHED','CLOSED'].includes(status))throw new DomainError('সঠিক পরীক্ষার স্ট্যাটাস দিন।');return ok(res,store.transaction(s=>setExamStatus(s,actor(req),String(req.params.id),status)));}));
+app.post('/api/teacher/exams/:id/duplicate',auth(['TEACHER']),handler((req,res)=>ok(res,store.transaction(s=>duplicateExam(s,actor(req),String(req.params.id))),201)));
+app.get('/api/teacher/exams/:id/results',auth(['TEACHER']),handler((req,res)=>ok(res,teacherExamResults(store.read(),actor(req),String(req.params.id)))));
+app.get('/api/exams',auth(),handler((req,res)=> {const state=store.read();return ok(res,state.exams.filter(e=>e.active&&(e.status===undefined||e.status==='PUBLISHED')).map(e=>({...e,questions:e.questionIds.length})));}));
+app.get('/api/exams/share/:token',auth(['STUDENT']),handler((req,res)=>ok(res,getExamForStudent(store.read(),String(req.params.token)))));
+app.get('/api/exams/:id',auth(['STUDENT']),handler((req,res)=>ok(res,getExamForStudent(store.read(),String(req.params.id)))));
 app.post('/api/exams/:id/submit',auth(['STUDENT']),handler((req,res)=>ok(res,store.transaction(s=>submitExam(s,actor(req),String(req.params.id),req.body.answers||{})),201)));
 
 app.get('/api/problems',handler((_req,res)=> {const state=store.read();return ok(res,state.problems.map(p=>({...p,student:publicUser(requireUser(state,p.studentId)),offers:state.offers.filter(o=>o.problemId===p.id)})));}));

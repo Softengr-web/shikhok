@@ -48,8 +48,9 @@ export interface Message { id: string; conversationId: string; senderId: string;
 export interface Notification { id: string; userId: string; type: string; title: string; body: string; href: string; readAt?: string; createdAt: string; }
 export interface Review { id: string; bookingId: string; studentId: string; teacherId: string; rating: number; comment: string; createdAt: string; response?: string; }
 export interface Question { id: string; teacherId: string; subject: string; topic: string; difficulty: string; text: string; options: string[]; answer: number; explanation: string; marks: number; tags: string[]; }
-export interface Exam { id: string; teacherId: string; title: string; subject: string; topic: string; duration: number; passMark: number; questionIds: string[]; active: boolean; }
-export interface ExamAttempt { id: string; examId: string; studentId: string; answers: Record<string, number>; score: number; total: number; passed: boolean; createdAt: string; }
+export type ExamStatus = 'DRAFT' | 'PUBLISHED' | 'CLOSED';
+export interface Exam { id: string; teacherId: string; title: string; description?: string; instructions?: string; subject: string; topic: string; duration: number; passMark: number; totalMarks?: number; showAnswers?: boolean; shareToken?: string; status?: ExamStatus; questionIds: string[]; active: boolean; createdAt?: string; updatedAt?: string; }
+export interface ExamAttempt { id: string; examId: string; studentId: string; answers: Record<string, number>; score: number; total: number; percentage?: number; correctCount?: number; incorrectCount?: number; unansweredCount?: number; passed: boolean; submittedAt?: string; createdAt: string; }
 export interface Favorite { id: string; userId: string; kind: 'TEACHER' | 'GIG' | 'COURSE'; itemId: string; createdAt: string; }
 export interface Problem { id: string; studentId: string; title: string; description: string; subject: string; topic: string; budget: number; deadline: string; status: 'OPEN' | 'ACCEPTED' | 'DELIVERED' | 'CLOSED'; createdAt: string; }
 export interface ProblemOffer { id: string; problemId: string; teacherId: string; message: string; price: number; status: 'PENDING' | 'ACCEPTED' | 'REJECTED'; createdAt: string; }
