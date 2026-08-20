@@ -20,6 +20,18 @@ export interface Gig {
   level: string; language: string; tags: string[]; packages: GigPackage[]; demoUrl: string;
   includes: string[]; requirements: string; faqs: { q: string; a: string }[]; active: boolean; createdAt: string;
 }
+export interface GigDraftPackage { id: string; name: string; classes: number; duration: number; price: number; discount: number; validity: number; capacity: number; features: string[]; policy: string; }
+export interface GigDraft {
+  id: string; teacherId: string; step: number; status: 'DRAFT'|'PUBLISHED'; updatedAt: string;
+  title: string; description: string; subject: string; topic: string; subtopic: string; tags: string[];
+  levels: string[]; outcomes: string[]; teachingStyle: string; classType: string; duration: number;
+  pricingModel: string; packages: GigDraftPackage[]; extras: { id:string; name:string; price:number; quantity:number; description:string }[];
+  trial: { enabled:boolean; paid:boolean; price:number; duration:number }; demoUrl: string;
+  media: { id:string; kind:'IMAGE'|'VIDEO'|'DOCUMENT'; url:string; caption:string; cover:boolean }[];
+  requirements: { id:string; label:string; required:boolean; file:boolean }[]; includes: string[];
+  faqs: { id:string; q:string; a:string }[]; availability: Record<string,string[]>; deliveryMode: string;
+  cancellation: string; reschedule: string; visibility: string; qualityScore: number; version: number;
+}
 export interface Booking {
   id: string; studentId: string; teacherId: string; gigId: string; packageId: string; date: string; time: string;
   price: number; status: BookingStatus; history: { status: BookingStatus; at: string; note: string }[];
@@ -40,7 +52,7 @@ export interface ParentChild { id: string; parentId: string; childId: string; cr
 export interface Report { id: string; reporterId: string; subjectType: string; subjectId: string; reason: string; status: 'OPEN' | 'RESOLVED'; createdAt: string; }
 export interface AuditLog { id: string; actorId: string; action: string; entity: string; entityId: string; at: string; }
 export interface AppState {
-  users: User[]; subjects: Subject[]; teachers: Teacher[]; gigs: Gig[]; bookings: Booking[]; payments: Payment[];
+  users: User[]; subjects: Subject[]; teachers: Teacher[]; gigs: Gig[]; gigDrafts?: GigDraft[]; bookings: Booking[]; payments: Payment[];
   ledger: LedgerEntry[]; messages: Message[]; notifications: Notification[]; reviews: Review[]; questions: Question[];
   exams: Exam[]; attempts: ExamAttempt[]; favorites: Favorite[]; problems: Problem[]; offers: ProblemOffer[];
   parentChildren: ParentChild[]; reports: Report[]; audit: AuditLog[];

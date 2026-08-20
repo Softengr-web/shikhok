@@ -17,7 +17,7 @@ const subjects = [
 const makeUser = (id: string, email: string, role: Role, name: string): User => ({ id, email, role, name, passwordHash: passwordHash('demo123'), createdAt: now(), active: true, profile: {} });
 
 export function createDemoState(): AppState {
-  const state: AppState = { users: [], subjects: [], teachers: [], gigs: [], bookings: [], payments: [], ledger: [], messages: [], notifications: [], reviews: [], questions: [], exams: [], attempts: [], favorites: [], problems: [], offers: [], parentChildren: [], reports: [], audit: [] };
+  const state: AppState = { users: [], subjects: [], teachers: [], gigs: [], gigDrafts: [], bookings: [], payments: [], ledger: [], messages: [], notifications: [], reviews: [], questions: [], exams: [], attempts: [], favorites: [], problems: [], offers: [], parentChildren: [], reports: [], audit: [] };
   state.subjects = subjects.map(([name, icon, topics], i) => ({ id: `sub-${i + 1}`, name: name as string, icon: icon as string, topics: topics as string[] }));
   state.users.push(makeUser('admin-1', 'admin@demo.local', 'ADMIN', 'ডেমো অ্যাডমিন'));
   for (let i = 1; i <= 20; i++) state.users.push(makeUser(`student-${i}`, i === 1 ? 'student@demo.local' : `student${i}@demo.local`, 'STUDENT', `শিক্ষার্থী ${i}`));

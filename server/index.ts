@@ -6,6 +6,7 @@ import { store } from './store.js';
 import { DomainError, authenticate, changeBookingStatus, cleanText, conversation, createBooking, createGig, createReview, findTeachers, matchTeachers, payBooking, publicTeacher, publicUser, register, requireRole, requireUser, sendMessage, submitExam, updateTeacher, wallet } from './services.js';
 import { id } from './seed.js';
 import type { BookingStatus, Role, User } from './types.js';
+import { getGigDraft, publishGigDraft, saveGigDraft } from './gig-builder.js';
 
 const app = express();
 const sessions = new Map<string, string>();
@@ -46,6 +47,9 @@ app.post('/api/bookings/:id/recording',auth(['TEACHER']),handler((req,res)=>ok(r
 
 app.put('/api/teacher/profile',auth(['TEACHER']),handler((req,res)=>ok(res,store.transaction(s=>updateTeacher(s,actor(req),req.body)))));
 app.post('/api/teacher/gigs',auth(['TEACHER']),handler((req,res)=>ok(res,store.transaction(s=>createGig(s,actor(req),req.body)),201)));
+app.get('/api/teacher/gig-drafts',auth(['TEACHER']),handler((req,res)=>ok(res,getGigDraft(store.read(),actor(req),typeof req.query.id==='string'?req.query.id:undefined))));
+app.put('/api/teacher/gig-drafts',auth(['TEACHER']),handler((req,res)=>ok(res,store.transaction(s=>saveGigDraft(s,actor(req),req.body)))));
+app.post('/api/teacher/gig-drafts/:id/publish',auth(['TEACHER']),handler((req,res)=>ok(res,store.transaction(s=>publishGigDraft(s,actor(req),String(req.params.id))),201)));
 app.get('/api/wallet',auth(['TEACHER']),handler((req,res)=>ok(res,wallet(store.read(),actor(req)))));
 app.post('/api/wallet/payout',auth(['TEACHER']),handler((req,res)=>ok(res,store.transaction(s=>{const summary=wallet(s,actor(req));if(summary.pending<=0)throw new DomainError('উত্তোলনের জন্য কোনো ডেমো প্রাপ্য নেই।');s.ledger.push({id:id('ledger'),userId:actor(req).id,type:'PAYOUT',amount:-summary.pending,ref:'demo-payout',note:'ডেমো উত্তোলন — কোনো বাস্তব অর্থ নয়',createdAt:new Date().toISOString()});return {message:'ডেমো উত্তোলনের অনুরোধ সম্পন্ন হয়েছে।',amount:summary.pending};}))));
 
