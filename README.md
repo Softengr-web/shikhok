@@ -20,6 +20,7 @@ npm.cmd run dev
 
 | ভূমিকা | ইমেইল |
 |---|---|
+| সক্রিয় ডেমো শিক্ষার্থী | `demo@demo.local` |
 | শিক্ষার্থী | `student@demo.local` |
 | শিক্ষক | `teacher@demo.local` |
 | অভিভাবক | `parent@demo.local` |

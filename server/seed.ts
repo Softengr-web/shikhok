@@ -20,6 +20,7 @@ export function createDemoState(): AppState {
   const state: AppState = { users: [], subjects: [], teachers: [], gigs: [], gigDrafts: [], gigOffers: [], gigVersions: [], gigAnalytics: [], gigModeration: [], bookings: [], payments: [], ledger: [], messages: [], notifications: [], reviews: [], questions: [], exams: [], attempts: [], favorites: [], problems: [], offers: [], parentChildren: [], reports: [], audit: [] };
   state.subjects = subjects.map(([name, icon, topics], i) => ({ id: `sub-${i + 1}`, name: name as string, icon: icon as string, topics: topics as string[] }));
   state.users.push(makeUser('admin-1', 'admin@demo.local', 'ADMIN', 'ডেমো অ্যাডমিন'));
+  state.users.push(makeUser('demo-1', 'demo@demo.local', 'STUDENT', 'ডেমো শিক্ষার্থী'));
   for (let i = 1; i <= 20; i++) state.users.push(makeUser(`student-${i}`, i === 1 ? 'student@demo.local' : `student${i}@demo.local`, 'STUDENT', `শিক্ষার্থী ${i}`));
   for (let i = 1; i <= 10; i++) state.users.push(makeUser(`parent-${i}`, i === 1 ? 'parent@demo.local' : `parent${i}@demo.local`, 'PARENT', `অভিভাবক ${i}`));
   bnNames.forEach((name, i) => {

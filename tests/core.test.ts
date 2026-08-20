@@ -7,6 +7,8 @@ test('ডেমো অ্যাকাউন্ট দিয়ে লগইন ক�
   const state = createDemoState();
   const user = authenticate(state, 'student@demo.local', 'demo123');
   assert.equal(user.role, 'STUDENT');
+  const activeDemo = authenticate(state, 'demo@demo.local', 'demo123');
+  assert.equal(activeDemo.name, 'ডেমো শিক্ষার্থী');
   assert.throws(() => authenticate(state, 'student@demo.local', 'ভুলপাস'), DomainError);
 });
 test('রোল ছাড়া শিক্ষক কাজ করা যায় না', () => {
