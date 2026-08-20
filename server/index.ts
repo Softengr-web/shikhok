@@ -1,13 +1,15 @@
 import express, { type Request, type Response, type NextFunction } from 'express';
+import { createServer } from 'node:http';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { store } from './store.js';
-import { DomainError, authenticate, changeBookingStatus, cleanText, conversation, createBooking, createGig, createProblemSession, createReview, findTeachers, matchTeachers, payBooking, publicTeacher, publicUser, register, requireRole, requireUser, sendMessage, submitExam, updateTeacher, wallet } from './services.js';
+import { DomainError, authenticate, changeBookingStatus, cleanText, conversation, createBooking, createGig, createProblemSession, createReview, findTeachers, listConversations, markConversationRead, matchTeachers, payBooking, publicTeacher, publicUser, register, requireRole, requireUser, sendMessage, submitExam, updateTeacher, wallet } from './services.js';
 import { id } from './seed.js';
 import type { BookingStatus, Role, User } from './types.js';
 import { getGigDraft, publishGigDraft, saveGigDraft } from './gig-builder.js';
 import { acceptCustomOffer, createCustomOffer, duplicateGig, editGig, moderateGig, recordGigView } from './gig-capabilities.js';
+import { WebSocket, WebSocketServer } from 'ws';
 
 const app = express();
 const sessions = new Map<string, string>();
@@ -74,8 +76,10 @@ app.post('/api/admin/gigs/:id/moderation',auth(['ADMIN','SUPER_ADMIN']),handler(
 app.get('/api/wallet',auth(['TEACHER']),handler((req,res)=>ok(res,wallet(store.read(),actor(req)))));
 app.post('/api/wallet/payout',auth(['TEACHER']),handler((req,res)=>ok(res,store.transaction(s=>{const summary=wallet(s,actor(req));if(summary.pending<=0)throw new DomainError('উত্তোলনের জন্য কোনো ডেমো প্রাপ্য নেই।');s.ledger.push({id:id('ledger'),userId:actor(req).id,type:'PAYOUT',amount:-summary.pending,ref:'demo-payout',note:'ডেমো উত্তোলন — কোনো বাস্তব অর্থ নয়',createdAt:new Date().toISOString()});return {message:'ডেমো উত্তোলনের অনুরোধ সম্পন্ন হয়েছে।',amount:summary.pending};}))));
 
+app.get('/api/messages',auth(),handler((req,res)=>ok(res,listConversations(store.read(),actor(req)))));
 app.get('/api/messages/:userId',auth(),handler((req,res)=>ok(res,conversation(store.read(),actor(req),String(req.params.userId)))));
 app.post('/api/messages/:userId',auth(),handler((req,res)=>ok(res,store.transaction(s=>sendMessage(s,actor(req),String(req.params.userId),req.body.body)),201)));
+app.post('/api/messages/:userId/read',auth(),handler((req,res)=>ok(res,store.transaction(s=>markConversationRead(s,actor(req),String(req.params.userId))))));
 app.get('/api/notifications',auth(),handler((req,res)=>ok(res,store.read().notifications.filter(n=>n.userId===actor(req).id).sort((a,b)=>b.createdAt.localeCompare(a.createdAt)))));
 app.post('/api/notifications/:id/read',auth(),handler((req,res)=>ok(res,store.transaction(s=>{const n=s.notifications.find(x=>x.id===req.params.id&&x.userId===actor(req).id);if(!n)throw new DomainError('নোটিফিকেশন পাওয়া যায়নি।',404);n.readAt=new Date().toISOString();return n;}))));
 
@@ -99,6 +103,17 @@ app.post('/api/reports',auth(),handler((req,res)=>ok(res,store.transaction(s=>{c
 
 app.use((error:unknown,_req:Request,res:Response,next:NextFunction)=>{void next;const known=error instanceof DomainError;console.error(error);res.status(known?error.status:500).json({ok:false,message:known?error.message:'কিছু একটা সমস্যা হয়েছে। আবার চেষ্টা করুন।'});});
 const client=resolve(process.cwd(),'dist','client');if(existsSync(client)){app.use(express.static(client));app.get(/.*/,(req,res)=>res.sendFile(resolve(client,'index.html')));}
-app.listen(port,()=>console.log(`শিখক লোকাল ডেমো সার্ভার: http://localhost:${port}`));
+const httpServer=createServer(app);
+const sockets=new Map<string,Set<WebSocket>>();
+const sendToUser=(userId:string,payload:unknown)=>{for(const socket of sockets.get(userId)||[])if(socket.readyState===WebSocket.OPEN)socket.send(JSON.stringify(payload));};
+const wsUser=(request:import('node:http').IncomingMessage)=>{const token=request.headers.cookie?.split(';').map(v=>v.trim()).find(v=>v.startsWith('shikhok_session='))?.slice('shikhok_session='.length);const userId=token&&sessions.get(token);return userId?store.read().users.find(u=>u.id===userId):undefined;};
+const wsServer=new WebSocketServer({server:httpServer,path:'/ws'});
+wsServer.on('connection',(socket,request)=>{
+  const user=wsUser(request); if(!user){socket.close(1008,'Authentication required');return;}
+  const userSockets=sockets.get(user.id)||new Set<WebSocket>(); userSockets.add(socket); sockets.set(user.id,userSockets);
+  socket.on('message',raw=>{try{const input=JSON.parse(raw.toString()) as {type?:string;to?:string;body?:unknown};if(input.type!=='message'||!input.to)throw new DomainError('বার্তার গন্তব্য সঠিক নয়।');const message=store.transaction(s=>sendMessage(s,user,input.to!,input.body));const payload={type:'message',data:message};sendToUser(user.id,payload);sendToUser(message.receiverId,payload);}catch(error){socket.send(JSON.stringify({type:'error',message:error instanceof Error?error.message:'বার্তা পাঠানো যায়নি।'}));}});
+  socket.on('close',()=>{userSockets.delete(socket);if(!userSockets.size)sockets.delete(user.id);});
+});
+httpServer.listen(port,()=>console.log(`শিখক লোকাল ডেমো সার্ভার: http://localhost:${port}`));
 
 export { app };
