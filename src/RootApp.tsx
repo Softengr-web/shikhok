@@ -12,6 +12,7 @@ export function RootApp() {
   const [route, setRoute] = useState(location.hash || '#/');
   const [notice, setNotice] = useState('');
   useEffect(() => { const onHashChange = () => setRoute(location.hash || '#/'); addEventListener('hashchange', onHashChange); return () => removeEventListener('hashchange', onHashChange); }, []);
+  useEffect(() => { const frame = requestAnimationFrame(() => window.scrollTo(0, 0)); return () => cancelAnimationFrame(frame); }, [route]);
   useEffect(() => { void api<User>('/auth/me').then(setUser).catch(() => setUser(null)); }, []);
   const logout = async () => { try { await post('/auth/logout'); setUser(null); location.hash = '#/'; setNotice('আপনি লগআউট করেছেন।'); } catch (error) { setNotice(error instanceof Error ? error.message : 'লগআউট করা যায়নি।'); } };
   const path = route.slice(1).split('?')[0];
