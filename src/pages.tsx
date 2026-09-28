@@ -61,7 +61,101 @@ function LoginHint({onClose}:{onClose:()=>void}){return <div className="modal-ba
 
 export function GigPage({user}:{user:User|null}) { const id=location.hash.split('/')[2]?.split('?')[0];const [gig,setGig]=useState<Gig|null>(null);const [booking,setBooking]=useState(false);useEffect(()=>{if(id)void api<Gig>(`/gigs/${id}`).then(setGig);},[id]);if(!gig)return <Loading/>;return <section className="page section"><p className="eyebrow">{gig.subject} • {gig.level}</p><h1>{gig.title}</h1><p className="lead">{gig.description}</p><div className="gig-page-grid"><div>{gig.demoUrl&&<iframe className="video" src={gig.demoUrl} title="ডেমো ক্লাস" allowFullScreen/>}<Info title="যা যা পাবেন"><ul>{gig.includes.map(x=><li key={x}>{x}</li>)}</ul></Info><Info title="শিক্ষার্থীর জন্য প্রয়োজনীয়তা"><p>{gig.requirements}</p></Info><Info title="সচরাচর জিজ্ঞাসা">{gig.faqs.map(x=><details key={x.q}><summary>{x.q}</summary><p>{x.a}</p></details>)}</Info></div><aside className="package-box"><h2>প্যাকেজ বেছে নিন</h2>{gig.packages.map(p=><article key={p.id}><h3>{p.name}</h3><p>{p.classes}টি ক্লাস • {p.duration} মিনিট</p><b>{money(p.price)}</b><ul>{p.features.map(f=><li key={f}>{f}</li>)}</ul></article>)}<button className="button wide" onClick={()=>setBooking(true)}>ক্লাস বুক করুন</button><p className="help">ডেমো পেমেন্ট — শুধুমাত্র লোকাল পরীক্ষার জন্য</p></aside></div>{booking&&(user?.role==='STUDENT'?<BookingModal gig={gig} onClose={()=>setBooking(false)} onDone={bid=>go(`/payment/${bid}`)}/>:<LoginHint onClose={()=>setBooking(false)}/>)}</section> }
 
-export function AuthPage({kind,onLogin}:{kind:'login'|'register';onLogin:(user:User)=>void}) { const [name,setName]=useState('');const [email,setEmail]=useState(kind==='login'?'student@demo.local':'');const [password,setPassword]=useState(kind==='login'?'demo123':'');const [role,setRole]=useState('STUDENT');const [error,setError]=useState('');const [busy,setBusy]=useState(false);const submit=async(e:React.FormEvent)=>{e.preventDefault();setBusy(true);setError('');try{const u=kind==='login'?await post<User>('/auth/login',{email,password}):await post<User>('/auth/register',{name,email,password,role});onLogin(u);go('/dashboard');}catch(e){setError(e instanceof Error?e.message:'সমস্যা হয়েছে');}finally{setBusy(false);}};return <section className="auth-page"><div className="auth-aside"><a className="brand" href="#/" aria-label="Private Tutor হোম"><img src="/images/private-tutor-logo.png" alt="" /></a><p className="eyebrow">সম্পূর্ণ লোকাল ডেমো</p><h1>শেখার নতুন পথ শুরু হোক আজই</h1><p>সব ডেটা শুধু আপনার কম্পিউটারে চলে। কোনো বাস্তব পেমেন্ট বা বাইরের API নেই।</p><div className="demo-accounts"><b>দ্রুত পরীক্ষার ডেমো অ্যাকাউন্ট</b><button onClick={()=>{setEmail('student@demo.local');setPassword('demo123')}}>শিক্ষার্থী</button><button onClick={()=>{setEmail('teacher@demo.local');setPassword('demo123')}}>শিক্ষক</button><button onClick={()=>{setEmail('parent@demo.local');setPassword('demo123')}}>অভিভাবক</button><button onClick={()=>{setEmail('admin@demo.local');setPassword('demo123')}}>অ্যাডমিন</button></div></div><div className="auth-form"><p className="eyebrow">{kind==='login'?'ফিরে আসায় স্বাগতম':'নতুন অ্যাকাউন্ট'}</p><h2>{kind==='login'?'লগইন করুন':'শিক্ষকে নিবন্ধন করুন'}</h2><form onSubmit={submit}>{kind==='register'&&<><label>পূর্ণ নাম<input value={name} onChange={e=>setName(e.target.value)} required/></label><label>আমি একজন<select value={role} onChange={e=>setRole(e.target.value)}><option value="STUDENT">শিক্ষার্থী</option><option value="TEACHER">শিক্ষক</option><option value="PARENT">অভিভাবক</option></select></label></>}<label>ইমেইল<input type="email" value={email} onChange={e=>setEmail(e.target.value)} required/></label><label>পাসওয়ার্ড<input type="password" value={password} onChange={e=>setPassword(e.target.value)} required minLength={6}/></label>{kind==='login'&&<p className="help">পাসওয়ার্ড ভুলে গেলে: লোকাল ডেমোতে ডেমো অ্যাকাউন্ট ব্যবহার করুন।</p>}{error&&<p className="form-error">{error}</p>}<button className="button wide" disabled={busy}>{busy?'অপেক্ষা করুন…':kind==='login'?'লগইন করুন':'অ্যাকাউন্ট তৈরি করুন'}</button></form><p>{kind==='login'?'নতুন?':'ইতোমধ্যে নিবন্ধিত?'} <a href={kind==='login'?'#/register':'#/login'}>{kind==='login'?'নিবন্ধন করুন':'লগইন করুন'}</a></p></div></section> }
+export function AuthPage({ kind, onLogin }: { kind: 'login' | 'register'; onLogin: (user: User) => void }) {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState(kind === 'login' ? 'student@demo.local' : '');
+  const [password, setPassword] = useState(kind === 'login' ? 'demo123' : '');
+  const [role, setRole] = useState('STUDENT');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const chooseDemo = (demoEmail: string) => {
+    setEmail(demoEmail);
+    setPassword('demo123');
+  };
+
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setBusy(true);
+    setError('');
+    try {
+      const user = kind === 'login'
+        ? await post<User>('/auth/login', { email, password })
+        : await post<User>('/auth/register', { name, email, password, role });
+      onLogin(user);
+      go('/dashboard');
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'সমস্যা হয়েছে');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className={`auth-page ${kind === 'login' ? 'is-login' : 'is-register'}`}>
+      <aside className="auth-aside">
+        <div className="auth-intro">
+          <h1 className="auth-wordmark" aria-label="Private Tutor">
+            <span>Private</span> <b>Tutor</b><i aria-hidden="true" />
+          </h1>
+          <p className="eyebrow auth-demo-label"><span aria-hidden="true" />সম্পূর্ণ লোকাল ডেমো</p>
+          <h2>শেখা ও শেখানোর সহজ শুরু</h2>
+          <p className="auth-description">শিক্ষক খোঁজা, শেখার সেবা, বুকিং আর ক্লাসরুম—সবকিছু ঘুরে দেখুন। এটি একটি ডেমো পরিবেশ; এখানে কোনো আসল পেমেন্ট নেওয়া হয় না।</p>
+        </div>
+
+        <section className="demo-account-panel" aria-labelledby="demo-account-title">
+          <div className="demo-account-heading">
+            <div>
+              <h3 id="demo-account-title">ডেমো অ্যাকাউন্ট বেছে নিন</h3>
+              <p>একটি বাছলে লগইন তথ্য বসবে—তারপর লগইন করুন।</p>
+            </div>
+            <span className="demo-count">৪টি প্রোফাইল</span>
+          </div>
+          <div className="demo-accounts">
+            <button type="button" onClick={() => chooseDemo('student@demo.local')}>
+              <span className="demo-role-icon" aria-hidden="true">শি</span>
+              <span className="demo-role-copy"><b>শিক্ষার্থী</b><small>শিখতে শুরু করুন</small></span>
+              <span className="demo-role-arrow" aria-hidden="true">↗</span>
+            </button>
+            <button type="button" onClick={() => chooseDemo('teacher@demo.local')}>
+              <span className="demo-role-icon" aria-hidden="true">শি</span>
+              <span className="demo-role-copy"><b>শিক্ষক</b><small>শিক্ষক ড্যাশবোর্ড</small></span>
+              <span className="demo-role-arrow" aria-hidden="true">↗</span>
+            </button>
+            <button type="button" onClick={() => chooseDemo('parent@demo.local')}>
+              <span className="demo-role-icon" aria-hidden="true">অ</span>
+              <span className="demo-role-copy"><b>অভিভাবক</b><small>শেখার অগ্রগতি দেখুন</small></span>
+              <span className="demo-role-arrow" aria-hidden="true">↗</span>
+            </button>
+            <button type="button" onClick={() => chooseDemo('admin@demo.local')}>
+              <span className="demo-role-icon" aria-hidden="true">অ</span>
+              <span className="demo-role-copy"><b>অ্যাডমিন</b><small>ডেমো পরিচালনা</small></span>
+              <span className="demo-role-arrow" aria-hidden="true">↗</span>
+            </button>
+          </div>
+        </section>
+      </aside>
+
+      <div className="auth-form">
+        <p className="eyebrow">{kind === 'login' ? 'আপনার অ্যাকাউন্টে প্রবেশ করুন' : 'নতুন অ্যাকাউন্ট'}</p>
+        <h2>{kind === 'login' ? 'লগইন করুন' : 'নিবন্ধন করুন'}</h2>
+        <p className="auth-form-intro">{kind === 'login' ? 'আপনার শেখা বা শেখানোর যাত্রা চালিয়ে যান।' : 'Private Tutor-এ আপনার অ্যাকাউন্ট তৈরি করুন।'}</p>
+        <form onSubmit={submit}>
+          {kind === 'register' && <>
+            <label>পূর্ণ নাম<input value={name} onChange={event => setName(event.target.value)} autoComplete="name" required /></label>
+            <label>আমি একজন<select value={role} onChange={event => setRole(event.target.value)}><option value="STUDENT">শিক্ষার্থী</option><option value="TEACHER">শিক্ষক</option><option value="PARENT">অভিভাবক</option></select></label>
+          </>}
+          <label>ইমেইল<input type="email" value={email} onChange={event => setEmail(event.target.value)} autoComplete="email" required /></label>
+          <label>পাসওয়ার্ড<input type="password" value={password} onChange={event => setPassword(event.target.value)} autoComplete={kind === 'login' ? 'current-password' : 'new-password'} required minLength={6} /></label>
+          {kind === 'login' && <p className="help">ডেমো অ্যাকাউন্ট বেছে নিলে ইমেইল ও পাসওয়ার্ড এখানে বসবে।</p>}
+          {error && <p className="form-error" role="alert">{error}</p>}
+          <button className="button wide" disabled={busy}>{busy ? 'অপেক্ষা করুন…' : kind === 'login' ? 'লগইন করুন' : 'অ্যাকাউন্ট তৈরি করুন'}</button>
+        </form>
+        <p className="auth-switch">{kind === 'login' ? 'অ্যাকাউন্ট নেই?' : 'ইতোমধ্যে নিবন্ধিত?'} <a href={kind === 'login' ? '#/register' : '#/login'}>{kind === 'login' ? 'নিবন্ধন করুন' : 'লগইন করুন'}</a></p>
+      </div>
+    </section>
+  );
+}
 
 type DashboardData={user:User;bookings:Booking[];notifications:Notification[];unread:number;teacher?:Teacher;wallet?:{total:number;pending:number;commission:number;entries:any[]};gigs?:Gig[];analytics?:Record<string,number>;favorites?:any[];attempts?:any[];children?:{name:string;bookings:Booking[];attempts:any[]}[];admin?:{users:number;teachers:number;pending:number;payments:number;reports:number}};
 export function Dashboard({user}:{user:User}) { const [data,setData]=useState<DashboardData|null>(null);useEffect(()=>{void api<DashboardData>('/dashboard').then(setData);},[]);if(!data)return <Loading/>;if(user.role==='TEACHER')return <TeacherDashboard data={data}/>;if(user.role==='PARENT')return <ParentDashboard data={data}/>;if(user.role==='ADMIN'||user.role==='SUPER_ADMIN')return <AdminDashboard data={data}/>;return <StudentDashboard data={data}/>; }
