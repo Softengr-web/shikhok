@@ -5,6 +5,7 @@ import './layout-overrides.css';
 import './gig-builder.css';
 import './gig-capabilities.css';
 import './teacher-profile-gigs.css';
+import './teacher-comparison.css';
 import { RootApp } from './RootApp';
 
 createRoot(document.getElementById('root')!).render(<StrictMode><RootApp /></StrictMode>);

@@ -1,0 +1,366 @@
+.avatar.has-portrait {
+  overflow: hidden;
+  background: var(--soft);
+  border: 2px solid white;
+  box-shadow: 0 2px 9px rgba(12, 54, 51, 0.14);
+}
+
+.avatar.has-portrait img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.compare-page {
+  max-width: 1320px;
+}
+
+.compare-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 26px;
+}
+
+.compare-heading h1 {
+  margin-bottom: 7px;
+  font-size: clamp(2rem, 4vw, 3rem);
+}
+
+.compare-heading p:last-child {
+  margin-bottom: 0;
+  font-size: 1.02rem;
+}
+
+.compare-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 15px;
+  border: 1px solid #cfe5de;
+  border-radius: 999px;
+  background: #edf8f4;
+  color: var(--deep);
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.compare-count b {
+  font-size: 1.1rem;
+}
+
+.compare-table-wrap {
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: white;
+  box-shadow: var(--shadow);
+  overscroll-behavior-x: contain;
+  scrollbar-color: #8bb8ad #edf5f2;
+}
+
+.compare-table-wrap:focus-visible {
+  outline: 3px solid #63a99b;
+  outline-offset: 3px;
+}
+
+.compare-table-wrap .compare-table {
+  display: table;
+  width: 100%;
+  min-width: 740px;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  border-spacing: 0;
+  table-layout: fixed;
+  background: white;
+}
+
+.compare-table-wrap .compare-table > * {
+  display: table-row-group;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+}
+
+.compare-table-wrap .compare-table thead {
+  display: table-header-group;
+}
+
+.compare-table-wrap .compare-table tr {
+  display: table-row;
+}
+
+.compare-table-wrap .compare-table th,
+.compare-table-wrap .compare-table td {
+  display: table-cell;
+  min-height: 0;
+  padding: 16px 18px;
+  border: 0;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+
+.compare-table-wrap .compare-table tr > :last-child {
+  border-right: 0;
+}
+
+.compare-table-wrap .compare-table tbody tr:last-child > * {
+  border-bottom: 0;
+}
+
+.compare-table-wrap .compare-table th:first-child,
+.compare-table-wrap .compare-table td:first-child {
+  width: 165px;
+}
+
+.compare-table-wrap .compare-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  min-width: 245px;
+  padding: 21px 18px;
+  background: linear-gradient(145deg, #f1f9f6, #fffdfa);
+  text-align: left;
+}
+
+.compare-table-wrap .compare-table thead .compare-topic {
+  left: 0;
+  z-index: 3;
+  min-width: 165px;
+  background: #f1f8f6;
+}
+
+.compare-topic span {
+  display: block;
+  color: var(--ink);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.compare-topic small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 400;
+}
+
+.compare-person {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  min-width: 0;
+}
+
+.compare-person .avatar {
+  width: 68px;
+  height: 68px;
+  flex: 0 0 68px;
+  font-size: 1.5rem;
+}
+
+.compare-person-info {
+  min-width: 0;
+}
+
+.compare-person-info > b {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--ink);
+  font-size: 1.08rem;
+  line-height: 1.25;
+}
+
+.compare-person-info p {
+  margin: 0 0 7px;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+.compare-table-wrap .compare-table tbody th {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: var(--soft);
+  color: var(--ink);
+  text-align: left;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.compare-table-wrap .compare-table tbody tr:nth-child(even) td {
+  background: #fcfefd;
+}
+
+.compare-table-wrap .compare-table tbody tr:hover td {
+  background: #f1f8f6;
+}
+
+.compare-table-wrap .compare-table strong {
+  background: transparent;
+}
+
+.compare-value,
+.compare-education,
+.compare-rating,
+.compare-price {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.compare-rating,
+.compare-education {
+  display: grid;
+  gap: 2px;
+}
+
+.compare-rating b {
+  color: #a46606;
+  font-size: 1.03rem;
+}
+
+.compare-rating small,
+.compare-education small {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 400;
+}
+
+.compare-price {
+  color: var(--deep);
+  white-space: nowrap;
+  font-size: 1.08rem;
+}
+
+.compare-price small {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 400;
+}
+
+.compare-status {
+  display: inline-flex;
+  align-items: center;
+  width: max-content;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.compare-status.is-verified {
+  background: #dbf4eb;
+  color: #07554e;
+}
+
+.compare-status.is-pending {
+  background: #fff2d8;
+  color: #85510a;
+}
+
+.compare-hint {
+  margin: 13px 2px 0;
+  font-size: 0.86rem;
+}
+
+.compare-empty {
+  max-width: 600px;
+  margin: 70px auto;
+  padding: 38px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: white;
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+
+.compare-empty > span {
+  display: grid;
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 17px;
+  border-radius: 17px;
+  background: #e8f5f1;
+  color: var(--teal);
+  font-size: 2rem;
+  place-items: center;
+}
+
+.compare-empty h1 {
+  font-size: clamp(1.8rem, 4vw, 2.5rem);
+}
+
+.compare-empty p:not(.eyebrow) {
+  max-width: 450px;
+  margin: 0 auto 20px;
+}
+
+@media (max-width: 700px) {
+  .compare-page {
+    padding: 36px 14px;
+  }
+
+  .compare-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 13px;
+    margin-bottom: 20px;
+  }
+
+  .compare-heading p:last-child {
+    font-size: 0.95rem;
+  }
+
+  .compare-table-wrap {
+    border-radius: 14px;
+  }
+
+  .compare-table-wrap .compare-table {
+    min-width: 690px;
+  }
+
+  .compare-table-wrap .compare-table th,
+  .compare-table-wrap .compare-table td {
+    padding: 14px 12px;
+  }
+
+  .compare-table-wrap .compare-table th:first-child,
+  .compare-table-wrap .compare-table td:first-child,
+  .compare-table-wrap .compare-table thead .compare-topic {
+    width: 132px;
+    min-width: 132px;
+  }
+
+  .compare-table-wrap .compare-table thead th {
+    min-width: 250px;
+    padding: 16px 12px;
+  }
+
+  .compare-table-wrap .compare-table thead .compare-topic {
+    min-width: 132px;
+  }
+
+  .compare-person {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 9px;
+  }
+
+  .compare-person .avatar {
+    width: 58px;
+    height: 58px;
+    flex-basis: 58px;
+  }
+
+  .compare-empty {
+    margin: 35px auto;
+    padding: 28px 19px;
+  }
+}
