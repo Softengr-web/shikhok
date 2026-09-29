@@ -23,6 +23,7 @@ export function GigsPage() {
   const [subject, setSubject] = useState('সব গিগ');
   const [sort, setSort] = useState('popular');
   const [visibleCount, setVisibleCount] = useState(12);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -31,15 +32,18 @@ export function GigsPage() {
       .then(items => { if (active) setGigs(items); })
       .catch(() => { if (active) { setGigs([]); setError('গিগগুলো এখন লোড করা যাচ্ছে না। আবার চেষ্টা করুন।'); } });
     return () => { active = false; };
-  }, []);
+  }, [loadAttempt]);
+
+  const startingPackage = (gig: Gig) => [...gig.packages].sort((a, b) => a.price - b.price)[0];
 
   const subjects = Array.from(new Set((gigs || []).map(gig => gig.subject)));
   const filtered = (gigs || []).filter(gig => {
     const text = `${gig.title} ${gig.description} ${gig.subject} ${gig.topic} ${gig.teacher?.user?.name || ''} ${gig.tags.join(' ')}`.toLocaleLowerCase('bn');
     return (subject === 'সব গিগ' || gig.subject === subject) && (!query.trim() || text.includes(query.trim().toLocaleLowerCase('bn')));
   }).sort((a, b) => {
-    if (sort === 'price') return (a.packages[0]?.price || 0) - (b.packages[0]?.price || 0);
-    if (sort === 'rating') return (b.teacher?.rating || 0) - (a.teacher?.rating || 0);
+    if (sort === 'price') return (startingPackage(a)?.price || 0) - (startingPackage(b)?.price || 0);
+    if (sort === 'rating') return (b.teacher?.rating || 0) - (a.teacher?.rating || 0) || (b.teacher?.reviewCount || 0) - (a.teacher?.reviewCount || 0);
+    if (sort === 'newest') return Date.parse(b.createdAt) - Date.parse(a.createdAt);
     return (b.teacher?.gigViews || 0) - (a.teacher?.gigViews || 0) || (b.teacher?.rating || 0) - (a.teacher?.rating || 0);
   });
 
@@ -55,8 +59,8 @@ export function GigsPage() {
     </div>
 
     <div className="gig-market-toolbar">
-      <label className="gig-market-search"><span aria-hidden="true">⌕</span><input value={query} onChange={event => { setQuery(event.target.value); setVisibleCount(12); }} placeholder="বিষয়, টপিক বা শিক্ষকের নাম খুঁজুন" aria-label="বিষয়, টপিক বা শিক্ষকের নাম খুঁজুন"/></label>
-      <label className="gig-market-sort"><span>সাজান</span><select value={sort} onChange={event => setSort(event.target.value)}><option value="popular">জনপ্রিয়তা</option><option value="rating">শিক্ষকের রেটিং</option><option value="price">কম মূল্য আগে</option></select></label>
+      <div className="gig-market-search"><span aria-hidden="true">⌕</span><input value={query} onChange={event => { setQuery(event.target.value); setVisibleCount(12); }} placeholder="বিষয়, টপিক বা শিক্ষকের নাম খুঁজুন" aria-label="বিষয়, টপিক বা শিক্ষকের নাম খুঁজুন"/>{query && <button type="button" className="gig-market-clear" onClick={() => { setQuery(''); setVisibleCount(12); }} aria-label="খোঁজার লেখা মুছুন">×</button>}<span className="gig-market-hint">বিষয় · টপিক · শিক্ষক</span></div>
+      <label className="gig-market-sort"><span>সাজান</span><select value={sort} onChange={event => setSort(event.target.value)}><option value="popular">জনপ্রিয়তা</option><option value="newest">নতুন গিগ</option><option value="rating">শিক্ষকের রেটিং</option><option value="price">কম প্যাকেজ মূল্য</option></select></label>
     </div>
 
     <div className="gig-market-heading"><div><p className="eyebrow">আপনার শেখার পরের ধাপ</p><h2>শিক্ষকদের শেখার প্যাকেজ</h2></div><span>{gigs === null ? 'লোড হচ্ছে…' : `${bn(filtered.length)}টি গিগ`}</span></div>
@@ -64,19 +68,23 @@ export function GigsPage() {
       {['সব গিগ', ...subjects].map(item => <button key={item} className={subject === item ? 'active' : ''} onClick={() => { setSubject(item); setVisibleCount(12); }}>{item === 'সব গিগ' ? 'সব বিষয়' : item}<span>{item === 'সব গিগ' ? bn(gigs?.length || 0) : bn(gigs?.filter(gig => gig.subject === item).length || 0)}</span></button>)}
     </div>
 
-    {gigs === null ? <Loading/> : error ? <div className="gig-market-empty"><span>⌁</span><h3>গিগ লোড হয়নি</h3><p>{error}</p></div> : filtered.length ? <>
-      <div className="gig-market-grid">{filtered.slice(0, visibleCount).map((gig, index) => <article className="market-gig-card" key={gig.id}>
-        <button className={`market-gig-cover tone-${gigSubjectTones[gig.subject] || 'default'}`} onClick={() => go(`/gig/${gig.id}`)} aria-label={`${gig.title} গিগটি দেখুন`}>
-          <span className="market-gig-cover-label">{gig.subject} <i>·</i> {gig.level}</span><span className="market-gig-cover-mark">{gigSubjectIcons[gig.subject] || '✦'}</span><span className="market-gig-cover-topic">{gig.topic}</span><span className="market-gig-cover-index">{String(index + 1).padStart(2, '0')}</span>
+    {gigs === null ? <Loading/> : error ? <div className="gig-market-empty"><span>⌁</span><h3>গিগ লোড হয়নি</h3><p>{error}</p><button className="quiet-btn" onClick={() => { setError(''); setGigs(null); setLoadAttempt(attempt => attempt + 1); }}>আবার চেষ্টা করুন</button></div> : filtered.length ? <>
+      <div className="gig-market-grid">{filtered.slice(0, visibleCount).map((gig, index) => {
+        const cover = gig.media?.find(media => media.kind === 'IMAGE' && media.cover) || gig.media?.find(media => media.kind === 'IMAGE');
+        const firstPackage = startingPackage(gig);
+        return <article className="market-gig-card" key={gig.id}>
+        <button className={`market-gig-cover tone-${gigSubjectTones[gig.subject] || 'default'}${cover ? ' has-image' : ''}`} onClick={() => go(`/gig/${gig.id}`)} aria-label={`${gig.title} গিগটি দেখুন`}>
+          {cover && <img className="market-gig-cover-image" src={cover.url} alt="" aria-hidden="true" loading="lazy"/>}<span className="market-gig-cover-label">{gig.subject} <i>·</i> {gig.level}</span><span className="market-gig-cover-mark">{gigSubjectIcons[gig.subject] || '✦'}</span><span className="market-gig-cover-topic">{gig.topic}</span><span className="market-gig-cover-index">{String(index + 1).padStart(2, '0')}</span>
         </button>
         <div className="market-gig-body">
           <div className="market-gig-tags">{gig.tags.slice(0, 2).map(tag => <span key={tag}>{tag}</span>)}{gig.trial?.enabled && <span className="trial-tag">ট্রায়াল ক্লাস</span>}</div>
           <button className="market-gig-title" onClick={() => go(`/gig/${gig.id}`)}>{gig.title}</button>
           <p className="market-gig-description">{gig.description}</p>
-          {gig.teacher && <button className="market-gig-teacher" onClick={() => go(`/teacher/${gig.teacher!.id}`)}><Avatar name={gig.teacher.user.name} size="sm" teacherId={gig.teacher.id}/><span className="market-gig-teacher-copy"><b>{gig.teacher.user.name}{gig.teacher.verified && <i aria-label="যাচাইকৃত শিক্ষক">✓</i>}</b><small>{gig.teacher.headline}</small></span><span className="market-gig-rating">★ {gig.teacher.rating.toFixed(1)}</span></button>}
-          <div className="market-gig-footer"><div><small>শুরু হচ্ছে</small><b>{money(gig.packages[0]?.price || 0)}<span> / ক্লাস</span></b></div><button className="button" onClick={() => go(`/gig/${gig.id}`)}>গিগ দেখুন <span aria-hidden="true">↗</span></button></div>
+          {firstPackage && <div className="market-gig-package-meta"><span>▦ {bn(firstPackage.classes)}টি ক্লাস</span><i/><span>◷ {bn(firstPackage.duration)} মিনিট</span></div>}
+          {gig.teacher && <button className="market-gig-teacher" onClick={() => go(`/teacher/${gig.teacher!.id}`)}><Avatar name={gig.teacher.user.name} size="sm" teacherId={gig.teacher.id}/><span className="market-gig-teacher-copy"><b>{gig.teacher.user.name}{gig.teacher.verified && <i aria-label="যাচাইকৃত শিক্ষক">✓</i>}</b><small>{gig.teacher.headline}</small></span><span className="market-gig-rating">{gig.teacher.reviewCount > 0 ? <>★ {gig.teacher.rating.toFixed(1)} <small>({bn(gig.teacher.reviewCount)})</small></> : 'নতুন শিক্ষক'}</span></button>}
+          <div className="market-gig-footer"><div><small>{firstPackage ? `${firstPackage.name} প্যাকেজ` : 'প্যাকেজ মূল্য'}</small><b>{money(firstPackage?.price || 0)}</b></div><button className="button" onClick={() => go(`/gig/${gig.id}`)}>গিগ দেখুন <span aria-hidden="true">↗</span></button></div>
         </div>
-      </article>)}</div>
+      </article>;})}</div>
       {visibleCount < filtered.length && <div className="gig-market-more"><button className="quiet-btn" onClick={() => setVisibleCount(count => count + 12)}>আরও গিগ দেখুন <span>↓</span></button><small>{bn(Math.min(visibleCount, filtered.length))} / {bn(filtered.length)}টি গিগ দেখা যাচ্ছে</small></div>}
     </> : <div className="gig-market-empty"><span>⌕</span><h3>এই খোঁজে কোনো গিগ মেলেনি</h3><p>অন্য বিষয় বেছে নিন অথবা খোঁজার শব্দটি বদলে দেখুন।</p><button className="quiet-btn" onClick={() => { setQuery(''); setSubject('সব গিগ'); }}>সব গিগ দেখুন</button></div>}
   </section>;
