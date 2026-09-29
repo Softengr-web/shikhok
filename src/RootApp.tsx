@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { api, post } from './api';
 import { Shell, Toast } from './components';
 import { GigBuilder } from './gig-builder';
-import { AuthPage, Bookings, Classroom, Compare, Dashboard, Exams, GigPage, GigsPage, Home, Messages, NotificationsPage, PaymentPage, Problems, Search, TeacherPage, Wallet } from './pages';
+import { AdminAudit, AdminPayments, AdminReports, AdminUsers, AuthPage, Bookings, Classroom, Compare, Dashboard, Exams, GigPage, GigsPage, Home, Messages, NotificationsPage, PaymentPage, Problems, Search, TeacherPage, Wallet } from './pages';
 import { StudentExamPage, TeacherExamDashboard, TeacherExamEditor } from './exam-pages';
 import { TeacherDashboardLivePage } from './teacher-dashboard';
 import type { User } from './models';
@@ -17,6 +17,7 @@ export function RootApp() {
   const logout = async () => { try { await post('/auth/logout'); setUser(null); location.hash = '#/'; setNotice('আপনি লগআউট করেছেন।'); } catch (error) { setNotice(error instanceof Error ? error.message : 'লগআউট করা যায়নি।'); } };
   const path = route.slice(1).split('?')[0];
   const protectedPage = (content: React.ReactNode) => user ? content : <AuthPage kind="login" onLogin={setUser} />;
+  const adminPage = (content: React.ReactNode) => user ? ['ADMIN', 'SUPER_ADMIN'].includes(user.role) ? content : <section className="page section admin-access-denied"><p className="eyebrow">প্রবেশ সীমাবদ্ধ</p><h1>এই পেজটি শুধু অ্যাডমিনের জন্য</h1><p>আপনার অ্যাকাউন্টে এই ব্যবস্থাপনা পেজ দেখার অনুমতি নেই।</p><button className="button" onClick={() => location.hash = '#/dashboard'}>আমার ড্যাশবোর্ডে ফিরুন</button></section> : <AuthPage kind="login" onLogin={setUser} />;
   let content: React.ReactNode;
   if (path === '/') content = <Home user={user} />;
   else if (path === '/search') content = <Search user={user} />;
@@ -31,6 +32,10 @@ export function RootApp() {
   else if (path === '/compare') content = <Compare />;
   else if (path === '/login') content = <AuthPage kind="login" onLogin={setUser} />;
   else if (path === '/register') content = <AuthPage kind="register" onLogin={setUser} />;
+  else if (path === '/admin/users') content = adminPage(<AdminUsers />);
+  else if (path === '/admin/payments') content = adminPage(<AdminPayments />);
+  else if (path === '/admin/reports') content = adminPage(<AdminReports />);
+  else if (path === '/admin/audit') content = adminPage(<AdminAudit />);
   else if (path === '/dashboard' || path === '/profile') content = protectedPage(user?.role === 'TEACHER' ? <TeacherDashboardLivePage /> : <Dashboard user={user!} />);
   else if (path === '/bookings') content = protectedPage(<Bookings user={user!} />);
   else if (path.startsWith('/payment/')) content = protectedPage(<PaymentPage user={user!} />);
