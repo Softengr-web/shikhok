@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { api, post, put } from './api';
-import { Avatar, BookingModal, Empty, Loading, TeacherCard, bn, go, money, shortDate } from './components';
-import { TeacherGigEditor, TeacherProfileEditor } from './teacher-dashboard-forms';
+import { Avatar, BookingModal, Empty, Loading, TeacherCard, bn, go, money, photoFromUser, shortDate } from './components';
+import { StudentProfileEditor } from './profile-editors';
 import { TeacherDashboardLive } from './teacher-dashboard';
 import type { Booking, Exam, ExamAttemptResult, Gig, Notification, ProblemPost, Subject, Teacher, User } from './models';
 import { ExamAnswerReview } from './exam-review';
@@ -82,7 +82,7 @@ export function GigsPage() {
           <button className="market-gig-title" onClick={() => go(`/gig/${gig.id}`)}>{gig.title}</button>
           <p className="market-gig-description">{gig.description}</p>
           {firstPackage && <div className="market-gig-package-meta"><span>▦ {bn(firstPackage.classes)}টি ক্লাস</span><i/><span>◷ {bn(firstPackage.duration)} মিনিট</span></div>}
-          {gig.teacher && <button className="market-gig-teacher" onClick={() => go(`/teacher/${gig.teacher!.id}`)}><Avatar name={gig.teacher.user.name} size="sm" teacherId={gig.teacher.id}/><span className="market-gig-teacher-copy"><b>{gig.teacher.user.name}{gig.teacher.verified && <i aria-label="যাচাইকৃত শিক্ষক">✓</i>}</b><small>{gig.teacher.headline}</small></span><span className="market-gig-rating">{gig.teacher.reviewCount > 0 ? <>★ {gig.teacher.rating.toFixed(1)} <small>({bn(gig.teacher.reviewCount)})</small></> : 'নতুন শিক্ষক'}</span></button>}
+          {gig.teacher && <button className="market-gig-teacher" onClick={() => go(`/teacher/${gig.teacher!.id}`)}><Avatar name={gig.teacher.user.name} size="sm" teacherId={gig.teacher.id} photoUrl={photoFromUser(gig.teacher.user)}/><span className="market-gig-teacher-copy"><b>{gig.teacher.user.name}{gig.teacher.verified && <i aria-label="যাচাইকৃত শিক্ষক">✓</i>}</b><small>{gig.teacher.headline}</small></span><span className="market-gig-rating">{gig.teacher.reviewCount > 0 ? <>★ {gig.teacher.rating.toFixed(1)} <small>({bn(gig.teacher.reviewCount)})</small></> : 'নতুন শিক্ষক'}</span></button>}
           <div className="market-gig-footer"><div><small>{firstPackage ? `${firstPackage.name} প্যাকেজ` : 'প্যাকেজ মূল্য'}</small><b>{money(firstPackage?.price || 0)}</b></div><button className="button" onClick={() => go(`/gig/${gig.id}`)}>গিগ দেখুন <span aria-hidden="true">↗</span></button></div>
         </div>
       </article>;})}</div>
@@ -224,7 +224,7 @@ export function Compare() {
     <div className="compare-heading"><div><p className="eyebrow">শিক্ষক তুলনা</p><h1>শিক্ষক নির্বাচন সহজ করুন</h1><p>রেটিং, অভিজ্ঞতা, শিক্ষা ও ফি পাশাপাশি মিলিয়ে দেখুন।</p></div><span className="compare-count"><b>{bn(items.length)}</b> জন শিক্ষক</span></div>
     <div className="compare-table-wrap" role="region" aria-label="শিক্ষক তুলনার ছক" tabIndex={0}>
       <table className="compare-table" aria-label="শিক্ষক তুলনা">
-        <thead><tr><th scope="col" className="compare-topic"><span>তুলনার বিষয়</span><small>প্রয়োজনীয় তথ্য</small></th>{items.map(teacher => <th scope="col" key={teacher.id}><div className="compare-person"><Avatar name={teacher.user.name} size="lg" teacherId={teacher.id}/><div className="compare-person-info"><b>{teacher.user.name}</b><p>{teacher.headline}</p><span className={`compare-status ${teacher.verified ? 'is-verified' : 'is-pending'}`}>{teacher.verified ? '✓ যাচাইকৃত' : 'যাচাই চলছে'}</span></div></div></th>)}</tr></thead>
+        <thead><tr><th scope="col" className="compare-topic"><span>তুলনার বিষয়</span><small>প্রয়োজনীয় তথ্য</small></th>{items.map(teacher => <th scope="col" key={teacher.id}><div className="compare-person"><Avatar name={teacher.user.name} size="lg" teacherId={teacher.id} photoUrl={photoFromUser(teacher.user)}/><div className="compare-person-info"><b>{teacher.user.name}</b><p>{teacher.headline}</p><span className={`compare-status ${teacher.verified ? 'is-verified' : 'is-pending'}`}>{teacher.verified ? '✓ যাচাইকৃত' : 'যাচাই চলছে'}</span></div></div></th>)}</tr></thead>
         <tbody>{rows.map(row => <tr key={row.key}><th scope="row">{row.label}</th>{items.map(teacher => <td key={`${row.key}-${teacher.id}`}>{row.render(teacher)}</td>)}</tr>)}</tbody>
       </table>
     </div>
@@ -232,7 +232,7 @@ export function Compare() {
   </section>;
 }
 
-export function TeacherPage({user}:{user:User|null}) { const id=location.hash.split('/')[2]?.split('?')[0];const [teacher,setTeacher]=useState<Teacher|null>(null);const [booking,setBooking]=useState<Gig|null>(null);useEffect(()=>{if(id)void api<Teacher>(`/teachers/${id}`).then(setTeacher);},[id]);useEffect(()=>{if(!teacher)return;let secondFrame=0;const firstFrame=requestAnimationFrame(()=>{secondFrame=requestAnimationFrame(()=>window.scrollTo(0,0));});return()=>{cancelAnimationFrame(firstFrame);cancelAnimationFrame(secondFrame);};},[teacher]);if(!teacher)return <Loading/>;return <section className="page"><div className="profile-hero"><Avatar name={teacher.user.name} size="lg" teacherId={teacher.id}/><div><p className="eyebrow">{teacher.level}</p><h1>{teacher.user.name} {teacher.verified&&<em className="verified">✓ যাচাইকৃত</em>}</h1><p>{teacher.headline}</p><div className="profile-stats"><span>★ {teacher.rating} রেটিং</span><span>{teacher.experienceYears} বছরের অভিজ্ঞতা</span><span>{money(teacher.hourlyRate)} / ঘণ্টা</span></div></div><div className="profile-cta"><button className="button" onClick={()=>teacher.gigs?.[0]&&setBooking(teacher.gigs[0])}>ক্লাস বুক করুন</button><button className="quiet-btn" onClick={()=>go(user?.role==='STUDENT'?`/messages?with=${encodeURIComponent(teacher.user.id)}`:'/messages')}>বার্তা পাঠান</button></div></div><div className="profile-layout"><div className="profile-content"><Info title="পরিচিতি"><p>{teacher.bio}</p></Info><Info title="শিক্ষাগত যোগ্যতা"><p>{teacher.education} — {teacher.institution}</p></Info><Info title="বিষয় ও দক্ষতা"><div className="chips">{[...teacher.subjects,...teacher.skills].map(x=><span key={x}>{x}</span>)}</div></Info><Info title="পড়ানোর পদ্ধতি"><p>লাইভ ইন্টারঅ্যাক্টিভ ক্লাস, উদাহরণভিত্তিক ব্যাখ্যা এবং ক্লাস-পরবর্তী নোট।</p></Info><Info title="শিক্ষকের পাঠের ভিডিও">{teacher.demoUrl?<iframe className="video" src={teacher.demoUrl} title="শিক্ষকের পাঠের ভিডিও" allowFullScreen/>:<Empty>শিক্ষক এখনো কোনো পাঠের ভিডিও যুক্ত করেননি।</Empty>}</Info><Info title="শিক্ষকের গিগ স্টোরফ্রন্ট"><div className="teacher-gig-storefront">{teacher.gigs?.map(g=><TeacherGigCard key={g.id} gig={g} onBook={()=>setBooking(g)}/>)}</div></Info></div><aside className="aside-card"><h3>সময়সূচি</h3>{Object.entries(teacher.availability).map(([d,t])=><p key={d}><b>{d}</b><br/>{t.join(' • ')}</p>)}<hr/><p>ভাষা: {teacher.languages.join(', ')}</p><p>অবস্থান: {teacher.location}</p></aside></div>{booking&&(user?.role==='STUDENT'?<BookingModal gig={booking} onClose={()=>setBooking(null)} onDone={bid=>go(`/payment/${bid}`)}/>:<LoginHint onClose={()=>setBooking(null)}/>)}</section> }
+export function TeacherPage({user}:{user:User|null}) { const id=location.hash.split('/')[2]?.split('?')[0];const [teacher,setTeacher]=useState<Teacher|null>(null);const [booking,setBooking]=useState<Gig|null>(null);useEffect(()=>{if(id)void api<Teacher>(`/teachers/${id}`).then(setTeacher);},[id]);useEffect(()=>{if(!teacher)return;let secondFrame=0;const firstFrame=requestAnimationFrame(()=>{secondFrame=requestAnimationFrame(()=>window.scrollTo(0,0));});return()=>{cancelAnimationFrame(firstFrame);cancelAnimationFrame(secondFrame);};},[teacher]);if(!teacher)return <Loading/>;return <section className="page"><div className="profile-hero"><Avatar name={teacher.user.name} size="lg" teacherId={teacher.id} photoUrl={photoFromUser(teacher.user)}/><div><p className="eyebrow">{teacher.level}</p><h1>{teacher.user.name} {teacher.verified&&<em className="verified">✓ যাচাইকৃত</em>}</h1><p>{teacher.headline}</p><div className="profile-stats"><span>★ {teacher.rating} রেটিং</span><span>{teacher.experienceYears} বছরের অভিজ্ঞতা</span><span>{money(teacher.hourlyRate)} / ঘণ্টা</span></div></div><div className="profile-cta"><button className="button" onClick={()=>teacher.gigs?.[0]&&setBooking(teacher.gigs[0])}>ক্লাস বুক করুন</button><button className="quiet-btn" onClick={()=>go(user?.role==='STUDENT'?`/messages?with=${encodeURIComponent(teacher.user.id)}`:'/messages')}>বার্তা পাঠান</button></div></div><div className="profile-layout"><div className="profile-content"><Info title="পরিচিতি"><p>{teacher.bio}</p></Info><Info title="শিক্ষাগত যোগ্যতা"><p>{teacher.education} — {teacher.institution}</p></Info><Info title="বিষয় ও দক্ষতা"><div className="chips">{[...teacher.subjects,...teacher.skills].map(x=><span key={x}>{x}</span>)}</div></Info><Info title="পড়ানোর পদ্ধতি"><p>লাইভ ইন্টারঅ্যাক্টিভ ক্লাস, উদাহরণভিত্তিক ব্যাখ্যা এবং ক্লাস-পরবর্তী নোট।</p></Info><Info title="শিক্ষকের পাঠের ভিডিও">{teacher.demoUrl?<iframe className="video" src={teacher.demoUrl} title="শিক্ষকের পাঠের ভিডিও" allowFullScreen/>:<Empty>শিক্ষক এখনো কোনো পাঠের ভিডিও যুক্ত করেননি।</Empty>}</Info><Info title="শিক্ষকের গিগ স্টোরফ্রন্ট"><div className="teacher-gig-storefront">{teacher.gigs?.map(g=><TeacherGigCard key={g.id} gig={g} onBook={()=>setBooking(g)}/>)}</div></Info></div><aside className="aside-card"><h3>সময়সূচি</h3>{Object.entries(teacher.availability).map(([d,t])=><p key={d}><b>{d}</b><br/>{t.join(' • ')}</p>)}<hr/><p>ভাষা: {teacher.languages.join(', ')}</p><p>অবস্থান: {teacher.location}</p></aside></div>{booking&&(user?.role==='STUDENT'?<BookingModal gig={booking} onClose={()=>setBooking(null)} onDone={bid=>go(`/payment/${bid}`)}/>:<LoginHint onClose={()=>setBooking(null)}/>)}</section> }
 
 function TeacherGigCard({gig,onBook}:{gig:Gig;onBook:()=>void}) { return <article className="teacher-gig-card"><div className="teacher-gig-card-head"><div><span className="preview-badge">{gig.subject} · {gig.level}</span><h3>{gig.title}</h3><p>{gig.description}</p></div><strong>{gig.badges?.[0]||'শিক্ষক সেবা'}</strong></div><div className="chips">{gig.tags.map(tag=><span key={tag}>{tag}</span>)}{gig.classType&&<span>{gig.classType}</span>}{gig.duration&&<span>{bn(gig.duration)} মিনিট</span>}{gig.trial?.enabled&&<span>ট্রায়াল ক্লাস</span>}</div>{gig.outcomes?.length&&<div className="gig-detail-block"><b>শিক্ষার্থী যা শিখবেন</b><ul>{gig.outcomes.filter(Boolean).map(outcome=><li key={outcome}>{outcome}</li>)}</ul></div>}<div className="gig-package-grid">{gig.packages.map(pack=><div className="teacher-gig-package" key={pack.id}><b>{pack.name}</b><span>{bn(pack.classes)}টি ক্লাস · {bn(pack.duration)} মিনিট</span><strong>{money(pack.price)}</strong><small>{pack.features.join(' · ')}</small></div>)}</div>{gig.extras?.length&&<div className="gig-detail-block"><b>অতিরিক্ত সেবা</b><p>{gig.extras.map(extra=>`${extra.name} (${money(extra.price)})`).join(' · ')}</p></div>}{gig.media?.length&&<div className="gig-detail-block"><b>মিডিয়া ও উপকরণ</b><p>{gig.media.map(media=>media.caption||media.kind).join(' · ')}</p></div>}{gig.faqs.length>0&&<details className="gig-faq"><summary>সচরাচর জিজ্ঞাসা ({bn(gig.faqs.length)})</summary>{gig.faqs.map(faq=><p key={faq.q}><b>{faq.q}</b><br/>{faq.a}</p>)}</details>}<div className="teacher-gig-footer"><span>{gig.availability&&Object.keys(gig.availability).length?`উপলভ্য: ${Object.keys(gig.availability).join(', ')}`:'সময় শিক্ষককে জিজ্ঞাসা করুন'}</span><button className="button" onClick={onBook}>প্যাকেজ বেছে বুক করুন</button></div></article> }
 function Info({title,children}:{title:string;children:React.ReactNode}) {return <section className="info"><h2>{title}</h2>{children}</section>}
@@ -267,7 +267,7 @@ export function GigPage({user}:{user:User|null}) {
         <h1>{gig.title}</h1>
         <p className="gig-detail-lead">{gig.description}</p>
         {teacher&&<div className="gig-detail-teacher">
-          <Avatar name={teacher.user?.name||'শিক্ষক'} size="md" teacherId={teacher.id}/>
+          <Avatar name={teacher.user?.name||'শিক্ষক'} size="md" teacherId={teacher.id} photoUrl={photoFromUser(teacher.user)}/>
           <div className="gig-detail-teacher-copy"><span>শিক্ষক</span><b>{teacher.user?.name||'অভিজ্ঞ শিক্ষক'}{teacher.verified&&<i aria-label="যাচাইকৃত শিক্ষক">✓</i>}</b><small>{teacher.headline}</small></div>
           <div className="gig-detail-teacher-rating">{teacher.reviewCount>0?<><b>★ {teacher.rating.toFixed(1)}</b><small>{bn(teacher.reviewCount)}টি রিভিউ</small></>:<small>নতুন শিক্ষক</small>}</div>
         </div>}
@@ -357,7 +357,7 @@ export function AuthPage({ kind, onLogin }: { kind: 'login' | 'register'; onLogi
           <h1 className="auth-wordmark" aria-label="Private Tutor">
             <span>Private</span> <b>Tutor</b><i aria-hidden="true" />
           </h1>
-          <p className="eyebrow auth-demo-label"><span aria-hidden="true" />শিখোক · শেখা ও শেখানোর নির্ভরযোগ্য ঠিকানা</p>
+          <p className="eyebrow auth-demo-label"><span aria-hidden="true" />শেখা ও শেখানোর নির্ভরযোগ্য ঠিকানা</p>
           <h2>শেখা ও শেখানোর সহজ শুরু</h2>
           <p className="auth-description">শিক্ষার্থী, শিক্ষক, অভিভাবক বা অ্যাডমিন—নিজের ভূমিকা বেছে নিয়ে শিখোকের সুবিধাগুলো ব্যবহার করুন। এই পরিবেশে বাস্তব অর্থ লেনদেন চালু নেই।</p>
         </div>
@@ -417,7 +417,7 @@ export function AuthPage({ kind, onLogin }: { kind: 'login' | 'register'; onLogi
 }
 
 type DashboardData={user:User;bookings:Booking[];notifications:Notification[];unread:number;teacher?:Teacher;wallet?:{total:number;pending:number;commission:number;entries:any[]};gigs?:Gig[];analytics?:Record<string,number>;favorites?:any[];attempts?:any[];children?:{name:string;bookings:Booking[];attempts:any[]}[];admin?:{users:number;teachers:number;pending:number;payments:number;reports:number}};
-export function Dashboard({user}:{user:User}) {
+export function Dashboard({user,onUserUpdated}:{user:User;onUserUpdated?:(user:User)=>void}) {
   const [data,setData]=useState<DashboardData|null>(null);
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState('');
@@ -433,11 +433,12 @@ export function Dashboard({user}:{user:User}) {
   if(user.role==='TEACHER')return <TeacherDashboard data={data}/>;
   if(user.role==='PARENT')return <ParentDashboard data={data}/>;
   if(user.role==='ADMIN'||user.role==='SUPER_ADMIN')return <AdminDashboard data={data}/>;
-  return <StudentDashboard data={data}/>;
+  return <StudentDashboard data={data} onUserUpdated={onUserUpdated}/>;
 }
 const BookingList=({bookings}:{bookings:Booking[]})=><div className="booking-list">{bookings.slice(0,5).map(b=><article key={b.id}><span className={`status ${b.status}`}>{statusBn(b.status)}</span><div><b>{shortDate(b.date)} • {b.time}</b><p>{money(b.price)} • বুকিং #{b.id.slice(-5)}</p></div><div className="booking-actions">{['CONFIRMED','IN_PROGRESS'].includes(b.status)&&<button className="button small" onClick={()=>go(`/classroom/${b.id}`)}>ক্লাসে যান</button>}<button className="quiet-btn" onClick={()=>go(`/booking/${b.id}`)}>বিস্তারিত</button></div></article>)}</div>;
 const Stat=({label,value,accent}:{label:string;value:string|number;accent?:string})=><article className="stat"><small>{label}</small><b className={accent}>{value}</b></article>;
-function StudentDashboard({data}:{data:DashboardData}) {
+function StudentDashboard({data,onUserUpdated}:{data:DashboardData;onUserUpdated?:(user:User)=>void}) {
+  const [profileOpen,setProfileOpen]=useState(false);
   const completed=data.bookings.filter(booking=>booking.status==='COMPLETED').length;
   const attempts=data.attempts||[];
   const average=attempts.length?Math.round(attempts.reduce((sum,attempt)=>sum+(attempt.total?attempt.score/attempt.total:0),0)/attempts.length*100):0;
@@ -455,8 +456,11 @@ function StudentDashboard({data}:{data:DashboardData}) {
   return <section className="page section student-dashboard">
     <header className="student-welcome">
       <div className="student-welcome-copy">
-        <p className="eyebrow">শিক্ষার্থী ড্যাশবোর্ড</p>
-        <h1>স্বাগতম, {data.user.name}</h1>
+        <div className="student-welcome-identity">
+          <Avatar name={data.user.name} size="lg" photoUrl={photoFromUser(data.user)}/>
+          <div className="student-welcome-identity-copy"><p className="eyebrow">শিক্ষার্থী ড্যাশবোর্ড</p><h1>স্বাগতম, {data.user.name}</h1></div>
+          <button className="quiet-btn student-welcome-edit" onClick={()=>setProfileOpen(true)}>প্রোফাইল সম্পাদনা</button>
+        </div>
         <p>আজ কী শিখবেন? আপনার ক্লাস, পরীক্ষা ও শিক্ষকের সঙ্গে যোগাযোগ—সব এক জায়গায় রাখুন।</p>
         <span className="student-date"><span aria-hidden="true">◷</span>{dateLabel}</span>
       </div>
@@ -498,6 +502,7 @@ function StudentDashboard({data}:{data:DashboardData}) {
         {data.notifications.length>0&&<a className="student-all-notifications" href="#/notifications">সব নোটিফিকেশন <span aria-hidden="true">→</span></a>}
       </section>
     </div>
+    {profileOpen&&<StudentProfileEditor user={data.user} onClose={()=>setProfileOpen(false)} onSaved={()=>window.location.reload()} onUserSaved={onUserUpdated}/>}
   </section>;
 }
 function TeacherDashboard({data}:{data:DashboardData}){const [profileOpen,setProfileOpen]=useState(false);const liveBooking=data.bookings.find(b=>['CONFIRMED','IN_PROGRESS'].includes(b.status));return <section className="page section"><p className="eyebrow">শিক্ষক ড্যাশবোর্ড</p><h1>স্বাগতম, {data.user.name}</h1><div className="stats"><Stat label="প্রোফাইল দেখা হয়েছে" value={bn(data.analytics?.profileViews||0)}/><Stat label="গিগ দেখা হয়েছে" value={bn(data.analytics?.gigViews||0)}/><Stat label="নিশ্চিত বুকিং" value={bn(data.bookings.filter(b=>b.status==='CONFIRMED').length)} accent="green"/><Stat label="অপেক্ষমাণ আয়" value={money(data.wallet?.pending||0)} accent="purple"/></div><div className="dashboard-grid"><Info title="আজকের বুকিং"><BookingList bookings={data.bookings}/><a href="#/bookings">সব বুকিং দেখুন →</a></Info><Info title="দ্রুত কাজ"><div className="stack">{liveBooking&&<button className="button wide" onClick={()=>go(`/classroom/${liveBooking.id}`)}>লাইভ ক্লাসে যোগ দিন</button>}<button className="button wide" onClick={()=>go('/teacher/exams/new')}>নতুন পরীক্ষা তৈরি করুন</button><button className="quiet-btn wide" onClick={()=>go('/teacher/exams')}>পরীক্ষা পরিচালনা করুন</button><button className="button wide" onClick={()=>go('/teacher/gigs/new')}>নতুন গিগ তৈরি করুন</button><button className="quiet-btn wide" onClick={()=>setProfileOpen(true)}>প্রোফাইল ও সময়সূচি সম্পাদনা</button><button className="quiet-btn wide" onClick={()=>go('/wallet')}>আয় ও লেনদেন দেখুন</button></div></Info></div><Info title="আমার গিগ">{data.gigs?.length?<div className="gig-list">{data.gigs.map(g=><article key={g.id}><div><b>{g.title}</b><p>{money(g.packages[0].price)} থেকে</p></div><button className="quiet-btn" onClick={()=>go(`/gig/${g.id}`)}>দেখুন</button></article>)}</div>:<Empty>এখনও কোনো গিগ নেই।</Empty>}</Info>{profileOpen&&<ProfileForm teacher={data.teacher!} onClose={()=>setProfileOpen(false)}/>}</section>}
@@ -567,7 +572,7 @@ function AdminDashboard({data}:{data:DashboardData}){
     {error&&<p className="admin-feedback is-error" role="alert">{error}<button type="button" onClick={()=>void load()}>আবার চেষ্টা করুন</button></p>}
     {notice&&<p className="admin-feedback is-success" role="status">{notice}</p>}
     <div className="admin-review-grid">
-      <section className="admin-review-panel" id="admin-teacher-review"><header className="admin-section-heading"><div><p className="eyebrow">পর্যালোচনা কেন্দ্র</p><h2>শিক্ষক যাচাই</h2></div><span className="admin-queue-count">{pending?bn(pending.length):'…'} বাকি</span></header>{loading&&pending===null?<Loading/>:pending?.length?<div className="admin-review-list">{pending.map(teacher=><article className="admin-review-card" key={teacher.id}><div className="admin-review-person"><Avatar name={teacher.user.name} size="md" teacherId={teacher.id}/><div><b>{teacher.user.name}</b><p>{teacher.headline}</p></div></div><div className="admin-review-meta"><span>{teacher.education||'শিক্ষাগত তথ্য অসম্পূর্ণ'}</span><span>{teacher.institution||'প্রতিষ্ঠান উল্লেখ নেই'}</span><span>{teacher.subjects.slice(0,3).join(' · ')||'বিষয় যোগ করা হয়নি'}</span></div><a className="admin-text-link" href={`#/teacher/${teacher.id}`}>প্রোফাইল দেখুন ↗</a><div className="admin-review-actions"><button className="button small" type="button" disabled={busy===`teacher:${teacher.id}`} onClick={()=>void moderate('teacher',teacher.id,'APPROVED')}>{busy===`teacher:${teacher.id}`?'অপেক্ষা…':'অনুমোদন'}</button><button className="danger-btn" type="button" disabled={busy===`teacher:${teacher.id}`} onClick={()=>void moderate('teacher',teacher.id,'REJECTED')}>প্রত্যাখ্যান</button></div></article>)}</div>:<Empty>এখন কোনো শিক্ষক যাচাইয়ের অপেক্ষায় নেই।</Empty>}</section>
+      <section className="admin-review-panel" id="admin-teacher-review"><header className="admin-section-heading"><div><p className="eyebrow">পর্যালোচনা কেন্দ্র</p><h2>শিক্ষক যাচাই</h2></div><span className="admin-queue-count">{pending?bn(pending.length):'…'} বাকি</span></header>{loading&&pending===null?<Loading/>:pending?.length?<div className="admin-review-list">{pending.map(teacher=><article className="admin-review-card" key={teacher.id}><div className="admin-review-person"><Avatar name={teacher.user.name} size="md" teacherId={teacher.id} photoUrl={photoFromUser(teacher.user)}/><div><b>{teacher.user.name}</b><p>{teacher.headline}</p></div></div><div className="admin-review-meta"><span>{teacher.education||'শিক্ষাগত তথ্য অসম্পূর্ণ'}</span><span>{teacher.institution||'প্রতিষ্ঠান উল্লেখ নেই'}</span><span>{teacher.subjects.slice(0,3).join(' · ')||'বিষয় যোগ করা হয়নি'}</span></div><a className="admin-text-link" href={`#/teacher/${teacher.id}`}>প্রোফাইল দেখুন ↗</a><div className="admin-review-actions"><button className="button small" type="button" disabled={busy===`teacher:${teacher.id}`} onClick={()=>void moderate('teacher',teacher.id,'APPROVED')}>{busy===`teacher:${teacher.id}`?'অপেক্ষা…':'অনুমোদন'}</button><button className="danger-btn" type="button" disabled={busy===`teacher:${teacher.id}`} onClick={()=>void moderate('teacher',teacher.id,'REJECTED')}>প্রত্যাখ্যান</button></div></article>)}</div>:<Empty>এখন কোনো শিক্ষক যাচাইয়ের অপেক্ষায় নেই।</Empty>}</section>
       <section className="admin-review-panel" id="admin-gig-review"><header className="admin-section-heading"><div><p className="eyebrow">কনটেন্ট মডারেশন</p><h2>গিগ অনুমোদন</h2></div><span className="admin-queue-count">{pendingGigs?bn(pendingGigs.length):'…'} বাকি</span></header>{loading&&pendingGigs===null?<Loading/>:pendingGigs?.length?<div className="admin-review-list">{pendingGigs.map(gig=><article className="admin-review-card" key={gig.id}><div className="admin-gig-heading"><div><b>{gig.title}</b><p>{gig.subject} · {gig.topic}</p></div><span>{money(gig.packages?.[0]?.price||0)} থেকে</span></div><p className="admin-gig-description">{gig.description}</p><div className="admin-review-meta"><span>শিক্ষক: {gig.teacher?.user.name||gig.teacherId}</span><span>জমা: {shortDate(gig.createdAt)}</span></div><a className="admin-text-link" href={`#/gig/${gig.id}`}>গিগ প্রিভিউ ↗</a><div className="admin-review-actions"><button className="button small" type="button" disabled={busy===`gig:${gig.id}`} onClick={()=>void moderate('gig',gig.id,'APPROVED')}>{busy===`gig:${gig.id}`?'অপেক্ষা…':'অনুমোদন'}</button><button className="danger-btn" type="button" disabled={busy===`gig:${gig.id}`} onClick={()=>void moderate('gig',gig.id,'REJECTED')}>প্রত্যাখ্যান</button></div></article>)}</div>:<Empty>এখন কোনো গিগ অনুমোদনের অপেক্ষায় নেই।</Empty>}</section>
     </div>
   </section>;
@@ -737,7 +742,7 @@ export function Messages({ user }: { user: User }) {
         <label className="conversation-search"><span aria-hidden="true">⌕</span><input value={query} onChange={event => setQuery(event.target.value)} placeholder="নাম বা বার্তা খুঁজুন" aria-label="কথোপকথন খুঁজুন"/><kbd>/</kbd></label>
         <div className="conversation-list">
           {loading ? <Loading/> : error && !other ? <div className="messages-inline-error" role="alert">{error}</div> : filteredItems.length ? filteredItems.map(item => <button type="button" className={`conversation-card${other?.id === item.user.id ? ' active' : ''}`} key={item.user.id} onClick={() => selectConversation(item.user)} aria-current={other?.id === item.user.id ? 'true' : undefined}>
-            <span className="conversation-avatar"><Avatar name={item.user.name} size="sm"/>{item.unreadCount > 0 && <i aria-label={`${bn(item.unreadCount)}টি অপঠিত বার্তা`}/>}</span>
+            <span className="conversation-avatar"><Avatar name={item.user.name} size="sm" photoUrl={photoFromUser(item.user)}/>{item.unreadCount > 0 && <i aria-label={`${bn(item.unreadCount)}টি অপঠিত বার্তা`}/>}</span>
             <span className="conversation-details"><span className="conversation-name-row"><b>{item.user.name}</b><time>{messageTime(item.lastMessage?.createdAt)}</time></span><small className="conversation-role">{messageRoleLabel(item.user.role)}</small><span className="conversation-preview">{item.lastMessage?.body || 'কথোপকথন শুরু করুন'}</span></span>
             {item.unreadCount > 0 && <span className="unread-count">{bn(item.unreadCount)}</span>}
           </button>) : <div className="inbox-empty"><span aria-hidden="true">✉</span><b>{items.length ? 'কোনো মিল পাওয়া যায়নি' : 'ইনবক্স এখনো ফাঁকা'}</b><p>{items.length ? 'অন্য নাম বা শব্দ দিয়ে খুঁজে দেখুন।' : user.role === 'STUDENT' ? 'শিক্ষকের প্রোফাইল থেকে যোগাযোগ শুরু করলে কথোপকথন এখানে দেখা যাবে।' : 'শিক্ষার্থীর সঙ্গে কথোপকথন শুরু হলে এখানে দেখা যাবে।'}</p>{!items.length && <a className="quiet-btn" href={user.role === 'STUDENT' ? '#/search' : '#/bookings'}>{user.role === 'STUDENT' ? 'শিক্ষক খুঁজুন' : 'বুকিং দেখুন'} <span aria-hidden="true">→</span></a>}</div>}
@@ -749,7 +754,7 @@ export function Messages({ user }: { user: User }) {
         {other ? <>
           <header className="thread-header">
             <button type="button" className="thread-back" onClick={() => setMobileThread(false)} aria-label="ইনবক্সে ফিরুন">←</button>
-            <Avatar name={other.name} size="sm"/>
+            <Avatar name={other.name} size="sm" photoUrl={photoFromUser(other)}/>
             <span className="thread-person"><b>{other.name}</b><small>{messageRoleLabel(other.role)} · শিখোক</small></span>
             <span className={`connection-state${live ? ' is-live' : ''}`}><i/>{live ? 'সংযুক্ত' : 'বার্তা'}</span>
           </header>
@@ -960,7 +965,7 @@ export function Problems({user}:{user:User|null}) {
         <div className="problem-live-heading"><span className="problem-live-dot"/><div><p className="eyebrow">সরাসরি সহায়তা</p><h2>লাইভ শিক্ষক</h2></div><span className="problem-live-count">{bn(onlineTeachers)} লাইভ</span></div>
         <p className="problem-live-intro">এখনই কথা বলুন বা সুবিধামতো একটি সময় বেছে নিন।</p>
         {teachers.length?teachers.slice(0,4).map(t=><article className="problem-live-teacher" key={t.id}>
-          <div className="problem-live-person"><Avatar name={t.user.name} size="sm" teacherId={t.id}/><div><b>{t.user.name}</b><small>{t.subjects[0]} · {bn(t.experienceYears)} বছরের অভিজ্ঞতা</small></div><span className={'live-pill '+(t.isLive?'online':'offline')}>{t.isLive?'লাইভ':'অফলাইন'}</span></div>
+          <div className="problem-live-person"><Avatar name={t.user.name} size="sm" teacherId={t.id} photoUrl={photoFromUser(t.user)}/><div><b>{t.user.name}</b><small>{t.subjects[0]} · {bn(t.experienceYears)} বছরের অভিজ্ঞতা</small></div><span className={'live-pill '+(t.isLive?'online':'offline')}>{t.isLive?'লাইভ':'অফলাইন'}</span></div>
           <p>{t.headline}</p><div className="problem-live-rating"><span>★ {t.rating.toFixed(1)} <small>({bn(t.reviewCount)} রিভিউ)</small></span><b>{money(t.sessionPrice??t.hourlyRate)}</b></div>
           <div className="problem-live-actions"><button className="quiet-btn" onClick={()=>go(user?.role==='STUDENT'?`/messages?with=${encodeURIComponent(t.user.id)}`:'/messages')}>চ্যাট</button><button className="button" onClick={()=>setBookingTeacher(t)}>সময় বেছে নিন</button></div>
         </article>):<div className="problem-live-empty">এই মুহূর্তে লাইভ শিক্ষক নেই। পরে আবার দেখুন।</div>}
@@ -1126,7 +1131,7 @@ export function Classroom({user}:{user:User}) {
           </div>
           <div className="video-tile self-stage">
             <video ref={video} autoPlay muted playsInline/>
-            {!camera&&<div className="self-video-placeholder"><Avatar name={user.name} size="md"/><span>আপনার ক্যামেরা বন্ধ</span></div>}
+            {!camera&&<div className="self-video-placeholder"><Avatar name={user.name} size="md" photoUrl={photoFromUser(user)}/><span>আপনার ক্যামেরা বন্ধ</span></div>}
             <span className="video-name-label">{user.name} · আপনি</span>
           </div>
         </div>
@@ -1154,7 +1159,7 @@ export function Classroom({user}:{user:User}) {
       <aside className="participants">
         <div className="participants-heading"><div><p className="eyebrow">সেশন প্যানেল</p><h3>অংশগ্রহণকারী <span>২</span></h3></div><span className="participants-ready">● প্রস্তুত</span></div>
         <div className="participant-list">
-          <div className="participant-card"><Avatar name={user.name} size="sm"/><span><b>{user.name}</b><small>{user.role==='TEACHER'?'শিক্ষক · আপনি':'শিক্ষার্থী · আপনি'}</small></span><i aria-label="অনলাইনে আছেন"/></div>
+          <div className="participant-card"><Avatar name={user.name} size="sm" photoUrl={photoFromUser(user)}/><span><b>{user.name}</b><small>{user.role==='TEACHER'?'শিক্ষক · আপনি':'শিক্ষার্থী · আপনি'}</small></span><i aria-label="অনলাইনে আছেন"/></div>
           <div className="participant-card"><Avatar name={participantRole} size="sm"/><span><b>{participantRole}</b><small>{user.role==='TEACHER'?'শিক্ষার্থী':'শিক্ষক'}</small></span><i aria-label="ক্লাসে যুক্ত আছেন"/></div>
         </div>
         <div className="participant-attendance"><span>উপস্থিতি</span><b><i aria-hidden="true">✓</i> নথিভুক্ত হয়েছে</b><small>আপনি এই ক্লাসের অংশগ্রহণকারী।</small></div>

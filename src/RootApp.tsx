@@ -25,7 +25,7 @@ export function RootApp() {
   else if (path === '/teacher/gigs/new') content = protectedPage(<GigBuilder />);
   else if (path === '/teacher/exams') content = protectedPage(<TeacherExamDashboard />);
   else if (path === '/teacher/exams/new') content = protectedPage(<TeacherExamEditor />);
-  else if (path === '/teacher/dashboard') content = protectedPage(<TeacherDashboardLivePage />);
+  else if (path === '/teacher/dashboard') content = protectedPage(<TeacherDashboardLivePage onUserUpdated={setUser} />);
   else if (path.startsWith('/teacher/')) content = <TeacherPage user={user} />;
   else if (path.startsWith('/gig/')) content = <GigPage user={user} />;
   else if (path.startsWith('/exam/')) content = protectedPage(<StudentExamPage user={user!} />);
@@ -36,7 +36,7 @@ export function RootApp() {
   else if (path === '/admin/payments') content = adminPage(<AdminPayments />);
   else if (path === '/admin/reports') content = adminPage(<AdminReports />);
   else if (path === '/admin/audit') content = adminPage(<AdminAudit />);
-  else if (path === '/dashboard' || path === '/profile') content = protectedPage(user?.role === 'TEACHER' ? <TeacherDashboardLivePage /> : <Dashboard user={user!} />);
+  else if (path === '/dashboard' || path === '/profile') content = protectedPage(user?.role === 'TEACHER' ? <TeacherDashboardLivePage onUserUpdated={setUser} /> : <Dashboard user={user!} onUserUpdated={setUser} />);
   else if (path === '/bookings') content = protectedPage(<Bookings user={user!} />);
   else if (path.startsWith('/payment/')) content = protectedPage(<PaymentPage user={user!} />);
   else if (path === '/wallet') content = protectedPage(<Wallet />);

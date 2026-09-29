@@ -3,7 +3,9 @@ import type { AppState, Booking, BookingStatus, Exam, Gig, Question, Role, Teach
 
 const banglaDigits = new Intl.NumberFormat('bn-BD');
 export const currency = (amount: number) => `৳${banglaDigits.format(amount)}`;
-export const publicUser = (user: User) => ({ id: user.id, email: user.email, role: user.role, name: user.name, profile: user.profile });
+const publicProfile = (profile: Record<string, unknown>) => ({ ...(typeof profile.photoUrl === 'string' ? { photoUrl: profile.photoUrl } : {}) });
+export const publicUser = (user: User) => ({ id: user.id, email: user.email, role: user.role, name: user.name, profile: publicProfile(user.profile || {}) });
+export const privateUser = (user: User) => ({ ...publicUser(user), phone: user.phone, profile: user.profile || {} });
 export const publicTeacher = (state: AppState, teacher: Teacher) => ({ ...teacher, user: publicUser(requireUser(state, teacher.userId)), gigs: state.gigs.filter(g => g.teacherId === teacher.id && g.active) });
 export function requireUser(state: AppState, userId: string) { const user = state.users.find(u => u.id === userId); if (!user) throw new DomainError('ব্যবহারকারী পাওয়া যায়নি।', 404); return user; }
 export class DomainError extends Error { constructor(message: string, public status = 400) { super(message); } }
@@ -39,7 +41,39 @@ export function matchTeachers(state: AppState, input: Record<string, unknown>) {
   const subject = String(input.subject ?? ''); const topic = String(input.topic ?? ''); const level = String(input.level ?? ''); const budget = Number(input.budget ?? 0); const language = String(input.language ?? '');
   return state.teachers.map(t => { let points = score(t); if (subject && t.subjects.includes(subject)) points += 100; if (topic && t.skills.includes(topic)) points += 60; if (level && state.gigs.some(g => g.teacherId === t.id && g.level === level)) points += 35; if (budget && t.hourlyRate <= budget) points += 30; if (language && t.languages.includes(language)) points += 15; return { ...publicTeacher(state,t), matchScore: Math.round(points) }; }).filter(t => !subject || t.subjects.includes(subject)).sort((a,b) => b.matchScore-a.matchScore).slice(0, 12);
 }
-export function updateTeacher(state: AppState, actor: User, input: Record<string, unknown>) { requireRole(actor,['TEACHER']); const teacher = state.teachers.find(t=>t.userId===actor.id); if (!teacher) throw new DomainError('শিক্ষক প্রোফাইল পাওয়া যায়নি।',404); const allowed = ['headline','bio','education','institution','location','demoUrl','hourlyRate','sessionPrice','subjects','skills','languages','availability','blockedDates','isLive','lastSeenAt']; for (const key of allowed) if (input[key] !== undefined) (teacher as unknown as Record<string,unknown>)[key] = input[key]; return teacher; }
+export function updateTeacher(state: AppState, actor: User, input: Record<string, unknown>) { requireRole(actor,['TEACHER']); const teacher = state.teachers.find(t=>t.userId===actor.id); if (!teacher) throw new DomainError('শিক্ষক প্রোফাইল পাওয়া যায়নি।',404); const allowed = ['headline','bio','education','institution','location','demoUrl','hourlyRate','sessionPrice','subjects','skills','languages','availability','blockedDates','isLive','lastSeenAt','experienceYears']; for (const key of allowed) if (input[key] !== undefined) (teacher as unknown as Record<string,unknown>)[key] = input[key];if(input.experienceYears!==undefined){const years=Number(input.experienceYears);if(!Number.isInteger(years)||years<0||years>80)throw new DomainError('অভিজ্ঞতার বছর ০ থেকে ৮০-এর মধ্যে দিন।');teacher.experienceYears=years;}for(const key of ['subjects','skills','languages'] as const)if(input[key]!==undefined){const values=input[key];if(!Array.isArray(values)||values.length>30||values.some(value=>typeof value!=='string'||value.trim().length>80))throw new DomainError('বিষয়, দক্ষতা বা ভাষার তালিকা সঠিকভাবে দিন।');teacher[key]=values.map(value=>(value as string).trim()).filter(Boolean);}return teacher; }
+export function updateUserProfile(state: AppState, actor: User, input: Record<string, unknown>) {
+  requireRole(actor, ['STUDENT', 'TEACHER']);
+  const user = requireUser(state, actor.id);
+  user.name = cleanText(input.name, 'নাম', 100);
+  if (input.phone !== undefined) {
+    const phone = typeof input.phone === 'string' ? input.phone.trim() : '';
+    const digits = phone.match(/\p{N}/gu)?.length || 0;
+    if (phone.length > 24 || (phone && (!/^[+()\p{N}\s-]+$/u.test(phone) || digits < 7 || digits > 15))) throw new DomainError('সঠিক ফোন নম্বর দিন।');
+    user.phone = phone || undefined;
+  }
+  const profile = { ...(user.profile || {}) };
+  if (input.photoUrl !== undefined) {
+    if (input.photoUrl === '') delete profile.photoUrl;
+    else if (typeof input.photoUrl !== 'string' || input.photoUrl.length > 180_000 || !/^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(input.photoUrl)) throw new DomainError('ছবিটি সঠিক ফরম্যাটে দিন।');
+    else profile.photoUrl = input.photoUrl;
+  }
+  if (user.role === 'STUDENT') {
+    for (const [key, label, max] of [['schoolName', 'প্রতিষ্ঠানের নাম', 120], ['gradeLevel', 'শ্রেণি', 60], ['learningGoals', 'শেখার লক্ষ্য', 500]] as const) {
+      if (input[key] === undefined) continue;
+      if (typeof input[key] !== 'string' || input[key].trim().length > max) throw new DomainError(`${label} সঠিকভাবে দিন।`);
+      const value = input[key].trim();
+      if (value) profile[key] = value;
+      else delete profile[key];
+    }
+    if (input.subjects !== undefined) {
+      if (!Array.isArray(input.subjects) || input.subjects.length > 20 || input.subjects.some(subject => typeof subject !== 'string' || subject.trim().length > 60)) throw new DomainError('বিষয়গুলো সঠিকভাবে দিন।');
+      profile.subjects = input.subjects.map(subject => (subject as string).trim()).filter(Boolean);
+    }
+  }
+  user.profile = profile;
+  return user;
+}
 export function createGig(state: AppState, actor: User, input: Record<string, unknown>) { requireRole(actor,['TEACHER']); const teacher = state.teachers.find(t=>t.userId===actor.id); if (!teacher) throw new DomainError('শিক্ষক প্রোফাইল পাওয়া যায়নি।'); const title=cleanText(input.title,'গিগের শিরোনাম',160), subject=cleanText(input.subject,'বিষয়',80); const basicPrice=Number(input.price); if (!Number.isFinite(basicPrice)||basicPrice<1) throw new DomainError('সঠিক মূল্য দিন।'); const gig: Gig={ id:id('gig'),teacherId:teacher.id,title,description:cleanText(input.description,'বর্ণনা'),subject,topic:cleanText(input.topic,'টপিক',80),level:cleanText(input.level,'শিক্ষার স্তর',80),language:'বাংলা',tags:[subject],demoUrl:teacher.demoUrl,includes:['লাইভ ক্লাস','ক্লাস নোট'],requirements:'শেখার আগ্রহ সঙ্গে রাখুন।',faqs:[],active:true,createdAt:new Date().toISOString(),packages:[{id:id('package'),name:'বেসিক',classes:1,duration:60,price:basicPrice,features:['১টি লাইভ ক্লাস','ক্লাস নোট']},{id:id('package'),name:'স্ট্যান্ডার্ড',classes:5,duration:60,price:basicPrice*4,features:['৫টি লাইভ ক্লাস','ক্লাস নোট','ফিডব্যাক']},{id:id('package'),name:'প্রিমিয়াম',classes:10,duration:60,price:basicPrice*7,features:['১০টি লাইভ ক্লাস','পরীক্ষা','ফিডব্যাক']}]}; state.gigs.push(gig); return gig; }
 
 export function createBooking(state: AppState, actor: User, input: Record<string, unknown>) { requireRole(actor,['STUDENT']); const gig = state.gigs.find(g => g.id === input.gigId && g.active); if (!gig) throw new DomainError('গিগটি পাওয়া যায়নি।',404); const pack = gig.packages.find(p => p.id === input.packageId); if (!pack) throw new DomainError('প্যাকেজটি সঠিক নয়।'); const date=cleanText(input.date,'তারিখ',20), time=cleanText(input.time,'সময়',20); if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new DomainError('তারিখটি সঠিক নয়।'); const teacher=state.teachers.find(t=>t.id===gig.teacherId)!; if (teacher.blockedDates.includes(date)) throw new DomainError('এই তারিখে শিক্ষক উপলভ্য নন।'); if (state.bookings.some(b=>b.teacherId===teacher.id && b.date===date && b.time===time && !['CANCELLED','REFUNDED'].includes(b.status))) throw new DomainError('এই সময়ের স্লটটি ইতোমধ্যে বুক করা হয়েছে।',409); const booking: Booking={id:id('booking'),studentId:actor.id,teacherId:teacher.id,gigId:gig.id,packageId:pack.id,date,time,price:pack.price,status:'PENDING',history:[{status:'PENDING',at:new Date().toISOString(),note:'বুকিং ফি নিশ্চিত হওয়ার অপেক্ষায়'}],createdAt:new Date().toISOString()}; state.bookings.push(booking); return booking; }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from './api';
 import { TeacherGigEditor, TeacherProfileEditor } from './teacher-dashboard-forms';
-import { Avatar, Empty, bn, go, money, shortDate } from './components';
+import { Avatar, Empty, bn, go, money, photoFromUser, shortDate } from './components';
 import type { Booking, Gig, Teacher, User } from './models';
 import './teacher-dashboard.css';
 
@@ -38,7 +38,7 @@ function DashboardStat({ icon, label, value, note, tone }: {
   </article>;
 }
 
-export function TeacherDashboardLive({ data }: { data: DashboardData }) {
+export function TeacherDashboardLive({ data, onUserUpdated }: { data: DashboardData; onUserUpdated?: (user: User) => void }) {
   const [profileOpen, setProfileOpen] = useState(false);
   const [editingGig, setEditingGig] = useState<Gig | null>(null);
   const liveBookings = data.bookings.filter(booking => ['CONFIRMED', 'IN_PROGRESS'].includes(booking.status));
@@ -57,7 +57,7 @@ export function TeacherDashboardLive({ data }: { data: DashboardData }) {
         <p>আপনার ক্লাস, বুকিং ও শেখানোর প্যাকেজ এক জায়গায় গুছিয়ে নিন।</p>
       </div>
       <div className="teacher-dashboard-profile">
-        <Avatar name={data.user.name} size="lg" teacherId={data.teacher?.id} />
+        <Avatar name={data.user.name} size="lg" teacherId={data.teacher?.id} photoUrl={photoFromUser(data.user)} />
         <div><small>আপনার প্রোফাইল</small><b>{data.teacher?.level || 'শিক্ষক'}</b></div>
         <button className="quiet-btn" onClick={() => setProfileOpen(true)}>সম্পাদনা</button>
       </div>
@@ -141,12 +141,12 @@ export function TeacherDashboardLive({ data }: { data: DashboardData }) {
       </section>
     </div>
 
-    {profileOpen && data.teacher && <TeacherProfileEditor teacher={data.teacher} onClose={() => setProfileOpen(false)} onSaved={() => window.location.reload()} />}
+    {profileOpen && data.teacher && <TeacherProfileEditor teacher={data.teacher} user={data.user} onUserSaved={onUserUpdated} onClose={() => setProfileOpen(false)} onSaved={() => window.location.reload()} />}
     {editingGig && <TeacherGigEditor gig={editingGig} onClose={() => setEditingGig(null)} onSaved={() => window.location.reload()} />}
   </section>;
 }
 
-export function TeacherDashboardLivePage() {
+export function TeacherDashboardLivePage({ onUserUpdated }: { onUserUpdated?: (user: User) => void } = {}) {
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState('');
   useEffect(() => {
@@ -154,5 +154,5 @@ export function TeacherDashboardLivePage() {
   }, []);
   if (error) return <section className="page section teacher-dashboard"><p className="teacher-dashboard-error">{error}</p></section>;
   if (!data) return <section className="page section teacher-dashboard" aria-live="polite"><div className="teacher-dashboard-loading"><span /><span /><span /><span /></div><p>ড্যাশবোর্ড লোড হচ্ছে...</p></section>;
-  return <TeacherDashboardLive data={data} />;
+  return <TeacherDashboardLive data={data} onUserUpdated={onUserUpdated} />;
 }
