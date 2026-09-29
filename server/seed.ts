@@ -16,6 +16,15 @@ const subjects = [
 ];
 const makeUser = (id: string, email: string, role: Role, name: string): User => ({ id, email, role, name, passwordHash: passwordHash('demo123'), createdAt: now(), active: true, profile: {} });
 
+export function createDemoProblems() {
+  const deadline = (days: number) => new Date(Date.now() + days * 86400000).toISOString().slice(0, 10);
+  return [
+    { id: 'problem-demo-physics', studentId: 'student-2', title: 'নিউটনের গতিসূত্রের অঙ্কে আটকে গেছি', description: 'Free-body diagram এঁকে বলের দিক বুঝতে এবং দ্বিতীয় গতিসূত্র ব্যবহার করে অঙ্ক সমাধান করতে সাহায্য চাই।', subject: 'পদার্থবিজ্ঞান', topic: 'গতিবিদ্যা', budget: 500, deadline: deadline(2), status: 'OPEN' as const, createdAt: now() },
+    { id: 'problem-demo-chemistry', studentId: 'student-3', title: 'জৈব রসায়নের বিক্রিয়াগুলো গুছিয়ে শিখতে চাই', description: 'বিভিন্ন বিক্রিয়ার ধাপ ও রূপান্তর মনে রাখতে সমস্যা হচ্ছে। সহজ কৌশল, উদাহরণ এবং অনুশীলনীসহ বুঝতে চাই।', subject: 'রসায়ন', topic: 'জৈব রসায়ন', budget: 650, deadline: deadline(3), status: 'OPEN' as const, createdAt: now() },
+    { id: 'problem-demo-english', studentId: 'student-4', title: 'ইংরেজি paragraph-এ tense ও sentence structure ঠিক করতে চাই', description: 'লেখার সময় tense বদলে যায় এবং বাক্য গঠন দুর্বল থাকে। একটি লেখা দেখে ভুলগুলো বুঝিয়ে অনুশীলন করাতে পারবেন?', subject: 'ইংরেজি', topic: 'রাইটিং', budget: 400, deadline: deadline(4), status: 'OPEN' as const, createdAt: now() }
+  ];
+}
+
 export function createDemoState(): AppState {
   const state: AppState = { users: [], subjects: [], teachers: [], gigs: [], gigDrafts: [], gigOffers: [], gigVersions: [], gigAnalytics: [], gigModeration: [], bookings: [], payments: [], ledger: [], messages: [], notifications: [], reviews: [], questions: [], exams: [], attempts: [], favorites: [], problems: [], offers: [], parentChildren: [], reports: [], audit: [] };
   state.subjects = subjects.map(([name, icon, topics], i) => ({ id: `sub-${i + 1}`, name: name as string, icon: icon as string, topics: topics as string[] }));
@@ -40,7 +49,7 @@ export function createDemoState(): AppState {
   state.messages.push({ id: 'message-demo-1', conversationId: 'student-1:teacher-1', senderId: 'teacher-1', receiverId: 'student-1', body: 'স্বাগতম! ক্লাসের আগে আপনার প্রশ্নগুলো পাঠাতে পারেন।', createdAt: now() });
   state.notifications.push({ id: 'notification-demo-1', userId: 'student-1', type: 'BOOKING', title: 'আপনার বুকিং নিশ্চিত হয়েছে', body: 'আগামীকাল বিকাল ৪টায় আপনার ক্লাস আছে।', href: '/booking-demo-1', createdAt: now() }, { id: 'notification-demo-2', userId: 'teacher-1', type: 'PAYMENT', title: 'ডেমো আয় যোগ হয়েছে', body: 'একটি নিশ্চিত বুকিংয়ের আয় আপনার ডেমো ওয়ালেটে যোগ হয়েছে।', href: '/dashboard', createdAt: now() });
   state.parentChildren.push({ id: 'pc-1', parentId: 'parent-1', childId: 'student-1', createdAt: now() });
-  state.problems.push({ id: 'problem-1', studentId: 'student-1', title: 'ক্যালকুলাসের সীমা বুঝতে পারছি না', description: 'এই অধ্যায়ের কয়েকটি অঙ্ক ধাপে ধাপে বুঝতে চাই।', subject: 'গণিত', topic: 'ক্যালকুলাস', budget: 400, deadline: new Date(Date.now() + 172800000).toISOString().slice(0,10), status: 'OPEN', createdAt: now() });
+  state.problems.push({ id: 'problem-1', studentId: 'student-1', title: 'ক্যালকুলাসের সীমা বুঝতে পারছি না', description: 'এই অধ্যায়ের কয়েকটি অঙ্ক ধাপে ধাপে বুঝতে চাই।', subject: 'গণিত', topic: 'ক্যালকুলাস', budget: 400, deadline: new Date(Date.now() + 172800000).toISOString().slice(0,10), status: 'OPEN', createdAt: now() }, ...createDemoProblems());
   return state;
 }
 export const id = (prefix: string) => `${prefix}-${randomUUID()}`;

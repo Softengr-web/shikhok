@@ -3,7 +3,7 @@ import { api, post, put } from './api';
 import { Avatar, BookingModal, Empty, Loading, TeacherCard, bn, go, money, shortDate } from './components';
 import { TeacherGigEditor, TeacherProfileEditor } from './teacher-dashboard-forms';
 import { TeacherDashboardLive } from './teacher-dashboard';
-import type { Booking, Exam, Gig, Notification, Subject, Teacher, User } from './models';
+import type { Booking, Exam, Gig, Notification, ProblemPost, Subject, Teacher, User } from './models';
 
 export function Home({user}:{user:User|null}) { const [subjects,setSubjects]=useState<Subject[]>([]);const [teachers,setTeachers]=useState<Teacher[]>([]);const [q,setQ]=useState('');const [compare,setCompare]=useState<Teacher[]>([]);useEffect(()=>{void Promise.all([api<Subject[]>('/subjects'),api<{items:Teacher[]}>('/teachers?perPage=4')]).then(([s,t])=>{setSubjects(s);setTeachers(t.items);});},[]);const toggle=(t:Teacher)=>setCompare(c=>c.some(x=>x.id===t.id)?c.filter(x=>x.id!==t.id):c.length<3?[...c,t]:c);return <><section className="hero"><div><p className="hero-brand" aria-label="Private Tutor">Private <span>Tutor</span><i aria-hidden="true"></i></p><p className="eyebrow">বাংলাদেশের শিক্ষক মার্কেটপ্লেস</p><h1>আপনার জন্য সঠিক শিক্ষক খুঁজে নিন</h1><p>দক্ষ শিক্ষক বাছাই করুন, ডেমো দেখুন, বুক করুন এবং নিজের অগ্রগতি দেখুন।</p><form className="searchbar" onSubmit={e=>{e.preventDefault();go(`/search?q=${encodeURIComponent(q)}`)}}><input value={q} onChange={e=>setQ(e.target.value)} placeholder="আপনি কী শিখতে চান?" aria-label="আপনি কী শিখতে চান?"/><button className="button">শিক্ষক খুঁজুন</button></form><div className="hero-points"><span>✓ যাচাইকৃত শিক্ষক</span><span>✓ স্বচ্ছ ডেমো মূল্য</span><span>✓ লোকাল ক্লাসরুম</span></div></div><div className="hero-panel"><span className="spark">✦</span><p>আজই শুরু করুন</p><b>{bn(20)}+ শিক্ষক</b><small>সকল প্রোফাইল ও লেনদেন সিনথেটিক লোকাল ডেমো ডেটা</small><a href="#/register" className="button light">বিনামূল্যে শুরু করুন</a></div></section><section className="section"><div className="section-head"><div><p className="eyebrow">বিষয় বেছে নিন</p><h2>জনপ্রিয় বিষয়</h2></div><a href="#/search">সব দেখুন →</a></div><div className="categories">{subjects.slice(0,10).map(s=><button key={s.id} onClick={()=>go(`/search?subject=${encodeURIComponent(s.name)}`)}><i>{s.icon}</i><span>{s.name}</span><small>{s.topics.length}টি টপিক</small></button>)}</div></section><section className="section soft"><div className="section-head"><div><p className="eyebrow">শিক্ষক নির্বাচন</p><h2>জনপ্রিয় শিক্ষক</h2></div><a href="#/search">সব শিক্ষক দেখুন →</a></div><div className="card-grid">{teachers.map(t=><TeacherCard key={t.id} teacher={t} user={user} compare={compare.some(x=>x.id===t.id)} onCompare={toggle}/>)}</div>{compare.length>1&&<CompareBar teachers={compare} onRemove={toggle}/>}</section><section className="how"><p className="eyebrow">সহজ তিন ধাপ</p><h2>কীভাবে শিক্ষক কাজ করে</h2><div><article><b>১</b><h3>শিক্ষক খুঁজুন</h3><p>বিষয়, স্তর ও বাজেট দিয়ে পছন্দের শিক্ষক বাছুন।</p></article><article><b>২</b><h3>ক্লাস বুক করুন</h3><p>প্যাকেজ এবং সুবিধাজনক সময় নির্বাচন করে ডেমো পেমেন্ট করুন।</p></article><article><b>৩</b><h3>শিখুন ও এগিয়ে যান</h3><p>লোকাল ক্লাসরুম, নোট, পরীক্ষা ও অগ্রগতি এক জায়গায়।</p></article></div></section></> }
 const gigSubjectIcons: Record<string, string> = {
@@ -256,7 +256,98 @@ export function Messages({user}:{user:User}){const requestedId=new URLSearchPara
 
 export function Exams({user}:{user:User}){const [exams,setExams]=useState<Exam[]|null>(null);const [active,setActive]=useState<Exam|null>(null);const [answers,setAnswers]=useState<Record<string,number>>({});const [result,setResult]=useState<any>(null);useEffect(()=>{void api<Exam[]>('/exams').then(setExams);},[]);const open=async(id:string)=>{setResult(null);setAnswers({});setActive(await api<Exam>(`/exams/${id}`));};const submit=async()=>{if(!active)return;setResult(await post(`/exams/${active.id}/submit`,{answers}));};if(user.role!=='STUDENT')return <section className="page section"><Empty>পরীক্ষায় অংশ নিতে শিক্ষার্থী হিসেবে লগইন করুন।</Empty></section>;if(active)return <section className="page section exam"><p className="eyebrow">{active.subject} • {active.topic}</p><h1>{active.title}</h1><p className="help">সময়সীমা: {bn(active.duration)} মিনিট • পাস নম্বর: {bn(active.passMark)}%</p>{active.questions?.map((q,i)=><fieldset key={q.id}><legend>{bn(i+1)}. {q.text}</legend>{q.options.map((o,n)=><label key={o} className="option"><input type="radio" name={q.id} checked={answers[q.id]===n} onChange={()=>setAnswers({...answers,[q.id]:n})}/>{o}</label>)}</fieldset>)}{result?<div className="exam-result"><span>✓</span><h2>ফলাফল</h2><b>{bn(result.score)}/{bn(result.total)}</b><p>{result.passed?'অভিনন্দন! আপনি উত্তীর্ণ হয়েছেন।':'আরও অনুশীলন করে আবার চেষ্টা করুন।'}</p><button className="button" onClick={()=>setActive(null)}>পরীক্ষার তালিকায় ফিরুন</button></div>:<button className="button" onClick={()=>void submit()}>উত্তর জমা দিন</button>}</section>;return <section className="page section"><p className="eyebrow">MCQ অনুশীলন</p><h1>আমার পরীক্ষা</h1>{exams?<div className="exam-list">{exams.map(e=><article key={e.id}><span>{e.subject}</span><h2>{e.title}</h2><p>{bn(e.questions as unknown as number)}টি প্রশ্ন • {bn(e.duration)} মিনিট • পাস নম্বর {bn(e.passMark)}%</p><button className="button" onClick={()=>void open(e.id)}>পরীক্ষা শুরু করুন</button></article>)}</div>:<Loading/>}</section>}
 
-export function Problems({user}:{user:User|null}){const [items,setItems]=useState<any[]>([]);const [teachers,setTeachers]=useState<Teacher[]>([]);const [open,setOpen]=useState(false);const [offer,setOffer]=useState<string|null>(null);const [bookingTeacher,setBookingTeacher]=useState<Teacher|null>(null);const load=()=>void api<any[]>('/problems').then(setItems);useEffect(load,[]);useEffect(()=>{void api<Teacher[]>('/problem-sessions').then(setTeachers).catch(()=>setTeachers([]));},[]);return <section className="page section"><div className="section-head"><div><p className="eyebrow">সমস্যা সমাধান মার্কেটপ্লেস</p><h1>কোনো বিষয় বুঝতে পারছেন না?</h1></div>{user?.role==='STUDENT'&&<button className="button" onClick={()=>setOpen(true)}>সমস্যা পোস্ট করুন</button>}</div><p className="lead">সমস্যা পোস্ট করুন, লাইভ শিক্ষককে খুঁজে নিয়ে এক-এক সেশন বুক করুন এবং ডেমো পেমেন্টের মাধ্যমে সুরক্ষিতভাবে নিশ্চিত করুন।</p><div className="problem-layout"><div className="problem-main">{items.length?<div className="problem-grid">{items.map(p=><article key={p.id}><span className={`status ${p.status}`}>{p.status==='OPEN'?'খোলা':'চলমান'}</span><h2>{p.title}</h2><p>{p.description}</p><div className="chips"><span>{p.subject}</span><span>{p.topic}</span></div><div className="problem-meta"><span>বাজেট {money(p.budget)}</span><span>সীমা {shortDate(p.deadline)}</span></div>{user?.role==='TEACHER'&&p.status==='OPEN'&&<button className="button" onClick={()=>setOffer(p.id)}>প্রস্তাব দিন</button>}{user?.id===p.studentId&&p.offers?.length>0&&<OfferList problem={p} onDone={load}/>}</article>)}</div>:<Empty>এখনও কোনো সমস্যা পোস্ট করা হয়নি।</Empty>}</div><aside className="live-panel"><div className="panel-head"><p className="eyebrow">লাইভ শিক্ষক</p><h2>এখন অনলাইনে</h2></div>{teachers.length?teachers.map(t=><article className="live-teacher-card" key={t.id}><div className="live-header"><Avatar name={t.user.name} size="sm" teacherId={t.id}/><div className="live-meta-stack"><strong>{t.user.name}</strong><span>{t.subjects[0]} • {t.experienceYears} বছর</span></div><span className={`live-pill ${t.isLive ? 'online':'offline'}`}>{t.isLive ? 'লাইভ' : 'অফলাইন'}</span></div><p className="live-headline">{t.headline}</p><div className="stars">★ {t.rating.toFixed(1)} <small>({bn(t.reviewCount)} রিভিউ)</small></div><div className="chips">{t.subjects.slice(0,2).map(s=><span key={s}>{s}</span>)}{t.skills.slice(0,2).map(s=><span key={s}>{s}</span>)}</div><div className="live-details"><span>ফি: {money(t.sessionPrice ?? t.hourlyRate)}</span><span>{t.isLive ? 'এখনই উত্তর নিচ্ছে' : 'শেষ দেখা: '+new Date(t.lastSeenAt || Date.now()).toLocaleTimeString('bn-BD',{hour:'2-digit',minute:'2-digit'})}</span></div><div className="slot-row">{(Object.values(t.availability||{}).flat().slice(0,4)).map(slot=><button key={`${t.id}-${slot}`} className="slot-btn" type="button" onClick={()=>setBookingTeacher(t)}>{slot}</button>)}</div><div className="card-actions"><button className="quiet-btn" onClick={()=>go('/messages')}>চ্যাট</button><button className="button" onClick={()=>setBookingTeacher(t)}>বুক করুন</button></div></article>):<Empty>এই মুহূর্তে কোনো লাইভ শিক্ষক নেই।</Empty>}</aside></div>{open&&<ProblemForm onClose={()=>setOpen(false)} onDone={()=>{setOpen(false);load();}}/>}{offer&&<OfferForm problemId={offer} onClose={()=>setOffer(null)} onDone={()=>{setOffer(null);load();}}/>}{bookingTeacher&&<ProblemSessionModal teacher={bookingTeacher} onClose={()=>setBookingTeacher(null)} onDone={id=>{setBookingTeacher(null);go(`/payment/${id}`);}}/>}</section>}
+export function Problems({user}:{user:User|null}) {
+  const [items,setItems]=useState<ProblemPost[]>([]);
+  const [teachers,setTeachers]=useState<Teacher[]>([]);
+  const [open,setOpen]=useState(false);
+  const [offer,setOffer]=useState<string|null>(null);
+  const [bookingTeacher,setBookingTeacher]=useState<Teacher|null>(null);
+  const [query,setQuery]=useState('');
+  const [subject,setSubject]=useState('সব বিষয়');
+  const [sort,setSort]=useState('newest');
+  const [loading,setLoading]=useState(true);
+  const [error,setError]=useState('');
+
+  const load=async()=>{setLoading(true);try{setItems(await api<ProblemPost[]>('/problems'));setError('');}catch{setError('সমস্যাগুলো লোড করা যাচ্ছে না। আবার চেষ্টা করুন।');}finally{setLoading(false);}};
+  useEffect(()=>{void load();},[]);
+  useEffect(()=>{void api<Teacher[]>('/problem-sessions').then(setTeachers).catch(()=>setTeachers([]));},[]);
+
+  const subjects=Array.from(new Set(items.map(item=>item.subject)));
+  const filtered=items.filter(item=>{
+    const text=(item.title+' '+item.description+' '+item.subject+' '+item.topic+' '+(item.student?.name||'')).toLocaleLowerCase('bn');
+    return (subject==='সব বিষয়'||item.subject===subject)&&(!query.trim()||text.includes(query.trim().toLocaleLowerCase('bn')));
+  }).sort((a,b)=>sort==='budget' ? b.budget-a.budget : b.createdAt.localeCompare(a.createdAt));
+  const onlineTeachers=teachers.filter(teacher=>teacher.isLive).length;
+
+  return <section className="page section problem-market-page">
+    <div className="problem-market-hero">
+      <div className="problem-hero-copy">
+        <p className="eyebrow">শিখুন, বুঝুন, এগিয়ে যান</p>
+        <h1>যে প্রশ্নে আটকে আছেন,<br/><span>সেটার সমাধান এখানেই</span></h1>
+        <p>আপনার শেখার সমস্যাটি শেয়ার করুন। বিষয়ভিত্তিক শিক্ষকরা প্রস্তাব দেবেন, আপনি পছন্দের সহায়তাটি বেছে নেবেন।</p>
+        {user?.role==='STUDENT'?<button className="button problem-hero-action" onClick={()=>setOpen(true)}>＋ সমস্যা পোস্ট করুন</button>:<button className="quiet-btn problem-hero-action" onClick={()=>go('/login')}>শিক্ষার্থী হিসেবে লগইন করুন</button>}
+        <div className="problem-hero-note"><span aria-hidden="true">✓</span> সমস্যার বিবরণ ও বাজেট আপনি নিজেই ঠিক করবেন</div>
+      </div>
+      <div className="problem-hero-visual" aria-hidden="true">
+        <span className="problem-visual-ring ring-a"/><span className="problem-visual-ring ring-b"/>
+        <div className="problem-visual-card"><span className="problem-visual-symbol">?</span><small>প্রশ্ন থেকে</small><b>সমাধান</b><i>শিক্ষকের সহায়তায়</i></div>
+        <span className="problem-visual-spark spark-a">✦</span><span className="problem-visual-spark spark-b">✳</span>
+      </div>
+    </div>
+
+    <div className="problem-market-stats">
+      <article><span className="problem-stat-icon">▤</span><div><b>{bn(items.length)}</b><small>মোট সমস্যা</small></div></article>
+      <article><span className="problem-stat-icon open-icon">↗</span><div><b>{bn(items.filter(item=>item.status==='OPEN').length)}</b><small>সহায়তার জন্য খোলা</small></div></article>
+      <article><span className="problem-stat-icon live-icon">●</span><div><b>{bn(onlineTeachers)}</b><small>শিক্ষক এখন লাইভ</small></div></article>
+    </div>
+
+    <div className="problem-content-head">
+      <div><p className="eyebrow">শিক্ষার্থীদের প্রশ্ন</p><h2>একটি সমস্যা বেছে নিন</h2></div>
+      <span className="problem-result-count">{loading?'লোড হচ্ছে…':bn(filtered.length)+'টি সমস্যা'}</span>
+    </div>
+
+    <div className="problem-tools">
+      <label className="problem-search"><span aria-hidden="true">⌕</span><input value={query} onChange={event=>setQuery(event.target.value)} placeholder="সমস্যা, বিষয় বা টপিক খুঁজুন" aria-label="সমস্যা, বিষয় বা টপিক খুঁজুন"/></label>
+      <label className="problem-sort"><span>সাজান</span><select value={sort} onChange={event=>setSort(event.target.value)}><option value="newest">নতুন আগে</option><option value="budget">বাজেট বেশি আগে</option></select></label>
+    </div>
+
+    <div className="problem-market-layout">
+      <div className="problem-list-column">
+        <div className="problem-subject-filter" aria-label="বিষয় দিয়ে সমস্যা বাছাই">
+          {['সব বিষয়',...subjects].map(value=><button key={value} className={subject===value?'active':''} onClick={()=>setSubject(value)}>{value}</button>)}
+        </div>
+        {loading?<div className="problem-loading"><span/><p>শিক্ষার্থীদের সমস্যা খোঁজা হচ্ছে…</p></div>:error?<div className="problem-empty"><span>!</span><h3>তথ্য পাওয়া যায়নি</h3><p>{error}</p><button className="quiet-btn" onClick={()=>void load()}>আবার চেষ্টা করুন</button></div>:filtered.length?<div className="problem-market-grid">
+          {filtered.map((p,index)=><article className="problem-market-card" key={p.id}>
+            <div className="problem-card-top"><span className="problem-subject-mark">{p.subject==='গণিত'?'∑':p.subject==='পদার্থবিজ্ঞান'?'⚛':p.subject==='রসায়ন'?'⚗':p.subject==='ইংরেজি'?'Aa':'✦'}</span><span className={'problem-status '+p.status}>{p.status==='OPEN'?'সহায়তা চাই':p.status==='CLOSED'?'সমাপ্ত':'চলমান'}</span><span className="problem-card-number">{String(index+1).padStart(2,'0')}</span></div>
+            <div className="problem-card-content">
+              <div className="problem-topic-line"><span>{p.subject}</span><i>·</i><span>{p.topic}</span></div>
+              <h3>{p.title}</h3>
+              <p className="problem-card-description">{p.description}</p>
+              <div className="problem-posted-by"><span className="problem-student-avatar">{(p.student?.name||'শ').trim().slice(0,1)}</span><span><small>পোস্ট করেছেন</small><b>{p.student?.name||'একজন শিক্ষার্থী'}</b></span><span className="problem-posted-date">{new Intl.DateTimeFormat('bn-BD',{dateStyle:'medium'}).format(new Date(p.createdAt))}</span></div>
+              <div className="problem-card-footer"><div className="problem-budget"><small>প্রস্তাবিত বাজেট</small><b>{money(p.budget)}</b></div><div className="problem-deadline"><small>প্রয়োজনের সময়</small><b>{new Intl.DateTimeFormat('bn-BD',{dateStyle:'medium'}).format(new Date(p.deadline))}</b></div></div>
+              {user?.role==='TEACHER'&&p.status==='OPEN'&&<button className="button problem-propose-button" onClick={()=>setOffer(p.id)}>এই সমস্যায় প্রস্তাব দিন <span aria-hidden="true">↗</span></button>}
+              {user?.id===p.studentId&&p.offers?.length?<OfferList problem={p} onDone={()=>void load()}/>:null}
+            </div>
+          </article>)}
+        </div>:<div className="problem-empty"><span>⌕</span><h3>এই খোঁজে কোনো সমস্যা নেই</h3><p>অন্য বিষয় বেছে নিন অথবা সার্চের শব্দ বদলে দেখুন।</p><button className="quiet-btn" onClick={()=>{setQuery('');setSubject('সব বিষয়');}}>সব সমস্যা দেখুন</button></div>}
+      </div>
+
+      <aside className="problem-live-panel">
+        <div className="problem-live-heading"><span className="problem-live-dot"/><div><p className="eyebrow">সরাসরি সহায়তা</p><h2>লাইভ শিক্ষক</h2></div><span className="problem-live-count">{bn(onlineTeachers)} লাইভ</span></div>
+        <p className="problem-live-intro">এখনই কথা বলুন বা সুবিধামতো একটি সময় বেছে নিন।</p>
+        {teachers.length?teachers.slice(0,4).map(t=><article className="problem-live-teacher" key={t.id}>
+          <div className="problem-live-person"><Avatar name={t.user.name} size="sm" teacherId={t.id}/><div><b>{t.user.name}</b><small>{t.subjects[0]} · {bn(t.experienceYears)} বছরের অভিজ্ঞতা</small></div><span className={'live-pill '+(t.isLive?'online':'offline')}>{t.isLive?'লাইভ':'অফলাইন'}</span></div>
+          <p>{t.headline}</p><div className="problem-live-rating"><span>★ {t.rating.toFixed(1)} <small>({bn(t.reviewCount)} রিভিউ)</small></span><b>{money(t.sessionPrice??t.hourlyRate)}</b></div>
+          <div className="problem-live-actions"><button className="quiet-btn" onClick={()=>go('/messages')}>চ্যাট</button><button className="button" onClick={()=>setBookingTeacher(t)}>সময় বেছে নিন</button></div>
+        </article>):<div className="problem-live-empty">এই মুহূর্তে লাইভ শিক্ষক নেই। পরে আবার দেখুন।</div>}
+        <a className="problem-all-teachers" href="#/search">সব শিক্ষক দেখুন <span>→</span></a>
+      </aside>
+    </div>
+    {open&&<ProblemForm onClose={()=>setOpen(false)} onDone={()=>{setOpen(false);void load();}}/>}
+    {offer&&<OfferForm problemId={offer} onClose={()=>setOffer(null)} onDone={()=>{setOffer(null);void load();}}/>}
+    {bookingTeacher&&<ProblemSessionModal teacher={bookingTeacher} onClose={()=>setBookingTeacher(null)} onDone={id=>{setBookingTeacher(null);go('/payment/'+id);}}/>}
+  </section>;
+}
 function ProblemSessionModal({teacher,onClose,onDone}:{teacher:Teacher;onClose:()=>void;onDone:(id:string)=>void}){const dayNames=Object.keys(teacher.availability || {});const [day,setDay]=useState(dayNames[0] || '');const [date,setDate]=useState(()=>nextDateForDay(dayNames[0] || 'শনিবার'));const [time,setTime]=useState((teacher.availability?.[dayNames[0]] || [])[0] || '');const [busy,setBusy]=useState(false);const [error,setError]=useState('');useEffect(()=>{if(!dayNames.length)return;setDate(nextDateForDay(day));setTime((teacher.availability?.[day] || [])[0] || '');},[day,dayNames,teacher]);const fee = teacher.sessionPrice ?? teacher.hourlyRate;const submit=async(e:React.FormEvent)=>{e.preventDefault();setBusy(true);setError('');try{const b=await post<{id:string}>('/problem-sessions',{teacherId:teacher.id,date,time,price:fee,subject:(teacher.subjects[0]||'গণিত')});onDone(b.id);}catch(e){setError(e instanceof Error?e.message:'সমস্যা হয়েছে');}finally{setBusy(false);}};return <div className="modal-back"><section className="modal" role="dialog" aria-modal="true" aria-label="সেশন বুক করুন"><button className="close" onClick={onClose}>×</button><p className="eyebrow">লাইভ এক-এক সেশন</p><h2>{teacher.user.name}</h2><p>{teacher.headline}</p><div className="price-line"><span>সেশন ফি</span><b>{money(fee)}</b></div><form onSubmit={submit}><label>দিন<select value={day} onChange={e=>setDay(e.target.value)}>{dayNames.map(d=><option value={d} key={d}>{d}</option>)}</select></label><label>তারিখ<input type="date" value={date} min={new Date().toISOString().slice(0,10)} onChange={e=>setDate(e.target.value)} required/></label><label>সময়<select value={time} onChange={e=>setTime(e.target.value)}>{(teacher.availability?.[day] || []).map(slot=><option key={slot} value={slot}>{slot}</option>)}</select></label>{error&&<p className="form-error">{error}</p>}<button className="button wide" disabled={busy}>{busy?'বুকিং তৈরি হচ্ছে…':'পেমেন্টে এগিয়ে যান'}</button></form></section></div>}
 function nextDateForDay(day:string){const labels=['শনিবার','রোববার','সোমবার','মঙ্গলবার','বুধবার','বৃহস্পতিবার','শুক্রবার'];const idx=labels.indexOf(day);const now=new Date();const target=new Date(now);const delta=(idx - now.getDay() + 7) % 7 || 7;target.setDate(now.getDate()+delta);return target.toISOString().slice(0,10)}
 function ProblemForm({onClose,onDone}:{onClose:()=>void;onDone:()=>void}){const [f,setF]=useState({title:'',description:'',subject:'গণিত',topic:'ক্যালকুলাস',budget:'400',deadline:new Date(Date.now()+172800000).toISOString().slice(0,10)});const [error,setError]=useState('');const submit=async(e:React.FormEvent)=>{e.preventDefault();try{await post('/problems',{...f,budget:Number(f.budget)});onDone();}catch(e){setError(e instanceof Error?e.message:'সমস্যা হয়েছে');}};return <div className="modal-back"><section className="modal"><button className="close" onClick={onClose}>×</button><h2>নতুন সমস্যা পোস্ট করুন</h2><form onSubmit={submit}><label>সমস্যার শিরোনাম<input value={f.title} onChange={e=>setF({...f,title:e.target.value})} required/></label><label>বিস্তারিত<textarea value={f.description} onChange={e=>setF({...f,description:e.target.value})} required/></label><div className="two"><label>বিষয়<input value={f.subject} onChange={e=>setF({...f,subject:e.target.value})}/></label><label>টপিক<input value={f.topic} onChange={e=>setF({...f,topic:e.target.value})}/></label></div><div className="two"><label>বাজেট<input type="number" value={f.budget} onChange={e=>setF({...f,budget:e.target.value})}/></label><label>সময়সীমা<input type="date" value={f.deadline} onChange={e=>setF({...f,deadline:e.target.value})}/></label></div>{error&&<p className="form-error">{error}</p>}<button className="button wide">পোস্ট প্রকাশ করুন</button></form></section></div>}

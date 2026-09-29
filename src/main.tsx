@@ -7,6 +7,7 @@ import './gig-capabilities.css';
 import './teacher-profile-gigs.css';
 import './teacher-comparison.css';
 import './gig-marketplace.css';
+import './problem-marketplace.css';
 import { RootApp } from './RootApp';
 
 createRoot(document.getElementById('root')!).render(<StrictMode><RootApp /></StrictMode>);
