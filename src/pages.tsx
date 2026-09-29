@@ -6,7 +6,81 @@ import { TeacherDashboardLive } from './teacher-dashboard';
 import type { Booking, Exam, Gig, Notification, Subject, Teacher, User } from './models';
 
 export function Home({user}:{user:User|null}) { const [subjects,setSubjects]=useState<Subject[]>([]);const [teachers,setTeachers]=useState<Teacher[]>([]);const [q,setQ]=useState('');const [compare,setCompare]=useState<Teacher[]>([]);useEffect(()=>{void Promise.all([api<Subject[]>('/subjects'),api<{items:Teacher[]}>('/teachers?perPage=4')]).then(([s,t])=>{setSubjects(s);setTeachers(t.items);});},[]);const toggle=(t:Teacher)=>setCompare(c=>c.some(x=>x.id===t.id)?c.filter(x=>x.id!==t.id):c.length<3?[...c,t]:c);return <><section className="hero"><div><p className="hero-brand" aria-label="Private Tutor">Private <span>Tutor</span><i aria-hidden="true"></i></p><p className="eyebrow">বাংলাদেশের শিক্ষক মার্কেটপ্লেস</p><h1>আপনার জন্য সঠিক শিক্ষক খুঁজে নিন</h1><p>দক্ষ শিক্ষক বাছাই করুন, ডেমো দেখুন, বুক করুন এবং নিজের অগ্রগতি দেখুন।</p><form className="searchbar" onSubmit={e=>{e.preventDefault();go(`/search?q=${encodeURIComponent(q)}`)}}><input value={q} onChange={e=>setQ(e.target.value)} placeholder="আপনি কী শিখতে চান?" aria-label="আপনি কী শিখতে চান?"/><button className="button">শিক্ষক খুঁজুন</button></form><div className="hero-points"><span>✓ যাচাইকৃত শিক্ষক</span><span>✓ স্বচ্ছ ডেমো মূল্য</span><span>✓ লোকাল ক্লাসরুম</span></div></div><div className="hero-panel"><span className="spark">✦</span><p>আজই শুরু করুন</p><b>{bn(20)}+ শিক্ষক</b><small>সকল প্রোফাইল ও লেনদেন সিনথেটিক লোকাল ডেমো ডেটা</small><a href="#/register" className="button light">বিনামূল্যে শুরু করুন</a></div></section><section className="section"><div className="section-head"><div><p className="eyebrow">বিষয় বেছে নিন</p><h2>জনপ্রিয় বিষয়</h2></div><a href="#/search">সব দেখুন →</a></div><div className="categories">{subjects.slice(0,10).map(s=><button key={s.id} onClick={()=>go(`/search?subject=${encodeURIComponent(s.name)}`)}><i>{s.icon}</i><span>{s.name}</span><small>{s.topics.length}টি টপিক</small></button>)}</div></section><section className="section soft"><div className="section-head"><div><p className="eyebrow">শিক্ষক নির্বাচন</p><h2>জনপ্রিয় শিক্ষক</h2></div><a href="#/search">সব শিক্ষক দেখুন →</a></div><div className="card-grid">{teachers.map(t=><TeacherCard key={t.id} teacher={t} user={user} compare={compare.some(x=>x.id===t.id)} onCompare={toggle}/>)}</div>{compare.length>1&&<CompareBar teachers={compare} onRemove={toggle}/>}</section><section className="how"><p className="eyebrow">সহজ তিন ধাপ</p><h2>কীভাবে শিক্ষক কাজ করে</h2><div><article><b>১</b><h3>শিক্ষক খুঁজুন</h3><p>বিষয়, স্তর ও বাজেট দিয়ে পছন্দের শিক্ষক বাছুন।</p></article><article><b>২</b><h3>ক্লাস বুক করুন</h3><p>প্যাকেজ এবং সুবিধাজনক সময় নির্বাচন করে ডেমো পেমেন্ট করুন।</p></article><article><b>৩</b><h3>শিখুন ও এগিয়ে যান</h3><p>লোকাল ক্লাসরুম, নোট, পরীক্ষা ও অগ্রগতি এক জায়গায়।</p></article></div></section></> }
-export function GigsPage(){const [gigs,setGigs]=useState<Gig[]|null>(null);useEffect(()=>{void api<Gig[]>('/gigs').then(setGigs);},[]);return <section className="page section"><p className="eyebrow">প্যাকেজভিত্তিক শেখা</p><h1>জনপ্রিয় গিগ</h1>{gigs?<div className="gig-cards">{gigs.slice(0,24).map(g=><article key={g.id}><span>{g.subject} • {g.level}</span><h2>{g.title}</h2><p>{g.description}</p><div><b>{money(g.packages[0].price)} থেকে</b><button className="button" onClick={()=>go(`/gig/${g.id}`)}>বিস্তারিত দেখুন</button></div></article>)}</div>:<Loading/>}</section>}
+const gigSubjectIcons: Record<string, string> = {
+  'গণিত': '∑', 'পদার্থবিজ্ঞান': '⚛', 'রসায়ন': '⚗', 'জীববিজ্ঞান': '✳', 'ইংরেজি': 'Aa',
+  'বাংলা': 'অ', 'আইসিটি': '⌘', 'হিসাববিজ্ঞান': '▤', 'ফিন্যান্স': '৳', 'প্রোগ্রামিং': '</>',
+  'IELTS': 'IELTS', 'ভর্তি প্রস্তুতি': '✦'
+};
+const gigSubjectTones: Record<string, string> = {
+  'গণিত': 'math', 'পদার্থবিজ্ঞান': 'physics', 'রসায়ন': 'chemistry', 'জীববিজ্ঞান': 'biology',
+  'ইংরেজি': 'english', 'বাংলা': 'bangla', 'আইসিটি': 'ict', 'হিসাববিজ্ঞান': 'finance',
+  'ফিন্যান্স': 'finance', 'প্রোগ্রামিং': 'programming', 'IELTS': 'ielts', 'ভর্তি প্রস্তুতি': 'admission'
+};
+
+export function GigsPage() {
+  const [gigs, setGigs] = useState<Gig[] | null>(null);
+  const [query, setQuery] = useState('');
+  const [subject, setSubject] = useState('সব গিগ');
+  const [sort, setSort] = useState('popular');
+  const [visibleCount, setVisibleCount] = useState(12);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    void api<Gig[]>('/gigs')
+      .then(items => { if (active) setGigs(items); })
+      .catch(() => { if (active) { setGigs([]); setError('গিগগুলো এখন লোড করা যাচ্ছে না। আবার চেষ্টা করুন।'); } });
+    return () => { active = false; };
+  }, []);
+
+  const subjects = Array.from(new Set((gigs || []).map(gig => gig.subject)));
+  const filtered = (gigs || []).filter(gig => {
+    const text = `${gig.title} ${gig.description} ${gig.subject} ${gig.topic} ${gig.teacher?.user?.name || ''} ${gig.tags.join(' ')}`.toLocaleLowerCase('bn');
+    return (subject === 'সব গিগ' || gig.subject === subject) && (!query.trim() || text.includes(query.trim().toLocaleLowerCase('bn')));
+  }).sort((a, b) => {
+    if (sort === 'price') return (a.packages[0]?.price || 0) - (b.packages[0]?.price || 0);
+    if (sort === 'rating') return (b.teacher?.rating || 0) - (a.teacher?.rating || 0);
+    return (b.teacher?.gigViews || 0) - (a.teacher?.gigViews || 0) || (b.teacher?.rating || 0) - (a.teacher?.rating || 0);
+  });
+
+  return <section className="page section marketplace-page">
+    <div className="gig-market-hero">
+      <div className="gig-market-copy">
+        <p className="eyebrow">শিখুন নিজের গতিতে</p>
+        <h1>দক্ষ শিক্ষকের তৈরি<br/><span>জনপ্রিয় গিগ</span></h1>
+        <p className="gig-market-lead">বিষয়ভিত্তিক ক্লাস প্যাকেজ বেছে নিন, শিক্ষকের প্রোফাইল দেখুন, তারপর আপনার সুবিধামতো শেখা শুরু করুন।</p>
+        <div className="gig-market-proof"><span><b>{gigs === null ? '—' : bn(gigs.length)}</b>টি শেখার প্যাকেজ</span><i/><span><b>{gigs === null ? '—' : bn(new Set(gigs.map(gig => gig.teacherId)).size)}</b>জন শিক্ষক</span><i/><span>প্যাকেজের মূল্য আগে থেকেই জানা</span></div>
+      </div>
+      <div className="gig-market-art" aria-hidden="true"><span className="gig-art-orbit orbit-one"/><span className="gig-art-orbit orbit-two"/><span className="gig-art-book">শিখি<br/><b>প্রতিদিন</b></span><span className="gig-art-pencil">✦</span><span className="gig-art-caption">জ্ঞান · অনুশীলন · অগ্রগতি</span></div>
+    </div>
+
+    <div className="gig-market-toolbar">
+      <label className="gig-market-search"><span aria-hidden="true">⌕</span><input value={query} onChange={event => { setQuery(event.target.value); setVisibleCount(12); }} placeholder="বিষয়, টপিক বা শিক্ষকের নাম খুঁজুন" aria-label="বিষয়, টপিক বা শিক্ষকের নাম খুঁজুন"/></label>
+      <label className="gig-market-sort"><span>সাজান</span><select value={sort} onChange={event => setSort(event.target.value)}><option value="popular">জনপ্রিয়তা</option><option value="rating">শিক্ষকের রেটিং</option><option value="price">কম মূল্য আগে</option></select></label>
+    </div>
+
+    <div className="gig-market-heading"><div><p className="eyebrow">আপনার শেখার পরের ধাপ</p><h2>শিক্ষকদের শেখার প্যাকেজ</h2></div><span>{gigs === null ? 'লোড হচ্ছে…' : `${bn(filtered.length)}টি গিগ`}</span></div>
+    <div className="gig-market-categories" aria-label="বিষয় দিয়ে গিগ বাছাই">
+      {['সব গিগ', ...subjects].map(item => <button key={item} className={subject === item ? 'active' : ''} onClick={() => { setSubject(item); setVisibleCount(12); }}>{item === 'সব গিগ' ? 'সব বিষয়' : item}<span>{item === 'সব গিগ' ? bn(gigs?.length || 0) : bn(gigs?.filter(gig => gig.subject === item).length || 0)}</span></button>)}
+    </div>
+
+    {gigs === null ? <Loading/> : error ? <div className="gig-market-empty"><span>⌁</span><h3>গিগ লোড হয়নি</h3><p>{error}</p></div> : filtered.length ? <>
+      <div className="gig-market-grid">{filtered.slice(0, visibleCount).map((gig, index) => <article className="market-gig-card" key={gig.id}>
+        <button className={`market-gig-cover tone-${gigSubjectTones[gig.subject] || 'default'}`} onClick={() => go(`/gig/${gig.id}`)} aria-label={`${gig.title} গিগটি দেখুন`}>
+          <span className="market-gig-cover-label">{gig.subject} <i>·</i> {gig.level}</span><span className="market-gig-cover-mark">{gigSubjectIcons[gig.subject] || '✦'}</span><span className="market-gig-cover-topic">{gig.topic}</span><span className="market-gig-cover-index">{String(index + 1).padStart(2, '0')}</span>
+        </button>
+        <div className="market-gig-body">
+          <div className="market-gig-tags">{gig.tags.slice(0, 2).map(tag => <span key={tag}>{tag}</span>)}{gig.trial?.enabled && <span className="trial-tag">ট্রায়াল ক্লাস</span>}</div>
+          <button className="market-gig-title" onClick={() => go(`/gig/${gig.id}`)}>{gig.title}</button>
+          <p className="market-gig-description">{gig.description}</p>
+          {gig.teacher && <button className="market-gig-teacher" onClick={() => go(`/teacher/${gig.teacher!.id}`)}><Avatar name={gig.teacher.user.name} size="sm" teacherId={gig.teacher.id}/><span className="market-gig-teacher-copy"><b>{gig.teacher.user.name}{gig.teacher.verified && <i aria-label="যাচাইকৃত শিক্ষক">✓</i>}</b><small>{gig.teacher.headline}</small></span><span className="market-gig-rating">★ {gig.teacher.rating.toFixed(1)}</span></button>}
+          <div className="market-gig-footer"><div><small>শুরু হচ্ছে</small><b>{money(gig.packages[0]?.price || 0)}<span> / ক্লাস</span></b></div><button className="button" onClick={() => go(`/gig/${gig.id}`)}>গিগ দেখুন <span aria-hidden="true">↗</span></button></div>
+        </div>
+      </article>)}</div>
+      {visibleCount < filtered.length && <div className="gig-market-more"><button className="quiet-btn" onClick={() => setVisibleCount(count => count + 12)}>আরও গিগ দেখুন <span>↓</span></button><small>{bn(Math.min(visibleCount, filtered.length))} / {bn(filtered.length)}টি গিগ দেখা যাচ্ছে</small></div>}
+    </> : <div className="gig-market-empty"><span>⌕</span><h3>এই খোঁজে কোনো গিগ মেলেনি</h3><p>অন্য বিষয় বেছে নিন অথবা খোঁজার শব্দটি বদলে দেখুন।</p><button className="quiet-btn" onClick={() => { setQuery(''); setSubject('সব গিগ'); }}>সব গিগ দেখুন</button></div>}
+  </section>;
+}
 function CompareBar({teachers,onRemove}:{teachers:Teacher[];onRemove:(t:Teacher)=>void}) { return <aside className="compare-bar"><span>{teachers.length} জন শিক্ষক তুলনায় আছে</span>{teachers.map(t=><button key={t.id} onClick={()=>onRemove(t)}>{t.user.name} ×</button>)}<button className="button" onClick={()=>go(`/compare?ids=${teachers.map(t=>t.id).join(',')}`)}>তুলনা দেখুন</button></aside> }
 
 export function Search({user}:{user:User|null}) { const params=new URLSearchParams(location.hash.split('?')[1]||'');const [subjects,setSubjects]=useState<Subject[]>([]);const [q,setQ]=useState(params.get('q')||'');const [subject,setSubject]=useState(params.get('subject')||'');const [rating,setRating]=useState('');const [verified,setVerified]=useState(false);const [teachers,setTeachers]=useState<Teacher[]>([]);const [total,setTotal]=useState(0);const [loading,setLoading]=useState(true);const [compare,setCompare]=useState<Teacher[]>([]);const load=async()=>{setLoading(true);try{const result=await api<{items:Teacher[];total:number}>(`/teachers?${new URLSearchParams({q,subject,rating,verified:String(verified)}).toString()}`);setTeachers(result.items);setTotal(result.total);}finally{setLoading(false);}};useEffect(()=>{void api<Subject[]>('/subjects').then(setSubjects);void load();},[]);const matching=async()=>{setLoading(true);try{const data=await api<Teacher[]>(`/matches?${new URLSearchParams({subject,q,budget:'700',language:'বাংলা'}).toString()}`);setTeachers(data);setTotal(data.length);}finally{setLoading(false);}};const toggle=(t:Teacher)=>setCompare(c=>c.some(x=>x.id===t.id)?c.filter(x=>x.id!==t.id):c.length<3?[...c,t]:c);return <section className="page section"><p className="eyebrow">শিক্ষক মার্কেটপ্লেস</p><h1>শিক্ষক খুঁজুন</h1><form className="filter-panel" onSubmit={e=>{e.preventDefault();void load();}}><input value={q} onChange={e=>setQ(e.target.value)} placeholder="বিষয়, টপিক বা শিক্ষকের নাম লিখুন"/><select value={subject} onChange={e=>setSubject(e.target.value)}><option value="">সব বিষয়</option>{subjects.map(s=><option key={s.id}>{s.name}</option>)}</select><select value={rating} onChange={e=>setRating(e.target.value)}><option value="">সব রেটিং</option><option value="4.5">৪.৫ বা বেশি</option><option value="4">৪.০ বা বেশি</option></select><label className="check"><input type="checkbox" checked={verified} onChange={e=>setVerified(e.target.checked)}/> যাচাইকৃত শিক্ষক</label><button className="button">খুঁজুন</button><button type="button" className="quiet-btn" onClick={()=>void matching()}>স্মার্ট ম্যাচিং</button></form><p className="result-count">{bn(total)} জন শিক্ষক পাওয়া গেছে</p>{loading?<Loading/>:teachers.length?<div className="card-grid">{teachers.map(t=><TeacherCard key={t.id} teacher={t} user={user} compare={compare.some(x=>x.id===t.id)} onCompare={toggle}/>)}</div>:<Empty>এখনও কোনো শিক্ষক পাওয়া যায়নি। অন্যভাবে খুঁজে দেখুন।</Empty>}{compare.length>1&&<CompareBar teachers={compare} onRemove={toggle}/>}</section> }
