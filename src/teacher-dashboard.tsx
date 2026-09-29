@@ -67,7 +67,7 @@ export function TeacherDashboardLive({ data }: { data: DashboardData }) {
       <DashboardStat icon="◉" tone="mint" label="প্রোফাইল দেখা হয়েছে" value={bn(data.analytics?.profileViews || 0)} note="মোট প্রোফাইল ভিউ" />
       <DashboardStat icon="▤" tone="blue" label="গিগ দেখা হয়েছে" value={bn(data.analytics?.gigViews || 0)} note="মোট গিগ ভিউ" />
       <DashboardStat icon="✓" tone="gold" label="নিশ্চিত বুকিং" value={bn(data.bookings.filter(booking => booking.status === 'CONFIRMED').length)} note="নিশ্চিত ক্লাস" />
-      <DashboardStat icon="৳" tone="violet" label="ডেমো প্রাপ্য" value={money(data.wallet?.pending || 0)} note="অ্যাকাউন্টের সারাংশ" />
+      <DashboardStat icon="৳" tone="violet" label="অপেক্ষমাণ আয়" value={money(data.wallet?.pending || 0)} note="অ্যাকাউন্টের সারাংশ" />
     </div>
 
     <section className="teacher-live-panel" aria-labelledby="teacher-live-title">

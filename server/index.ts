@@ -26,7 +26,7 @@ const handler = (fn:(req:Request,res:Response)=>unknown) => (req:Request,res:Res
 const actor = (req: Request) => (req as Request & { user: User }).user;
 const ok = (res:Response,data:unknown,status=200) => res.status(status).json({ ok:true,data });
 
-app.get('/api/health', (_req,res)=>ok(res,{status:'লোকাল ডেমো সার্ভার সচল',mode:'local-demo'}));
+app.get('/api/health', (_req,res)=>ok(res,{status:'শিখোক সার্ভার সচল',mode:'local-demo'}));
 app.post('/api/auth/login', handler((req,res)=> { const user=authenticate(store.read(),req.body.email,req.body.password);setSession(res,user.id);return ok(res,user); }));
 app.post('/api/auth/register', handler((req,res)=> { const user=store.transaction(s=>register(s,req.body));setSession(res,user.id);return ok(res,user,201); }));
 app.post('/api/auth/logout', handler((req,res)=> { const token=cookie(req,'shikhok_session');if(token)sessions.delete(token);res.setHeader('Set-Cookie','shikhok_session=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0');return ok(res,{message:'আপনি সফলভাবে লগআউট করেছেন।'}); }));
@@ -74,7 +74,7 @@ app.post('/api/gig-offers/:id/accept',auth(['STUDENT']),handler((req,res)=>ok(re
 app.get('/api/admin/gigs/pending',auth(['ADMIN','SUPER_ADMIN']),handler((_req,res)=>{const state=store.read();return ok(res,state.gigs.filter(g=>g.moderationStatus==='PENDING').map(g=>({...g,teacher:publicTeacher(state,state.teachers.find(t=>t.id===g.teacherId)!)})));}));
 app.post('/api/admin/gigs/:id/moderation',auth(['ADMIN','SUPER_ADMIN']),handler((req,res)=>{const status=req.body.status;if(!['APPROVED','REJECTED','PENDING'].includes(status))throw new DomainError('সঠিক মডারেশন সিদ্ধান্ত দিন।');return ok(res,store.transaction(s=>{const gig=moderateGig(s,actor(req),String(req.params.id),status,cleanText(req.body.note||'মডারেশন সম্পন্ন','মডারেশন নোট',500));s.audit.push({id:id('audit'),actorId:actor(req).id,action:`gig_moderation_${status}`,entity:'Gig',entityId:gig.id,at:new Date().toISOString()});return gig;}));}));
 app.get('/api/wallet',auth(['TEACHER']),handler((req,res)=>ok(res,wallet(store.read(),actor(req)))));
-app.post('/api/wallet/payout',auth(['TEACHER']),handler((req,res)=>ok(res,store.transaction(s=>{const summary=wallet(s,actor(req));if(summary.pending<=0)throw new DomainError('উত্তোলনের জন্য কোনো ডেমো প্রাপ্য নেই।');s.ledger.push({id:id('ledger'),userId:actor(req).id,type:'PAYOUT',amount:-summary.pending,ref:'demo-payout',note:'ডেমো উত্তোলন — কোনো বাস্তব অর্থ নয়',createdAt:new Date().toISOString()});return {message:'ডেমো উত্তোলনের অনুরোধ সম্পন্ন হয়েছে।',amount:summary.pending};}))));
+app.post('/api/wallet/payout',auth(['TEACHER']),handler((req,res)=>ok(res,store.transaction(s=>{const summary=wallet(s,actor(req));if(summary.pending<=0)throw new DomainError('উত্তোলনের জন্য কোনো পরীক্ষামূলক প্রাপ্য নেই।');s.ledger.push({id:id('ledger'),userId:actor(req).id,type:'PAYOUT',amount:-summary.pending,ref:'demo-payout',note:'পরীক্ষামূলক উত্তোলন — বাস্তব অর্থ স্থানান্তর নয়',createdAt:new Date().toISOString()});return {message:'পরীক্ষামূলক উত্তোলনের ধাপ সম্পন্ন হয়েছে।',amount:summary.pending};}))));
 
 app.get('/api/messages',auth(),handler((req,res)=>ok(res,listConversations(store.read(),actor(req)))));
 app.get('/api/messages/:userId',auth(),handler((req,res)=>ok(res,conversation(store.read(),actor(req),String(req.params.userId)))));
