@@ -68,5 +68,46 @@ export function deleteExam(state: AppState, actor: User, examId: string) { const
 export function listTeacherExams(state: AppState, actor: User) { requireRole(actor,['TEACHER']);return state.exams.filter(e=>e.teacherId===actor.id).map(exam=>{const attempts=state.attempts.filter(a=>a.examId===exam.id);const scores=attempts.map(a=>a.percentage??(a.total?a.score/a.total*100:0));return {...publicExam(state,exam),questions:exam.questionIds.length,questionCount:exam.questionIds.length,participants:attempts.length,averageScore:scores.length?scores.reduce((n,s)=>n+s,0)/scores.length:0,highestScore:scores.length?Math.max(...scores):0,lowestScore:scores.length?Math.min(...scores):0,sharePath:exam.shareToken?`/exam/${exam.shareToken}`:undefined};}); }
 export function teacherExamResults(state: AppState, actor: User, examId: string) { const exam=teacherExam(state,actor,examId);return state.attempts.filter(a=>a.examId===exam.id).map(attempt=>({ ...attempt,student:publicUser(requireUser(state,attempt.studentId)) })); }
 export function getExamForStudent(state: AppState, tokenOrId: string) { const exam=state.exams.find(e=>(e.shareToken===tokenOrId||e.id===tokenOrId)&&((e.status|| (e.active?'PUBLISHED':'DRAFT'))==='PUBLISHED')&&e.active);if(!exam)throw new DomainError('পরীক্ষাটি পাওয়া যায়নি বা বন্ধ আছে।',404);return publicExam(state,exam); }
-export function submitExam(state: AppState, actor: User, examId:string, answers: Record<string,unknown>) { requireRole(actor,['STUDENT']);const exam=state.exams.find(e=>e.id===examId&&e.active&&(e.status===undefined||e.status==='PUBLISHED'));if(!exam)throw new DomainError('পরীক্ষাটি পাওয়া যায়নি।',404);if(state.attempts.some(a=>a.examId===examId&&a.studentId===actor.id))throw new DomainError('এই পরীক্ষা আপনি ইতোমধ্যে জমা দিয়েছেন।',409); const questions=examQuestions(state,exam); const normalized:Record<string,number>={};let marks=0;let correctCount=0;let unansweredCount=0;for(const q of questions){const raw=answers[q.id];const a=Number.isInteger(Number(raw))?Number(raw):-1;normalized[q.id]=a;if(a<0){unansweredCount++;continue;}if(a===q.answer){marks+=q.marks;correctCount++;}}const total=questions.reduce((n,q)=>n+q.marks,0);const incorrectCount=questions.length-correctCount-unansweredCount;const percentage=total?Number((marks/total*100).toFixed(2)):0;const submittedAt=new Date().toISOString();const attempt={id:id('attempt'),examId,studentId:actor.id,answers:normalized,score:marks,total,percentage,correctCount,incorrectCount,unansweredCount,passed:exam.passMark>0?percentage>=exam.passMark:true,submittedAt,createdAt:submittedAt};state.attempts.push(attempt);state.notifications.push({id:id('notification'),userId:actor.id,type:'EXAM',title:'পরীক্ষার ফল প্রকাশিত হয়েছে',body:`আপনি ${marks}/${total} পেয়েছেন।`,href:'/exams',createdAt:submittedAt});return attempt; }
+export function submitExam(state: AppState, actor: User, examId: string, answers: Record<string, unknown>) {
+  requireRole(actor, ['STUDENT']);
+  const exam = state.exams.find(item => item.id === examId && item.active && (item.status === undefined || item.status === 'PUBLISHED'));
+  if (!exam) throw new DomainError('পরীক্ষাটি পাওয়া যায়নি।', 404);
+  if (state.attempts.some(attempt => attempt.examId === examId && attempt.studentId === actor.id)) throw new DomainError('এই পরীক্ষা আপনি ইতোমধ্যে জমা দিয়েছেন।', 409);
+
+  const questions = examQuestions(state, exam);
+  const normalized: Record<string, number> = {};
+  let marks = 0;
+  let correctCount = 0;
+  let unansweredCount = 0;
+  for (const question of questions) {
+    const raw = Number(answers[question.id]);
+    const answer = Number.isInteger(raw) && raw >= 0 && raw < question.options.length ? raw : -1;
+    normalized[question.id] = answer;
+    if (answer < 0) { unansweredCount++; continue; }
+    if (answer === question.answer) { marks += question.marks; correctCount++; }
+  }
+  const total = questions.reduce((sum, question) => sum + question.marks, 0);
+  const incorrectCount = questions.length - correctCount - unansweredCount;
+  const percentage = total ? Number((marks / total * 100).toFixed(2)) : 0;
+  const submittedAt = new Date().toISOString();
+  const attempt = { id: id('attempt'), examId, studentId: actor.id, answers: normalized, score: marks, total, percentage, correctCount, incorrectCount, unansweredCount, passed: exam.passMark > 0 ? percentage >= exam.passMark : true, submittedAt, createdAt: submittedAt };
+  state.attempts.push(attempt);
+  state.notifications.push({ id: id('notification'), userId: actor.id, type: 'EXAM', title: 'পরীক্ষার ফল প্রকাশিত হয়েছে', body: `আপনি ${marks}/${total} পেয়েছেন।`, href: '/exams', createdAt: submittedAt });
+
+  const showAnswers = exam.showAnswers !== false;
+  return {
+    ...attempt,
+    showAnswers,
+    review: showAnswers ? questions.map(question => ({
+      questionId: question.id,
+      text: question.text,
+      options: question.options,
+      selectedAnswer: normalized[question.id] >= 0 ? normalized[question.id] : null,
+      correctAnswer: question.answer,
+      isCorrect: normalized[question.id] === question.answer,
+      explanation: question.explanation,
+      marks: question.marks
+    })) : []
+  };
+}
 export function createReview(state: AppState, actor: User, input:Record<string,unknown>) { requireRole(actor,['STUDENT']); const booking=state.bookings.find(b=>b.id===input.bookingId&&b.studentId===actor.id);if(!booking)throw new DomainError('বুকিং পাওয়া যায়নি।',404);if(!['COMPLETED','CONFIRMED'].includes(booking.status))throw new DomainError('ক্লাস শেষ হলে রিভিউ দিতে পারবেন।');if(state.reviews.some(r=>r.bookingId===booking.id))throw new DomainError('এই ক্লাসের রিভিউ ইতোমধ্যে দেওয়া হয়েছে।',409);const rating=Number(input.rating);if(!Number.isInteger(rating)||rating<1||rating>5)throw new DomainError('১ থেকে ৫-এর মধ্যে রেটিং দিন।');const review={id:id('review'),bookingId:booking.id,studentId:actor.id,teacherId:booking.teacherId,rating,comment:cleanText(input.comment,'রিভিউ',600),createdAt:new Date().toISOString()};state.reviews.push(review);const teacher=state.teachers.find(t=>t.id===booking.teacherId)!;const reviews=state.reviews.filter(r=>r.teacherId===teacher.id);teacher.reviewCount=reviews.length;teacher.rating=Number((reviews.reduce((n,r)=>n+r.rating,0)/reviews.length).toFixed(1));return review; }

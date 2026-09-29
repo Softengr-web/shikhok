@@ -10,6 +10,7 @@ import './gig-marketplace.css';
 import './gig-detail.css';
 import './problem-marketplace.css';
 import './classroom.css';
+import './exams-marketplace.css';
 import { RootApp } from './RootApp';
 
 createRoot(document.getElementById('root')!).render(<StrictMode><RootApp /></StrictMode>);

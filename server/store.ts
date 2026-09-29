@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import { createDemoProblems, createDemoState } from './seed.js';
+import { createDemoProblems, createDemoState, ensureAdditionalPracticeExams } from './seed.js';
 import type { AppState } from './types.js';
 
 /** লোকাল ডেমো স্টোর। একক Node প্রক্রিয়ায় প্রতিটি পরিবর্তন atomically ডিস্কে লেখা হয়। */
@@ -12,7 +12,10 @@ export class LocalStore {
       this.state = JSON.parse(readFileSync(file, 'utf8')) as AppState;
       const problems = this.state.problems ?? (this.state.problems = []);
       const additions = createDemoProblems().filter(problem => !problems.some(existing => existing.id === problem.id));
-      if (additions.length) { problems.push(...additions); this.persist(); }
+      let changed = false;
+      if (additions.length) { problems.push(...additions); changed = true; }
+      if (ensureAdditionalPracticeExams(this.state)) changed = true;
+      if (changed) this.persist();
     }
   }
   read(): AppState { return structuredClone(this.state); }

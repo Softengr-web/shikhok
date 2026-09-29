@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api, post } from './api';
 import { Avatar, Empty, Loading, bn, go } from './components';
-import type { Exam, ExamQuestion, User } from './models';
+import { ExamAnswerReview } from './exam-review';
+import type { Exam, ExamAttemptResult, ExamQuestion, User } from './models';
 import './exam-pages.css';
 
 type DraftQuestion = { id: string; text: string; options: string[]; answer: number; marks: number };
@@ -36,12 +37,56 @@ export function TeacherExamEditor() {
 }
 
 export function StudentExamPage({ user }: { user: User }) {
-  const token = location.hash.split('/')[2]?.split('?')[0] || ''; const [exam, setExam] = useState<Exam | null>(null); const [answers, setAnswers] = useState<Record<string, number>>({}); const [seconds, setSeconds] = useState(0); const [result, setResult] = useState<any>(null); const [error, setError] = useState(''); const [submitting, setSubmitting] = useState(false);
-  useEffect(() => { void api<Exam>(`/exams/share/${token}`).then(data => { setExam(data); setSeconds(data.duration * 60); }).catch(e => setError(e instanceof Error ? e.message : 'পরীক্ষা লোড করা যায়নি।')); }, [token]);
-  useEffect(() => { if (!exam || result || seconds <= 0) return; const timer = window.setInterval(() => setSeconds(value => { if (value <= 1) { window.clearInterval(timer); void submit(); return 0; } return value - 1; }), 1000); return () => window.clearInterval(timer); }, [exam, result]);
-  const submit = async () => { if (!exam || submitting || result) return; setSubmitting(true); try { setResult(await post(`/exams/${exam.id}/submit`, { answers })); } catch (e) { setError(e instanceof Error ? e.message : 'পরীক্ষা জমা দেওয়া যায়নি।'); } finally { setSubmitting(false); } };
-  if (error) return <section className="page section"><p className="form-error">{error}</p></section>; if (!exam) return <Loading />;
-  const questions = Array.isArray(exam.questions) ? exam.questions : []; const answered = Object.keys(answers).length; const minutes = Math.floor(seconds / 60); const remaining = seconds % 60;
-  return <section className="page section exam-runner"><div className="exam-runner-head"><div><p className="eyebrow">{exam.subject} · {statusLabel(exam.status)}</p><h1>{exam.title}</h1><p>{exam.instructions || exam.description}</p></div><div className="exam-timer"><b>{String(minutes).padStart(2, '0')}:{String(remaining).padStart(2, '0')}</b><small>{bn(answered)}/{bn(questions.length)} উত্তর দেওয়া হয়েছে</small></div></div>{!result && <div className="question-jump">{questions.map((question, index) => <button className={answers[question.id] === undefined ? '' : 'answered'} key={question.id} onClick={() => document.getElementById(`exam-q-${index}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}>{bn(index + 1)}</button>)}</div>}{result ? <div className="exam-result"><span>✓</span><h2>ফলাফল</h2><b>{bn(result.score)}/{bn(result.total)} · {bn(result.percentage || 0)}%</b><p>{result.correctCount}টি সঠিক · {result.incorrectCount}টি ভুল · {result.unansweredCount}টি উত্তরহীন</p><strong className={result.passed ? 'green' : 'red'}>{result.passed ? 'উত্তীর্ণ' : 'অনুত্তীর্ণ'}</strong><small>জমা: {new Date(result.submittedAt || result.createdAt).toLocaleString('bn-BD')}</small></div> : <>{questions.map((question, index) => <fieldset id={`exam-q-${index}`} key={question.id}><legend>{bn(index + 1)}. {question.text} ({bn(question.marks)} নম্বর)</legend>{question.options.map((option, optionIndex) => <label key={optionIndex} className="option"><input type="radio" name={question.id} checked={answers[question.id] === optionIndex} onChange={() => setAnswers({ ...answers, [question.id]: optionIndex })} />{option}</label>)}</fieldset>)}<button className="button" disabled={submitting} onClick={() => void submit()}>{submitting ? 'জমা হচ্ছে…' : 'পরীক্ষা জমা দিন'}</button></>}</section>;
+  const token = location.hash.split('/')[2]?.split('?')[0] || '';
+  const [exam, setExam] = useState<Exam | null>(null);
+  const [answers, setAnswers] = useState<Record<string, number>>({});
+  const answersRef = useRef(answers);
+  answersRef.current = answers;
+  const [seconds, setSeconds] = useState(0);
+  const [result, setResult] = useState<ExamAttemptResult | null>(null);
+  const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [confirmSubmit, setConfirmSubmit] = useState(false);
+
+  useEffect(() => { void api<Exam>(`/exams/share/${token}`).then(data => { setExam(data); setSeconds(data.duration * 60); }).catch(cause => setError(cause instanceof Error ? cause.message : 'পরীক্ষা লোড করা যায়নি।')); }, [token]);
+  const submit = async () => {
+    if (!exam || submitting || result) return;
+    setSubmitting(true);
+    setError('');
+    try { setResult(await post<ExamAttemptResult>(`/exams/${exam.id}/submit`, { answers: answersRef.current })); setConfirmSubmit(false); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : 'পরীক্ষা জমা দেওয়া যায়নি।'); }
+    finally { setSubmitting(false); }
+  };
+  useEffect(() => {
+    if (!exam || result || seconds <= 0) return;
+    const timer = window.setInterval(() => setSeconds(value => {
+      if (value <= 1) { window.clearInterval(timer); void submit(); return 0; }
+      return value - 1;
+    }), 1000);
+    return () => window.clearInterval(timer);
+  }, [exam, result]);
+
+  if (error && !exam) return <section className="page section exam-error-state"><span>!</span><h1>পরীক্ষাটি খোলা যায়নি</h1><p>{error}</p><button className="quiet-btn" type="button" onClick={() => go('/exams')}>পরীক্ষার তালিকায় ফিরুন</button></section>;
+  if (!exam) return <Loading />;
+  const questions = Array.isArray(exam.questions) ? exam.questions : [];
+  const answered = questions.filter(question => answers[question.id] !== undefined).length;
+  const minutes = Math.floor(seconds / 60);
+  const remaining = seconds % 60;
+
+  return <section className="page section exam-session">
+    <header className="exam-session-heading">
+      <button className="exam-back-link" type="button" onClick={() => go('/exams')}>← <span>সব পরীক্ষা</span></button>
+      <div className="exam-session-title"><p className="eyebrow">{exam.subject} · {statusLabel(exam.status)}</p><h1>{exam.title}</h1><p>{exam.instructions || exam.description || 'প্রতিটি প্রশ্নে একটি সঠিক উত্তর বেছে নিন।'}</p></div>
+      <div className={`exam-timer${seconds < 60 ? ' is-urgent' : ''}`}><span aria-hidden="true">◷</span><b>{String(minutes).padStart(2, '0')}:{String(remaining).padStart(2, '0')}</b><small>{bn(answered)}/{bn(questions.length)} উত্তর</small></div>
+    </header>
+    {!result && <div className="exam-progress-card"><div><span>উত্তর দেওয়া হয়েছে</span><b>{bn(answered)} <small>/ {bn(questions.length)}</small></b></div><div className="exam-progress-track"><i style={{ width: `${questions.length ? answered / questions.length * 100 : 0}%` }} /></div><div className="exam-question-jump">{questions.map((question, index) => <button className={answers[question.id] === undefined ? '' : 'is-answered'} type="button" key={question.id} aria-label={`প্রশ্ন ${bn(index + 1)}`} onClick={() => document.getElementById(`exam-q-${index}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}>{bn(index + 1)}</button>)}</div></div>}
+    {error && <p className="exam-feedback" role="alert">{error}</p>}
+    {result ? <div className="exam-result-wrap"><section className={`exam-result-card${result.passed ? ' is-passed' : ' is-failed'}`}><span className="exam-result-icon" aria-hidden="true">{result.passed ? '✓' : '↗'}</span><p className="eyebrow">পরীক্ষা সম্পন্ন</p><h2>{result.passed ? 'চমৎকার কাজ!' : 'আরও একটু অনুশীলন করুন'}</h2><strong className="exam-result-score">{bn(result.score)} <small>/ {bn(result.total)}</small></strong><div className="exam-result-percent">{bn(result.percentage || 0)}%</div><div className="exam-result-stats"><span><b>{bn(result.correctCount)}</b>সঠিক</span><span><b>{bn(result.incorrectCount)}</b>ভুল</span><span><b>{bn(result.unansweredCount)}</b>উত্তরহীন</span></div><p className={`exam-pass-state${result.passed ? ' is-passed' : ' is-failed'}`}>{result.passed ? 'পাস নম্বর অর্জিত হয়েছে' : `পাস করতে প্রয়োজন ${bn(exam.passMark)}%`}</p><button className="button" type="button" onClick={() => go('/exams')}>অন্য পরীক্ষা বেছে নিন</button></section>{result.showAnswers ? <ExamAnswerReview review={result.review || []} /> : <p className="exam-review-hidden">এই পরীক্ষার উত্তরমালা শিক্ষক প্রকাশ করেননি।</p>}</div> : <>
+      <div className="exam-instruction-note"><span aria-hidden="true">✦</span><p>উত্তর বেছে নিন। জমা দেওয়ার পর স্কোর, সঠিক উত্তর ও ব্যাখ্যা দেখতে পারবেন।</p></div>
+      <div className="exam-session-questions">{questions.map((question, index) => <fieldset className="exam-session-question" id={`exam-q-${index}`} key={question.id}><legend><span>প্রশ্ন {bn(index + 1)}</span><small>{bn(question.marks)} নম্বর</small></legend><h2>{question.text}</h2><div className="exam-session-options">{question.options.map((option, optionIndex) => <label className={answers[question.id] === optionIndex ? 'is-selected' : ''} key={`${question.id}-${optionIndex}`}><input type="radio" name={question.id} checked={answers[question.id] === optionIndex} onChange={() => setAnswers(current => ({ ...current, [question.id]: optionIndex }))} /><span className="exam-option-letter">{String.fromCharCode(65 + optionIndex)}</span><span>{option}</span><i aria-hidden="true">✓</i></label>)}</div></fieldset>)}</div>
+      <footer className="exam-submit-bar"><span><b>{bn(answered)}/{bn(questions.length)}</b>টি প্রশ্নের উত্তর দেওয়া হয়েছে</span><button className="button" type="button" disabled={submitting} onClick={() => setConfirmSubmit(true)}>{submitting ? 'জমা হচ্ছে…' : 'পরীক্ষা জমা দিন'} <span aria-hidden="true">→</span></button></footer>
+    </>}
+    {confirmSubmit && !result && <div className="exam-confirm-backdrop"><section className="exam-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="exam-confirm-title"><span aria-hidden="true">✓</span><h2 id="exam-confirm-title">উত্তর জমা দেবেন?</h2><p>{answered === questions.length ? 'সব প্রশ্নের উত্তর দেওয়া হয়েছে।' : `${bn(questions.length - answered)}টি প্রশ্নের উত্তর দেওয়া হয়নি। জমা দিলে আর পরিবর্তন করা যাবে না।`}</p><div><button className="quiet-btn" type="button" onClick={() => setConfirmSubmit(false)}>আরও দেখুন</button><button className="button" type="button" disabled={submitting} onClick={() => void submit()}>{submitting ? 'জমা হচ্ছে…' : 'জমা নিশ্চিত করুন'}</button></div></section></div>}
+  </section>;
 }
 

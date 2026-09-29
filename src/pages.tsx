@@ -3,7 +3,8 @@ import { api, post, put } from './api';
 import { Avatar, BookingModal, Empty, Loading, TeacherCard, bn, go, money, shortDate } from './components';
 import { TeacherGigEditor, TeacherProfileEditor } from './teacher-dashboard-forms';
 import { TeacherDashboardLive } from './teacher-dashboard';
-import type { Booking, Exam, Gig, Notification, ProblemPost, Subject, Teacher, User } from './models';
+import type { Booking, Exam, ExamAttemptResult, Gig, Notification, ProblemPost, Subject, Teacher, User } from './models';
+import { ExamAnswerReview } from './exam-review';
 
 export function Home({user}:{user:User|null}) { const [subjects,setSubjects]=useState<Subject[]>([]);const [teachers,setTeachers]=useState<Teacher[]>([]);const [q,setQ]=useState('');const [compare,setCompare]=useState<Teacher[]>([]);useEffect(()=>{void Promise.all([api<Subject[]>('/subjects'),api<{items:Teacher[]}>('/teachers?perPage=4')]).then(([s,t])=>{setSubjects(s);setTeachers(t.items);});},[]);const toggle=(t:Teacher)=>setCompare(c=>c.some(x=>x.id===t.id)?c.filter(x=>x.id!==t.id):c.length<3?[...c,t]:c);return <><section className="hero"><div><p className="hero-brand" aria-label="Private Tutor">Private <span>Tutor</span><i aria-hidden="true"></i></p><p className="eyebrow">বাংলাদেশের শিক্ষক মার্কেটপ্লেস</p><h1>আপনার জন্য সঠিক শিক্ষক খুঁজে নিন</h1><p>বিষয়, স্তর ও বাজেট অনুযায়ী শিক্ষক বেছে নিন। সুবিধাজনক সময়ে ক্লাস বুক করুন, আর শেখার অগ্রগতি দেখুন এক জায়গায়।</p><form className="searchbar" onSubmit={e=>{e.preventDefault();go(`/search?q=${encodeURIComponent(q)}`)}}><input value={q} onChange={e=>setQ(e.target.value)} placeholder="আপনি কী শিখতে চান?" aria-label="আপনি কী শিখতে চান?"/><button className="button">শিক্ষক খুঁজুন</button></form><div className="hero-points"><span>✓ যাচাইকৃত শিক্ষক</span><span>✓ স্বচ্ছ মূল্য ও প্যাকেজ</span><span>✓ ইন্টারঅ্যাকটিভ ক্লাসরুম</span></div></div><div className="hero-panel"><span className="spark">✦</span><p>আজই শুরু করুন</p><b>বিভিন্ন বিষয়ের শিক্ষক</b><small>বিষয়, স্তর ও বাজেট মিলিয়ে আপনার উপযোগী ক্লাস বেছে নিন</small><a href="#/register" className="button light">বিনামূল্যে শুরু করুন</a></div></section><section className="section"><div className="section-head"><div><p className="eyebrow">বিষয় বেছে নিন</p><h2>জনপ্রিয় বিষয়</h2></div><a href="#/search">সব দেখুন →</a></div><div className="categories">{subjects.slice(0,10).map(s=><button key={s.id} onClick={()=>go(`/search?subject=${encodeURIComponent(s.name)}`)}><i>{s.icon}</i><span>{s.name}</span><small>{s.topics.length}টি টপিক</small></button>)}</div></section><section className="section soft"><div className="section-head"><div><p className="eyebrow">শিক্ষক নির্বাচন</p><h2>জনপ্রিয় শিক্ষক</h2></div><a href="#/search">সব শিক্ষক দেখুন →</a></div><div className="card-grid">{teachers.map(t=><TeacherCard key={t.id} teacher={t} user={user} compare={compare.some(x=>x.id===t.id)} onCompare={toggle}/>)}</div>{compare.length>1&&<CompareBar teachers={compare} onRemove={toggle}/>}</section><section className="how"><p className="eyebrow">সহজ তিন ধাপ</p><h2>কীভাবে শিক্ষক কাজ করে</h2><div><article><b>১</b><h3>শিক্ষক খুঁজুন</h3><p>বিষয়, স্তর ও বাজেট দিয়ে পছন্দের শিক্ষক বাছুন।</p></article><article><b>২</b><h3>ক্লাস বুক করুন</h3><p>পছন্দের প্যাকেজ ও সময় বেছে বুকিং নিশ্চিত করুন। ফি আগে থেকেই দেখে নিন।</p></article><article><b>৩</b><h3>শিখুন ও এগিয়ে যান</h3><p>ক্লাস, নোট, অনুশীলন ও শেখার অগ্রগতি—সব এক জায়গায়।</p></article></div></section></> }
 const gigSubjectIcons: Record<string, string> = {
@@ -621,7 +622,113 @@ export function Wallet(){const [data,setData]=useState<{total:number;pending:num
 
 export function Messages({user}:{user:User}){const requestedId=new URLSearchParams(location.hash.split('?')[1]||'').get('with');const [items,setItems]=useState<{user:User;lastMessage?:{body:string;createdAt:string};unreadCount:number}[]>([]);const [other,setOther]=useState<User|null>(null);const [messages,setMessages]=useState<any[]>([]);const [body,setBody]=useState('');const [error,setError]=useState('');const [loading,setLoading]=useState(true);useEffect(()=>{void api<typeof items>('/messages').then(conversations=>{setItems(conversations);const selected=conversations.find(item=>item.user.id===requestedId)||conversations[0];if(selected)setOther(selected.user);}).catch(e=>setError(e instanceof Error?e.message:'কথোপকথন লোড করা যায়নি।')).finally(()=>setLoading(false));},[requestedId]);useEffect(()=>{if(!other)return;setError('');void api<any[]>(`/messages/${other.id}`).then(setMessages).then(()=>post(`/messages/${other.id}/read`)).catch(e=>setError(e instanceof Error?e.message:'বার্তা লোড করা যায়নি।'));const protocol=location.protocol==='https:'?'wss':'ws';const socket=new WebSocket(`${protocol}://${location.host}/ws`);socket.onmessage=event=>{try{const packet=JSON.parse(event.data) as {type:string;data?:any};if(packet.type==='message'&&packet.data&&(packet.data.senderId===other.id||packet.data.receiverId===other.id)){setMessages(current=>current.some(item=>item.id===packet.data.id)?current:[...current,packet.data]);if(packet.data.receiverId===user.id)void post(`/messages/${other.id}/read`);}}catch{setError('বার্তার আপডেট পাওয়া যায়নি।')}};socket.onerror=()=>setError('রিয়েল-টাইম সংযোগ পাওয়া যাচ্ছে না; HTTP মোডে বার্তা পাঠানো যাবে।');return()=>socket.close();},[other,user.id]);const send=async(e:React.FormEvent)=>{e.preventDefault();if(!other||!body.trim())return;const value=body.trim();try{const protocol=location.protocol==='https:'?'wss':'ws';const socket=new WebSocket(`${protocol}://${location.host}/ws`);await new Promise<void>((resolve,reject)=>{socket.onopen=()=>{socket.send(JSON.stringify({type:'message',to:other.id,body:value}));resolve();};socket.onerror=()=>reject(new Error('রিয়েল-টাইম সংযোগ পাওয়া যায়নি।'));});socket.close();setMessages(current=>[...current,{id:`local-${Date.now()}`,senderId:user.id,receiverId:other.id,body:value,createdAt:new Date().toISOString()}]);setBody('');}catch{try{const message=await post<any>(`/messages/${other.id}`,{body:value});setMessages(current=>[...current,message]);setBody('');}catch(e){setError(e instanceof Error?e.message:'বার্তা পাঠানো যায়নি।');}}};return <section className="page section"><p className="eyebrow">বার্তা</p><h1>শিক্ষক ও শিক্ষার্থীর কথোপকথন</h1><div className="chat"><aside><b>কথোপকথন</b>{items.length?items.map(item=><button className={`conversation ${other?.id===item.user.id?'active':''}`} key={item.user.id} onClick={()=>setOther(item.user)}><Avatar name={item.user.name} size="sm"/><span>{item.user.name}<small>{item.unreadCount?`${bn(item.unreadCount)}টি অপঠিত বার্তা`:item.lastMessage?.body||'কথোপকথন শুরু করুন'}</small></span></button>):<p className="help">কোনো কথোপকথন নেই। শিক্ষক প্রোফাইল থেকে বার্তা পাঠান।</p>}</aside><div className="chat-main">{loading?<Loading/>:error?<p className="form-error">{error}</p>:other?<><div className="chat-heading"><Avatar name={other.name} size="sm"/><b>{other.name}</b></div><div className="messages">{messages.map(m=><p className={m.senderId===user.id?'mine':''} key={m.id}>{m.body}<small>{new Date(m.createdAt).toLocaleTimeString('bn-BD',{hour:'2-digit',minute:'2-digit'})}</small></p>)}</div><form onSubmit={send}><input value={body} onChange={e=>setBody(e.target.value)} placeholder="বার্তা লিখুন" required/><button className="button">পাঠান</button></form></>:<Empty>একটি কথোপকথন নির্বাচন করুন।</Empty>}</div></div></section>}
 
-export function Exams({user}:{user:User}){const [exams,setExams]=useState<Exam[]|null>(null);const [active,setActive]=useState<Exam|null>(null);const [answers,setAnswers]=useState<Record<string,number>>({});const [result,setResult]=useState<any>(null);useEffect(()=>{void api<Exam[]>('/exams').then(setExams);},[]);const open=async(id:string)=>{setResult(null);setAnswers({});setActive(await api<Exam>(`/exams/${id}`));};const submit=async()=>{if(!active)return;setResult(await post(`/exams/${active.id}/submit`,{answers}));};if(user.role!=='STUDENT')return <section className="page section"><Empty>পরীক্ষায় অংশ নিতে শিক্ষার্থী হিসেবে লগইন করুন।</Empty></section>;if(active)return <section className="page section exam"><p className="eyebrow">{active.subject} • {active.topic}</p><h1>{active.title}</h1><p className="help">সময়সীমা: {bn(active.duration)} মিনিট • পাস নম্বর: {bn(active.passMark)}%</p>{active.questions?.map((q,i)=><fieldset key={q.id}><legend>{bn(i+1)}. {q.text}</legend>{q.options.map((o,n)=><label key={o} className="option"><input type="radio" name={q.id} checked={answers[q.id]===n} onChange={()=>setAnswers({...answers,[q.id]:n})}/>{o}</label>)}</fieldset>)}{result?<div className="exam-result"><span>✓</span><h2>ফলাফল</h2><b>{bn(result.score)}/{bn(result.total)}</b><p>{result.passed?'অভিনন্দন! আপনি উত্তীর্ণ হয়েছেন।':'আরও অনুশীলন করে আবার চেষ্টা করুন।'}</p><button className="button" onClick={()=>setActive(null)}>পরীক্ষার তালিকায় ফিরুন</button></div>:<button className="button" onClick={()=>void submit()}>উত্তর জমা দিন</button>}</section>;return <section className="page section"><p className="eyebrow">MCQ অনুশীলন</p><h1>আমার পরীক্ষা</h1>{exams?<div className="exam-list">{exams.map(e=><article key={e.id}><span>{e.subject}</span><h2>{e.title}</h2><p>{bn(e.questions as unknown as number)}টি প্রশ্ন • {bn(e.duration)} মিনিট • পাস নম্বর {bn(e.passMark)}%</p><button className="button" onClick={()=>void open(e.id)}>পরীক্ষা শুরু করুন</button></article>)}</div>:<Loading/>}</section>}
+export function Exams({ user }: { user: User }) {
+  const [exams, setExams] = useState<Exam[] | null>(null);
+  const [active, setActive] = useState<Exam | null>(null);
+  const [answers, setAnswers] = useState<Record<string, number>>({});
+  const answersRef = useRef(answers);
+  answersRef.current = answers;
+  const [result, setResult] = useState<ExamAttemptResult | null>(null);
+  const [query, setQuery] = useState('');
+  const [subject, setSubject] = useState('সব বিষয়');
+  const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [confirmSubmit, setConfirmSubmit] = useState(false);
+  const [progressSeconds, setProgressSeconds] = useState(0);
+
+  const load = async () => {
+    setError('');
+    try { setExams(await api<Exam[]>('/exams')); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : 'পরীক্ষার তালিকা আনা যায়নি।'); }
+  };
+  useEffect(() => { void load(); }, []);
+
+  const open = async (examId: string) => {
+    setError('');
+    setAnswers({});
+    setResult(null);
+    try {
+      const exam = await api<Exam>(`/exams/${examId}`);
+      setActive(exam);
+      setProgressSeconds(exam.duration * 60);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'পরীক্ষাটি খোলা যায়নি।'); }
+  };
+  const submit = async () => {
+    if (!active || submitting || result) return;
+    setSubmitting(true);
+    setError('');
+    try {
+      setResult(await post<ExamAttemptResult>(`/exams/${active.id}/submit`, { answers: answersRef.current }));
+      setConfirmSubmit(false);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'উত্তর জমা দেওয়া যায়নি।'); }
+    finally { setSubmitting(false); }
+  };
+  useEffect(() => {
+    if (!active || result || progressSeconds <= 0) return;
+    const timer = window.setInterval(() => setProgressSeconds(seconds => {
+      if (seconds <= 1) { window.clearInterval(timer); void submit(); return 0; }
+      return seconds - 1;
+    }), 1000);
+    return () => window.clearInterval(timer);
+  }, [active, result]);
+
+  if (user.role !== 'STUDENT') return <section className="page section"><Empty>পরীক্ষায় অংশ নিতে শিক্ষার্থী হিসেবে লগইন করুন।</Empty></section>;
+
+  if (active) {
+    const questions = Array.isArray(active.questions) ? active.questions : [];
+    const answered = questions.filter(question => answers[question.id] !== undefined).length;
+    const minutes = Math.floor(progressSeconds / 60);
+    const seconds = progressSeconds % 60;
+    const scorePercent = result?.percentage || 0;
+    return <section className="page section exam-session">
+      <header className="exam-session-heading">
+        <button className="exam-back-link" type="button" onClick={() => { setActive(null); setResult(null); }}>← <span>সব পরীক্ষা</span></button>
+        <div className="exam-session-title"><p className="eyebrow">{active.subject} · {active.topic}</p><h1>{active.title}</h1><p>{active.instructions || active.description || 'প্রতিটি প্রশ্নে একটি সঠিক উত্তর বেছে নিন।'}</p></div>
+        <div className={`exam-timer${progressSeconds < 60 ? ' is-urgent' : ''}`} aria-label="অবশিষ্ট সময়"><span aria-hidden="true">◷</span><b>{String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}</b><small>অবশিষ্ট সময়</small></div>
+      </header>
+      <div className="exam-progress-card"><div><span>উত্তর দেওয়া হয়েছে</span><b>{bn(answered)} <small>/ {bn(questions.length)}</small></b></div><div className="exam-progress-track"><i style={{ width: `${questions.length ? answered / questions.length * 100 : 0}%` }} /></div><div className="exam-question-jump" aria-label="প্রশ্নে যান">{questions.map((question, index) => <button className={answers[question.id] === undefined ? '' : 'is-answered'} type="button" key={question.id} aria-label={`প্রশ্ন ${bn(index + 1)}${answers[question.id] === undefined ? ', উত্তর দেওয়া হয়নি' : ', উত্তর দেওয়া হয়েছে'}`} onClick={() => document.getElementById(`exam-session-question-${index}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}>{bn(index + 1)}</button>)}</div></div>
+      {error && <p className="exam-feedback" role="alert">{error}<button type="button" onClick={() => setError('')} aria-label="বার্তা বন্ধ করুন">×</button></p>}
+      {result ? <div className="exam-result-wrap">
+        <section className={`exam-result-card${result.passed ? ' is-passed' : ' is-failed'}`}>
+          <span className="exam-result-icon" aria-hidden="true">{result.passed ? '✓' : '↗'}</span><p className="eyebrow">পরীক্ষা সম্পন্ন</p><h2>{result.passed ? 'চমৎকার কাজ!' : 'আরও একটু অনুশীলন করুন'}</h2>
+          <strong className="exam-result-score">{bn(result.score)} <small>/ {bn(result.total)}</small></strong><div className="exam-result-percent">{bn(scorePercent)}%</div>
+          <div className="exam-result-stats"><span><b>{bn(result.correctCount)}</b>সঠিক</span><span><b>{bn(result.incorrectCount)}</b>ভুল</span><span><b>{bn(result.unansweredCount)}</b>উত্তরহীন</span></div>
+          <p className={`exam-pass-state${result.passed ? ' is-passed' : ' is-failed'}`}>{result.passed ? 'পাস নম্বর অর্জিত হয়েছে' : `পাস করতে প্রয়োজন ${bn(active.passMark)}%`}</p>
+          <button className="button" type="button" onClick={() => { setActive(null); setResult(null); setAnswers({}); }}>অন্য পরীক্ষা বেছে নিন</button>
+        </section>
+        {result.showAnswers ? <ExamAnswerReview review={result.review || []} /> : <p className="exam-review-hidden">এই পরীক্ষার উত্তরমালা শিক্ষক প্রকাশ করেননি।</p>}
+      </div> : <>
+        <div className="exam-instruction-note"><span aria-hidden="true">✦</span><p>সব প্রশ্নের উত্তর বাধ্যতামূলক নয়। জমা দেওয়ার পর আপনার স্কোর, সঠিক উত্তর ও ব্যাখ্যা দেখতে পারবেন।</p></div>
+        <div className="exam-session-questions">{questions.map((question, index) => <fieldset className="exam-session-question" id={`exam-session-question-${index}`} key={question.id}>
+          <legend><span>প্রশ্ন {bn(index + 1)}</span><small>{bn(question.marks)} নম্বর</small></legend><h2>{question.text}</h2>
+          <div className="exam-session-options">{question.options.map((option, optionIndex) => <label className={answers[question.id] === optionIndex ? 'is-selected' : ''} key={`${question.id}-${optionIndex}`}><input type="radio" name={question.id} checked={answers[question.id] === optionIndex} onChange={() => setAnswers(current => ({ ...current, [question.id]: optionIndex }))} /><span className="exam-option-letter">{String.fromCharCode(65 + optionIndex)}</span><span>{option}</span><i aria-hidden="true">✓</i></label>)}</div>
+        </fieldset>)}</div>
+        <footer className="exam-submit-bar"><span><b>{bn(answered)}/{bn(questions.length)}</b>টি প্রশ্নের উত্তর দেওয়া হয়েছে</span><button className="button" type="button" disabled={submitting} onClick={() => setConfirmSubmit(true)}>{submitting ? 'জমা হচ্ছে…' : 'পরীক্ষা জমা দিন'} <span aria-hidden="true">→</span></button></footer>
+      </>}
+      {confirmSubmit && !result && <div className="exam-confirm-backdrop"><section className="exam-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="exam-confirm-title"><span aria-hidden="true">✓</span><h2 id="exam-confirm-title">উত্তর জমা দেবেন?</h2><p>{answered === questions.length ? 'সব প্রশ্নের উত্তর দেওয়া হয়েছে।' : `${bn(questions.length - answered)}টি প্রশ্নের উত্তর দেওয়া হয়নি। জমা দিলে আর পরিবর্তন করা যাবে না।`}</p><div><button className="quiet-btn" type="button" onClick={() => setConfirmSubmit(false)}>আরও দেখুন</button><button className="button" type="button" disabled={submitting} onClick={() => void submit()}>{submitting ? 'জমা হচ্ছে…' : 'জমা নিশ্চিত করুন'}</button></div></section></div>}
+    </section>;
+  }
+
+  if (user.role !== 'STUDENT') return null;
+  const subjects = ['সব বিষয়', ...new Set((exams || []).map(exam => exam.subject))];
+  const filtered = (exams || []).filter(exam => (subject === 'সব বিষয়' || exam.subject === subject) && `${exam.title} ${exam.subject} ${exam.topic}`.toLocaleLowerCase('bn').includes(query.trim().toLocaleLowerCase('bn')));
+  return <section className="exams-page">
+    <header className="exams-hero"><div className="exams-hero-copy"><p className="eyebrow">শিখুন · অনুশীলন করুন · এগিয়ে যান</p><h1>প্রস্তুতি যাচাইয়ের সেরা সময় এখনই</h1><p>বিষয়ভিত্তিক MCQ পরীক্ষায় নিজের প্রস্তুতি যাচাই করুন। জমা দেওয়ার পর প্রতিটি উত্তরের সঠিক সমাধান ও ব্যাখ্যা দেখে শিখুন।</p><div className="exams-hero-points"><span>✓ সময় ধরে অনুশীলন</span><span>✓ তাৎক্ষণিক স্কোর</span><span>✓ উত্তর ও ব্যাখ্যা</span></div></div><div className="exams-hero-art" aria-hidden="true"><span>✓</span><b>MCQ</b><small>জ্ঞান যাচাই</small><i>✦</i></div></header>
+    <section className="exams-catalog page section" aria-labelledby="exams-catalog-title"><div className="exams-catalog-heading"><div><p className="eyebrow">আপনার অনুশীলন</p><h2 id="exams-catalog-title">বিষয়ভিত্তিক পরীক্ষা</h2><p>একটি পরীক্ষা বেছে নিয়ে প্রস্তুতি শুরু করুন।</p></div>{exams&&<span className="exams-total"><b>{bn(exams.length)}</b>টি পরীক্ষা</span>}</div>
+      <div className="exams-filter-row"><label className="exam-search"><span aria-hidden="true">⌕</span><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="পরীক্ষা বা বিষয় খুঁজুন" aria-label="পরীক্ষা বা বিষয় খুঁজুন"/><kbd>⌕</kbd></label><div className="exam-subject-filters" aria-label="বিষয় অনুযায়ী ফিল্টার">{subjects.map(item => <button className={subject === item ? 'is-active' : ''} key={item} type="button" onClick={() => setSubject(item)}>{item}</button>)}</div></div>
+      {error && !active && <p className="exam-feedback" role="alert">{error}<button type="button" onClick={() => void load()}>আবার চেষ্টা করুন</button></p>}
+      {!exams ? <Loading/> : filtered.length ? <div className="exam-catalog-grid">{filtered.map((exam, index) => {
+        const questionCount = typeof exam.questions === 'number' ? exam.questions : exam.questionCount || exam.questionIds?.length || 0;
+        return <article className="exam-catalog-card" key={exam.id}>
+          <div className={`exam-card-icon exam-card-icon-${index % 5}`} aria-hidden="true">{({ 'গণিত':'∑', 'পদার্থবিজ্ঞান':'⚛', 'রসায়ন':'⚗', 'জীববিজ্ঞান':'✳', 'ইংরেজি':'Aa', 'বাংলা':'অ', 'আইসিটি':'⌘', 'হিসাববিজ্ঞান':'▤', 'ফিন্যান্স':'৳', 'প্রোগ্রামিং':'</>' } as Record<string,string>)[exam.subject] || '✦'}</div>
+          <div className="exam-card-subject"><span>{exam.subject}</span><span className="exam-card-published"><i/>প্রকাশিত</span></div><h3>{exam.title}</h3><p>{exam.description || `${exam.subject} বিষয়ে গুরুত্বপূর্ণ ধারণা ও প্রশ্ন অনুশীলন করুন।`}</p>
+          <div className="exam-card-meta"><span><i aria-hidden="true">▤</i>{bn(questionCount)}টি MCQ</span><span><i aria-hidden="true">◷</i>{bn(exam.duration)} মিনিট</span><span><i aria-hidden="true">✓</i>পাস {bn(exam.passMark)}%</span></div>
+          <button className="exam-card-start" type="button" onClick={() => void open(exam.id)}>অনুশীলন শুরু করুন <span aria-hidden="true">→</span></button>
+        </article>;
+      })}</div> : <div className="exam-empty-state"><span aria-hidden="true">⌕</span><h3>কোনো পরীক্ষা মেলেনি</h3><p>বিষয় বদলে দেখুন অথবা অন্য শব্দ দিয়ে খুঁজুন।</p><button className="quiet-btn" type="button" onClick={() => { setQuery(''); setSubject('সব বিষয়'); }}>ফিল্টার মুছুন</button></div>}
+    </section>
+  </section>;
+}
 
 export function Problems({user}:{user:User|null}) {
   const [items,setItems]=useState<ProblemPost[]>([]);

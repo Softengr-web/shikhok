@@ -81,6 +81,82 @@ const practiceQuestions: Record<string, PracticeQuestion[]> = {
   ]
 };
 
+const additionalPracticeExams: { id: string; subject: string; title: string; topic: string; description: string; questions: PracticeQuestion[] }[] = [
+  {
+    id: 'practice-exam-biology', subject: 'জীববিজ্ঞান', title: 'জীববিজ্ঞান · ধারণা যাচাই MCQ', topic: 'কোষ, জিনতত্ত্ব ও পরিবেশ',
+    description: 'কোষ, বংশগতি ও পরিবেশের মূল ধারণাগুলো ছোট একটি অনুশীলনে যাচাই করুন।',
+    questions: [
+      { topic: 'কোষ', text: 'কোষঝিল্লির গঠন ব্যাখ্যা করতে কোন মডেলটি ব্যবহৃত হয়?', options: ['লক-অ্যান্ড-কি মডেল', 'ফ্লুইড মোজাইক মডেল', 'ডাবল হেলিক্স মডেল', 'সেন্ট্রাল ডগমা'], answer: 1, explanation: 'ফসফোলিপিড দ্বিস্তরে প্রোটিনের চলমান বিন্যাসকে ফ্লুইড মোজাইক মডেল বলে।' },
+      { topic: 'সালোকসংশ্লেষণ', text: 'সালোকসংশ্লেষণে ক্লোরোফিলের প্রধান কাজ কী?', options: ['আলো শোষণ করা', 'গ্লুকোজ ভাঙা', 'অক্সিজেন গ্রহণ করা', 'পানি পরিবহন করা'], answer: 0, explanation: 'ক্লোরোফিল আলোকশক্তি শোষণ করে সালোকসংশ্লেষণের বিক্রিয়ায় কাজে লাগায়।' },
+      { topic: 'জিনতত্ত্ব', text: 'DNA-তে গুয়ানিন (G)-এর সঙ্গে কোন ক্ষারক জোড়া বাঁধে?', options: ['অ্যাডেনিন (A)', 'থাইমিন (T)', 'সাইটোসিন (C)', 'ইউরাসিল (U)'], answer: 2, explanation: 'DNA-তে গুয়ানিনের পরিপূরক ক্ষারক হলো সাইটোসিন।' },
+      { topic: 'রক্তসংবহন', text: 'ফুসফুস থেকে অক্সিজেনসমৃদ্ধ রক্ত হৃদয়ে কোন পথে আসে?', options: ['পালমোনারি ধমনি', 'পালমোনারি শিরা', 'অ্যাওর্টা', 'ভেনা কাভা'], answer: 1, explanation: 'পালমোনারি শিরা ফুসফুস থেকে অক্সিজেনসমৃদ্ধ রক্ত বাম অলিন্দে নিয়ে আসে।' },
+      { topic: 'বাস্তুতন্ত্র', text: 'বাস্তুতন্ত্রে উৎপাদক হিসেবে সাধারণত কারা কাজ করে?', options: ['সবুজ উদ্ভিদ', 'মাংসাশী প্রাণী', 'ছত্রাক', 'পরজীবী'], answer: 0, explanation: 'সবুজ উদ্ভিদ সালোকসংশ্লেষণে নিজের খাদ্য তৈরি করে এবং খাদ্যশৃঙ্খলের ভিত্তি গড়ে।' }
+    ]
+  },
+  {
+    id: 'practice-exam-english', subject: 'ইংরেজি', title: 'English · Grammar & Writing MCQ', topic: 'Grammar, sentence structure & vocabulary',
+    description: 'প্রয়োজনীয় grammar, sentence structure ও vocabulary অনুশীলন করুন।',
+    questions: [
+      { topic: 'Subject–verb agreement', text: 'She ___ her homework before dinner.', options: ['finish', 'finishes', 'finishing', 'have finished'], answer: 1, explanation: 'Present simple tense-এ third-person singular subject-এর সঙ্গে verb-এ s/es যোগ হয়।' },
+      { topic: 'Subject–verb agreement', text: 'Neither of the answers ___ correct.', options: ['are', 'were', 'is', 'have been'], answer: 2, explanation: 'Neither একবচন অর্থে ব্যবহৃত হয়, তাই এখানে is সঠিক।' },
+      { topic: 'Voice', text: '“They built the bridge in 2020.” বাক্যটির passive form কোনটি?', options: ['The bridge built in 2020.', 'The bridge was built in 2020.', 'The bridge is built by 2020.', 'They were built the bridge in 2020.'], answer: 1, explanation: 'Past simple passive গঠনে object + was/were + past participle ব্যবহৃত হয়।' },
+      { topic: 'Conditional sentence', text: 'If I ___ more time, I would learn another language.', options: ['have', 'had', 'will have', 'am having'], answer: 1, explanation: 'Second conditional-এ if-clause-এ past simple এবং মূল clause-এ would + verb থাকে।' },
+      { topic: 'Vocabulary', text: '“Concise” শব্দটির কাছাকাছি অর্থ কোনটি?', options: ['অপ্রাসঙ্গিক', 'সংক্ষিপ্ত ও স্পষ্ট', 'দ্ব্যর্থক', 'অতিরিক্ত বিস্তারিত'], answer: 1, explanation: 'Concise মানে অল্প কথায় স্পষ্টভাবে বলা বা লেখা।' }
+    ]
+  },
+  {
+    id: 'practice-exam-bangla', subject: 'বাংলা', title: 'বাংলা · ব্যাকরণ ও সাহিত্য MCQ', topic: 'কারক, সমাস, শব্দ ও সাহিত্য',
+    description: 'বাংলা ব্যাকরণের প্রয়োজনীয় বিষয় ও পরিচিত সাহিত্যকর্ম নিয়ে অনুশীলন।',
+    questions: [
+      { topic: 'উপসর্গ', text: '“অশান্তি” শব্দে উপসর্গ কোনটি?', options: ['অ-', 'শান্তি', 'তি', 'ন-'], answer: 0, explanation: 'শান্তি শব্দের আগে অ- যোগ হয়ে বিপরীত অর্থে অশান্তি হয়েছে।' },
+      { topic: 'কারক', text: '“রহিম বই পড়ে” বাক্যে “রহিম” কোন কারক?', options: ['কর্মকারক', 'কর্তৃকারক', 'অপাদান কারক', 'অধিকরণ কারক'], answer: 1, explanation: 'যে কাজটি করে, সে কর্তৃকারক; এখানে রহিম পড়ার কাজটি করছে।' },
+      { topic: 'সমাস', text: '“রাজপুত্র” শব্দটির ব্যাসবাক্য কোনটি?', options: ['রাজা ও পুত্র', 'রাজার পুত্র', 'রাজা যে পুত্র', 'পুত্রের রাজা'], answer: 1, explanation: 'রাজপুত্র অর্থ রাজার পুত্র; এটি ষষ্ঠী তৎপুরুষ সমাস।' },
+      { topic: 'সাধু ও চলিত রীতি', text: '“করিতেছে” শব্দটির চলিত রূপ কোনটি?', options: ['করেছে', 'করছিল', 'করছে', 'করবে'], answer: 2, explanation: 'করিতেছে-এর চলিত বর্তমান রূপ হচ্ছে করছে।' },
+      { topic: 'সাহিত্য', text: '“সোনার তরী” কাব্যগ্রন্থের রচয়িতা কে?', options: ['কাজী নজরুল ইসলাম', 'জীবনানন্দ দাশ', 'রবীন্দ্রনাথ ঠাকুর', 'জসীমউদ্‌দীন'], answer: 2, explanation: '“সোনার তরী” রবীন্দ্রনাথ ঠাকুরের একটি বিখ্যাত কাব্যগ্রন্থ।' }
+    ]
+  },
+  {
+    id: 'practice-exam-ict', subject: 'আইসিটি', title: 'আইসিটি · ডিজিটাল দক্ষতা MCQ', topic: 'সংখ্যা পদ্ধতি, ওয়েব ও ডেটাবেজ',
+    description: 'সংখ্যা পদ্ধতি, কম্পিউটার স্মৃতি, ওয়েব ও ডেটাবেজের ভিত্তি যাচাই করুন।',
+    questions: [
+      { topic: 'সংখ্যা পদ্ধতি', text: 'বাইনারি 1010-এর দশমিক মান কত?', options: ['৮', '৯', '১০', '১২'], answer: 2, explanation: '1010₂ = 1×8 + 0×4 + 1×2 + 0×1 = 10₁₀।' },
+      { topic: 'ওয়েব ডিজাইন', text: 'HTML-এ অন্য পেজে যাওয়ার লিংক তৈরি করতে কোন element ব্যবহৃত হয়?', options: ['<p>', '<a>', '<img>', '<table>'], answer: 1, explanation: 'HTML-এর anchor element <a> href attribute-এর মাধ্যমে লিংক তৈরি করে।' },
+      { topic: 'কম্পিউটার স্মৃতি', text: 'RAM-কে volatile memory বলা হয় কেন?', options: ['এতে শুধু ছবি থাকে', 'বিদ্যুৎ বন্ধ হলে তথ্য মুছে যায়', 'এটি কখনো পরিবর্তন করা যায় না', 'এটি কেবল অনলাইনে কাজ করে'], answer: 1, explanation: 'RAM সাময়িকভাবে তথ্য ধরে; বিদ্যুৎ সরবরাহ বন্ধ হলে সেই তথ্য থাকে না।' },
+      { topic: 'ডেটাবেজ', text: 'ডেটাবেজ টেবিলে primary key-এর মূল কাজ কী?', options: ['প্রতিটি রেকর্ডকে স্বতন্ত্রভাবে চেনা', 'সব রেকর্ড মুছে ফেলা', 'টেবিলে রং যোগ করা', 'ফাইল সংকুচিত করা'], answer: 0, explanation: 'Primary key প্রতিটি রেকর্ডের জন্য স্বতন্ত্র পরিচয় নিশ্চিত করে।' },
+      { topic: 'প্রোগ্রামিং ধারণা', text: 'একই ধরনের নির্দেশ বারবার চালাতে সাধারণত কোনটি ব্যবহার করা হয়?', options: ['Loop', 'Comment', 'Variable name', 'File extension'], answer: 0, explanation: 'Loop নির্দিষ্ট শর্ত বা সংখ্যার ভিত্তিতে একই নির্দেশ বারবার চালায়।' }
+    ]
+  },
+  {
+    id: 'practice-exam-accounting', subject: 'হিসাববিজ্ঞান', title: 'হিসাববিজ্ঞান · ভিত্তি ও প্রয়োগ MCQ', topic: 'হিসাব সমীকরণ, জাবেদা ও রেওয়ামিল',
+    description: 'হিসাব সমীকরণ ও দৈনন্দিন লেনদেনের মৌলিক নিয়ম যাচাই করুন।',
+    questions: [
+      { topic: 'হিসাব সমীকরণ', text: 'সম্পদ ১,০০,০০০ টাকা এবং দায় ৪০,০০০ টাকা হলে মালিকানা স্বত্ব কত?', options: ['৪০,০০০ টাকা', '৬০,০০০ টাকা', '১,০০,০০০ টাকা', '১,৪০,০০০ টাকা'], answer: 1, explanation: 'সম্পদ = দায় + মালিকানা স্বত্ব; তাই মালিকানা স্বত্ব = ১,০০,০০০ − ৪০,০০০ = ৬০,০০০ টাকা।' },
+      { topic: 'জাবেদা', text: 'নগদে আসবাবপত্র কিনলে কোন হিসাবটি ডেবিট হবে?', options: ['নগদান হিসাব', 'আসবাবপত্র হিসাব', 'বিক্রয় হিসাব', 'মূলধন হিসাব'], answer: 1, explanation: 'আসবাবপত্র সম্পদ বাড়ে, তাই আসবাবপত্র হিসাব ডেবিট হয়; নগদ কমে বলে নগদান ক্রেডিট হয়।' },
+      { topic: 'আয় ও ব্যয়', text: 'নিট মুনাফা নির্ণয়ের সাধারণ নিয়ম কোনটি?', options: ['আয় + ব্যয়', 'সম্পদ − দায়', 'আয় − ব্যয়', 'দায় − মূলধন'], answer: 2, explanation: 'মোট আয়ের পরিমাণ থেকে সংশ্লিষ্ট ব্যয় বাদ দিলে নিট মুনাফা পাওয়া যায়।' },
+      { topic: 'রেওয়ামিল', text: 'রেওয়ামিলের ডেবিট ও ক্রেডিট যোগফল সমান হওয়া প্রধানত কী যাচাই করে?', options: ['সব লেনদেন সঠিক খাতে লেখা হয়েছে', 'গাণিতিক যোগফলে ভারসাম্য আছে', 'কোনো ভুলই নেই', 'ব্যবসা লাভ করেছে'], answer: 1, explanation: 'রেওয়ামিলের সমতা হিসাবের গাণিতিক ভারসাম্য যাচাই করে; এতে সব ধরনের ভুল ধরা পড়ে না।' },
+      { topic: 'সম্পদ', text: 'আগাম পরিশোধিত ভাড়া সাধারণত কোন ধরনের হিসাব?', options: ['চলতি সম্পদ', 'দীর্ঘমেয়াদি দায়', 'মূলধন', 'আয়'], answer: 0, explanation: 'আগাম ভাড়া ভবিষ্যতে পাওয়া সুবিধা, তাই এটি সাধারণত চলতি সম্পদ হিসেবে দেখানো হয়।' }
+    ]
+  }
+];
+
+export function ensureAdditionalPracticeExams(state: AppState) {
+  let changed = false;
+  for (const set of additionalPracticeExams) {
+    if (state.exams.some(exam => exam.id === set.id)) continue;
+    const questionIds = set.questions.map((item, index) => {
+      const questionId = `${set.id}-q${index + 1}`;
+      if (!state.questions.some(question => question.id === questionId)) {
+        state.questions.push({ id: questionId, teacherId: 'teacher-1', subject: set.subject, topic: item.topic, difficulty: 'মাঝারি', text: item.text, options: item.options, answer: item.answer, explanation: item.explanation, marks: 1, tags: [set.subject, item.topic] });
+      }
+      return questionId;
+    });
+    const createdAt = now();
+    state.exams.push({ id: set.id, teacherId: 'teacher-1', title: set.title, description: set.description, instructions: 'প্রতিটি প্রশ্নে একটি সঠিক উত্তর বেছে নিন। জমা দেওয়ার পর সঠিক উত্তর ও ব্যাখ্যা দেখতে পারবেন।', subject: set.subject, topic: set.topic, duration: 15, passMark: 60, totalMarks: questionIds.length, showAnswers: true, shareToken: set.id, status: 'PUBLISHED', questionIds, active: true, createdAt, updatedAt: createdAt });
+    changed = true;
+  }
+  return changed;
+}
+
 export function createDemoProblems() {
   const deadline = (days: number) => new Date(Date.now() + days * 86400000).toISOString().slice(0, 10);
   return [
@@ -116,6 +192,7 @@ export function createDemoState(): AppState {
     const qs = state.questions.filter(question => question.subject === subject.name).slice(0, 10);
     state.exams.push({ id: 'exam-' + (index + 1), teacherId: 'teacher-1', title: subject.name + ' বিষয়ভিত্তিক অনুশীলনী', subject: subject.name, topic: 'মিশ্র অনুশীলন', duration: 20, passMark: 50, questionIds: qs.map(question => question.id), active: true });
   });
+  ensureAdditionalPracticeExams(state);
   for (let i = 1; i <= 120; i++) { const teacher = state.teachers[i % state.teachers.length]; state.reviews.push({ id: 'review-' + i, bookingId: 'old-booking-' + i, studentId: 'student-' + ((i % 20) + 1), teacherId: teacher.id, rating: (i % 5) + 1, comment: 'নমুনা মতামত: বিষয়গুলো ধাপে ধাপে বুঝিয়েছেন এবং অনুশীলনে সহায়তা করেছেন।', createdAt: now() }); }
   const gig = state.gigs[0]; const pkg = gig.packages[1]; const booking = { id: 'booking-1', studentId: 'student-1', teacherId: 'teacher-1', gigId: gig.id, packageId: pkg.id, date: new Date(Date.now() + 86400000).toISOString().slice(0,10), time: '১৬:০০', price: pkg.price, status: 'CONFIRMED' as const, history: [{ status: 'PENDING' as const, at: now(), note: 'বুকিং তৈরি হয়েছে' }, { status: 'CONFIRMED' as const, at: now(), note: 'পরীক্ষামূলক অর্থপ্রদান সম্পন্ন হয়েছে' }], createdAt: now(), notes: 'আগামী ক্লাসে গতির সমীকরণ অনুশীলন করা হবে।', attendance: { teacher: true, student: true } }; state.bookings.push(booking);
   state.bookings.push({ id: 'booking-2', studentId: 'student-2', teacherId: 'teacher-1', gigId: gig.id, packageId: pkg.id, date: new Date().toISOString().slice(0,10), time: 'এখন', price: pkg.price, status: 'IN_PROGRESS' as const, history: [{ status: 'CONFIRMED' as const, at: now(), note: 'ক্লাস শুরু হয়েছে' }, { status: 'IN_PROGRESS' as const, at: now(), note: 'শিক্ষক ও শিক্ষার্থী ক্লাসরুমে আছেন' }], createdAt: now(), attendance: { teacher: true, student: true } });
