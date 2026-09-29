@@ -328,10 +328,89 @@ export function AuthPage({ kind, onLogin }: { kind: 'login' | 'register'; onLogi
 }
 
 type DashboardData={user:User;bookings:Booking[];notifications:Notification[];unread:number;teacher?:Teacher;wallet?:{total:number;pending:number;commission:number;entries:any[]};gigs?:Gig[];analytics?:Record<string,number>;favorites?:any[];attempts?:any[];children?:{name:string;bookings:Booking[];attempts:any[]}[];admin?:{users:number;teachers:number;pending:number;payments:number;reports:number}};
-export function Dashboard({user}:{user:User}) { const [data,setData]=useState<DashboardData|null>(null);useEffect(()=>{void api<DashboardData>('/dashboard').then(setData);},[]);if(!data)return <Loading/>;if(user.role==='TEACHER')return <TeacherDashboard data={data}/>;if(user.role==='PARENT')return <ParentDashboard data={data}/>;if(user.role==='ADMIN'||user.role==='SUPER_ADMIN')return <AdminDashboard data={data}/>;return <StudentDashboard data={data}/>; }
+export function Dashboard({user}:{user:User}) {
+  const [data,setData]=useState<DashboardData|null>(null);
+  const [loading,setLoading]=useState(true);
+  const [error,setError]=useState('');
+  const load=async()=>{
+    setLoading(true);setError('');
+    try {setData(await api<DashboardData>('/dashboard'));}
+    catch (e) {setError(e instanceof Error?e.message:'ড্যাশবোর্ড লোড করা যায়নি। আবার চেষ্টা করুন।');}
+    finally {setLoading(false);}
+  };
+  useEffect(()=>{void load();},[]);
+  if(!data&&loading)return <Loading/>;
+  if(!data)return <section className="page section dashboard-error"><p className="eyebrow">শিক্ষার্থী ড্যাশবোর্ড</p><h1>ড্যাশবোর্ড লোড হয়নি</h1><p>{error||'তথ্য আনতে সমস্যা হয়েছে।'}</p><button className="button" onClick={()=>void load()}>আবার চেষ্টা করুন</button></section>;
+  if(user.role==='TEACHER')return <TeacherDashboard data={data}/>;
+  if(user.role==='PARENT')return <ParentDashboard data={data}/>;
+  if(user.role==='ADMIN'||user.role==='SUPER_ADMIN')return <AdminDashboard data={data}/>;
+  return <StudentDashboard data={data}/>;
+}
 const BookingList=({bookings}:{bookings:Booking[]})=><div className="booking-list">{bookings.slice(0,5).map(b=><article key={b.id}><span className={`status ${b.status}`}>{statusBn(b.status)}</span><div><b>{shortDate(b.date)} • {b.time}</b><p>{money(b.price)} • বুকিং #{b.id.slice(-5)}</p></div><div className="booking-actions">{['CONFIRMED','IN_PROGRESS'].includes(b.status)&&<button className="button small" onClick={()=>go(`/classroom/${b.id}`)}>ক্লাসে যান</button>}<button className="quiet-btn" onClick={()=>go(`/booking/${b.id}`)}>বিস্তারিত</button></div></article>)}</div>;
 const Stat=({label,value,accent}:{label:string;value:string|number;accent?:string})=><article className="stat"><small>{label}</small><b className={accent}>{value}</b></article>;
-function StudentDashboard({data}:{data:DashboardData}){const completed=data.bookings.filter(b=>b.status==='COMPLETED').length;const avg=data.attempts?.length?Math.round(data.attempts.reduce((n,a)=>n+(a.score/a.total)*100,0)/data.attempts.length):0;return <section className="page section"><p className="eyebrow">শিক্ষার্থী ড্যাশবোর্ড</p><h1>স্বাগতম, {data.user.name}</h1><div className="stats"><Stat label="মোট ক্লাস" value={bn(data.bookings.length)}/><Stat label="সম্পন্ন ক্লাস" value={bn(completed)} accent="green"/><Stat label="পরীক্ষার গড়" value={`${bn(avg)}%`} accent="purple"/><Stat label="সংরক্ষিত শিক্ষক" value={bn(data.favorites?.length||0)}/></div><div className="dashboard-grid"><Info title="আসন্ন ও সাম্প্রতিক ক্লাস"><BookingList bookings={data.bookings}/><a href="#/bookings">সব বুকিং দেখুন →</a></Info><Info title="সাম্প্রতিক নোটিফিকেশন"><Notifications items={data.notifications}/></Info></div><div className="quick-actions"><button onClick={()=>go('/search')}>⌕<span>শিক্ষক খুঁজুন</span></button><button onClick={()=>go('/exams')}>✎<span>পরীক্ষা দিন</span></button><button onClick={()=>go('/problems')}>◈<span>সমস্যা পোস্ট করুন</span></button><button onClick={()=>go('/messages')}>✉<span>বার্তা দেখুন</span></button></div></section>}
+function StudentDashboard({data}:{data:DashboardData}) {
+  const completed=data.bookings.filter(booking=>booking.status==='COMPLETED').length;
+  const attempts=data.attempts||[];
+  const average=attempts.length?Math.round(attempts.reduce((sum,attempt)=>sum+(attempt.total?attempt.score/attempt.total:0),0)/attempts.length*100):0;
+  const upcoming=data.bookings
+    .filter(booking=>['CONFIRMED','IN_PROGRESS'].includes(booking.status))
+    .sort((a,b)=>`${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`))[0];
+  const quickLinks=[
+    {icon:'⌕',title:'শিক্ষক খুঁজুন',description:'আপনার বিষয়ের শিক্ষক বেছে নিন',path:'/search',tone:'mint'},
+    {icon:'✎',title:'পরীক্ষা দিন',description:'নিজের প্রস্তুতি যাচাই করুন',path:'/exams',tone:'lilac'},
+    {icon:'◈',title:'সমস্যা সমাধান',description:'প্রশ্ন শেয়ার করে সহায়তা নিন',path:'/problems',tone:'peach'},
+    {icon:'✉',title:'বার্তা দেখুন',description:'শিক্ষকের সঙ্গে কথা বলুন',path:'/messages',tone:'blue'}
+  ];
+  const dateLabel=new Intl.DateTimeFormat('bn-BD',{dateStyle:'full'}).format(new Date());
+
+  return <section className="page section student-dashboard">
+    <header className="student-welcome">
+      <div className="student-welcome-copy">
+        <p className="eyebrow">শিক্ষার্থী ড্যাশবোর্ড</p>
+        <h1>স্বাগতম, {data.user.name}</h1>
+        <p>আজ কী শিখবেন? আপনার ক্লাস, পরীক্ষা ও শিক্ষকের সঙ্গে যোগাযোগ—সব এক জায়গায় রাখুন।</p>
+        <span className="student-date"><span aria-hidden="true">◷</span>{dateLabel}</span>
+      </div>
+      <div className="student-welcome-card">
+        <span className="student-welcome-icon" aria-hidden="true">✦</span>
+        <small>শেখা শুরু করুন</small>
+        <b>আপনার পরের সেরা ক্লাসটি খুঁজে নিন</b>
+        <button className="button" onClick={()=>go('/search')}>শিক্ষক খুঁজুন <span aria-hidden="true">→</span></button>
+      </div>
+      <span className="student-welcome-orbit" aria-hidden="true">✧</span>
+    </header>
+
+    <div className="student-overview" aria-label="শেখার সারসংক্ষেপ">
+      <article className="student-metric metric-mint"><span aria-hidden="true">▣</span><div><small>মোট ক্লাস</small><b>{bn(data.bookings.length)}</b><em>আপনার বুকিং</em></div></article>
+      <article className="student-metric metric-green"><span aria-hidden="true">✓</span><div><small>সম্পন্ন ক্লাস</small><b>{bn(completed)}</b><em>শেখার অগ্রগতি</em></div></article>
+      <article className="student-metric metric-lilac"><span aria-hidden="true">✎</span><div><small>পরীক্ষার গড়</small><b>{attempts.length?`${bn(average)}%`:'—'}</b><em>{attempts.length?`${bn(attempts.length)}টি পরীক্ষা`:'এখনও পরীক্ষা হয়নি'}</em></div></article>
+      <article className="student-metric metric-peach"><span aria-hidden="true">♡</span><div><small>সংরক্ষিত শিক্ষক</small><b>{bn(data.favorites?.length||0)}</b><em>আপনার পছন্দ</em></div></article>
+    </div>
+
+    <section className="student-quick-section" aria-labelledby="student-quick-title">
+      <div className="student-section-heading"><div><p className="eyebrow">এক ট্যাপেই</p><h2 id="student-quick-title">দ্রুত কাজ</h2></div><span>আপনার দরকারি সেবা</span></div>
+      <div className="student-quick-grid">{quickLinks.map(item=><button className="student-quick-card" key={item.path} onClick={()=>go(item.path)}><span className={`student-quick-icon ${item.tone}`} aria-hidden="true">{item.icon}</span><span className="student-quick-copy"><b>{item.title}</b><small>{item.description}</small></span><span className="student-quick-arrow" aria-hidden="true">→</span></button>)}</div>
+    </section>
+
+    <div className="student-content-grid">
+      <section className="student-panel student-classes">
+        <header className="student-panel-heading"><div><p className="eyebrow">আপনার সময়সূচি</p><h2>আসন্ন ও সাম্প্রতিক ক্লাস</h2></div><a href="#/bookings">সব বুকিং <span aria-hidden="true">→</span></a></header>
+        {upcoming&&<article className="student-next-class">
+          <div className="student-next-icon" aria-hidden="true">▣</div>
+          <div className="student-next-copy"><span className={`student-next-status ${upcoming.status==='IN_PROGRESS'?'is-live':''}`}>{upcoming.status==='IN_PROGRESS'?'● লাইভ ক্লাস চলছে':'পরবর্তী ক্লাস'}</span><b>{shortDate(upcoming.date)} <span>•</span> {upcoming.time}</b><small>বুকিং #{upcoming.id.slice(-5)} <span>·</span> {money(upcoming.price)}</small></div>
+          <button className={upcoming.status==='IN_PROGRESS'?'button':'quiet-btn'} onClick={()=>go(`/classroom/${upcoming.id}`)}>{upcoming.status==='IN_PROGRESS'?'ক্লাসে যোগ দিন':'ক্লাসের বিস্তারিত'}</button>
+        </article>}
+        {data.bookings.length>0?<BookingList bookings={upcoming?data.bookings.filter(booking=>booking.id!==upcoming.id):data.bookings}/>:<div className="student-empty-state"><span aria-hidden="true">▣</span><b>এখনও কোনো ক্লাস বুক করা নেই</b><p>আপনার পছন্দের শিক্ষক খুঁজে প্রথম ক্লাসটি বুক করুন।</p><button className="quiet-btn" onClick={()=>go('/search')}>শিক্ষক দেখুন</button></div>}
+      </section>
+
+      <section className="student-panel student-notifications">
+        <header className="student-panel-heading"><div><p className="eyebrow">আপডেট</p><h2>সাম্প্রতিক নোটিফিকেশন</h2></div>{data.unread>0&&<span className="student-unread">{bn(data.unread)}টি নতুন</span>}</header>
+        <Notifications items={data.notifications}/>
+        {data.notifications.length>0&&<a className="student-all-notifications" href="#/notifications">সব নোটিফিকেশন <span aria-hidden="true">→</span></a>}
+      </section>
+    </div>
+  </section>;
+}
 function TeacherDashboard({data}:{data:DashboardData}){const [profileOpen,setProfileOpen]=useState(false);const liveBooking=data.bookings.find(b=>['CONFIRMED','IN_PROGRESS'].includes(b.status));return <section className="page section"><p className="eyebrow">শিক্ষক ড্যাশবোর্ড</p><h1>স্বাগতম, {data.user.name}</h1><div className="stats"><Stat label="প্রোফাইল দেখা হয়েছে" value={bn(data.analytics?.profileViews||0)}/><Stat label="গিগ দেখা হয়েছে" value={bn(data.analytics?.gigViews||0)}/><Stat label="নিশ্চিত বুকিং" value={bn(data.bookings.filter(b=>b.status==='CONFIRMED').length)} accent="green"/><Stat label="ডেমো প্রাপ্য" value={money(data.wallet?.pending||0)} accent="purple"/></div><div className="dashboard-grid"><Info title="আজকের বুকিং"><BookingList bookings={data.bookings}/><a href="#/bookings">সব বুকিং দেখুন →</a></Info><Info title="দ্রুত কাজ"><div className="stack">{liveBooking&&<button className="button wide" onClick={()=>go(`/classroom/${liveBooking.id}`)}>লাইভ ক্লাসে যোগ দিন</button>}<button className="button wide" onClick={()=>go('/teacher/exams/new')}>নতুন পরীক্ষা তৈরি করুন</button><button className="quiet-btn wide" onClick={()=>go('/teacher/exams')}>পরীক্ষা পরিচালনা করুন</button><button className="button wide" onClick={()=>go('/teacher/gigs/new')}>নতুন গিগ তৈরি করুন</button><button className="quiet-btn wide" onClick={()=>setProfileOpen(true)}>প্রোফাইল ও সময়সূচি সম্পাদনা</button><button className="quiet-btn wide" onClick={()=>go('/wallet')}>ডেমো ওয়ালেট দেখুন</button></div></Info></div><Info title="আমার গিগ">{data.gigs?.length?<div className="gig-list">{data.gigs.map(g=><article key={g.id}><div><b>{g.title}</b><p>{money(g.packages[0].price)} থেকে</p></div><button className="quiet-btn" onClick={()=>go(`/gig/${g.id}`)}>দেখুন</button></article>)}</div>:<Empty>এখনও কোনো গিগ নেই।</Empty>}</Info>{profileOpen&&<ProfileForm teacher={data.teacher!} onClose={()=>setProfileOpen(false)}/>}</section>}
 function ParentDashboard({data}:{data:DashboardData}){return <section className="page section"><p className="eyebrow">অভিভাবক ড্যাশবোর্ড</p><h1>সন্তানের শেখার অগ্রগতি</h1>{data.children?.length?data.children.map(c=><div className="child-card" key={c.name}><div><Avatar name={c.name}/><h2>{c.name}</h2></div><div><b>{bn(c.bookings.length)}</b><small>মোট ক্লাস</small></div><div><b>{bn(c.attempts.length)}</b><small>পরীক্ষা</small></div><button className="button" onClick={()=>go('/bookings')}>বিস্তারিত দেখুন</button></div>):<Empty>এখনও কোনো শিক্ষার্থী যুক্ত করা হয়নি।</Empty>}<Info title="ডেমো ব্যয়ের সারাংশ"><p>এই লোকাল ডেমোতে সন্তানের সব বুকিং ও পেমেন্ট ইতিহাস এখান থেকে দেখা যাবে।</p><button className="quiet-btn" onClick={()=>go('/bookings')}>বুকিং ইতিহাস দেখুন</button></Info></section>}
 function AdminDashboard({data}:{data:DashboardData}){const [pending,setPending]=useState<Teacher[]>([]);const load=()=>void api<Teacher[]>('/admin/teachers/pending').then(setPending);useEffect(load,[]);const action=async(id:string,status:string)=>{await post(`/admin/teachers/${id}/verification`,{status});load();};return <section className="page section"><p className="eyebrow">অ্যাডমিন ড্যাশবোর্ড</p><h1>প্ল্যাটফর্ম ব্যবস্থাপনা</h1><div className="stats"><Stat label="মোট ব্যবহারকারী" value={bn(data.admin?.users||0)}/><Stat label="শিক্ষক" value={bn(data.admin?.teachers||0)}/><Stat label="অপেক্ষমাণ যাচাই" value={bn(data.admin?.pending||0)} accent="purple"/><Stat label="ডেমো পেমেন্ট" value={bn(data.admin?.payments||0)} accent="green"/></div><Info title="শিক্ষক যাচাইকরণ অনুরোধ">{pending.length?<div className="admin-list">{pending.map(t=><article key={t.id}><div><b>{t.user.name}</b><p>{t.education||'শিক্ষাগত তথ্য অসম্পূর্ণ'} • {t.institution||'প্রতিষ্ঠান নেই'}</p></div><button className="button small" onClick={()=>void action(t.id,'APPROVED')}>অনুমোদন</button><button className="danger-btn" onClick={()=>void action(t.id,'REJECTED')}>প্রত্যাখ্যান</button></article>)}</div>:<Empty>এই মুহূর্তে কোনো যাচাইকরণ অনুরোধ নেই।</Empty>}</Info><div className="quick-actions"><button onClick={()=>go('/bookings')}>▣<span>বুকিং দেখুন</span></button><button onClick={()=>go('/problems')}>◈<span>রিপোর্ট ও সমস্যা</span></button><button onClick={()=>go('/search')}>♙<span>শিক্ষক দেখুন</span></button></div></section>}
