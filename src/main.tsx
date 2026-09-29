@@ -7,6 +7,7 @@ import './gig-capabilities.css';
 import './teacher-profile-gigs.css';
 import './teacher-comparison.css';
 import './gig-marketplace.css';
+import './gig-detail.css';
 import './problem-marketplace.css';
 import { RootApp } from './RootApp';
 

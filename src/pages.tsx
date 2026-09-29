@@ -237,7 +237,87 @@ function TeacherGigCard({gig,onBook}:{gig:Gig;onBook:()=>void}) { return <articl
 function Info({title,children}:{title:string;children:React.ReactNode}) {return <section className="info"><h2>{title}</h2>{children}</section>}
 function LoginHint({onClose}:{onClose:()=>void}){return <div className="modal-back"><section className="modal"><button className="close" onClick={onClose}>×</button><h2>বুকিং করতে লগইন করুন</h2><p>ক্লাস বুক করতে শিক্ষার্থী হিসেবে লগইন বা নিবন্ধন করুন।</p><button className="button wide" onClick={()=>go('/login')}>লগইন করুন</button></section></div>}
 
-export function GigPage({user}:{user:User|null}) { const id=location.hash.split('/')[2]?.split('?')[0];const [gig,setGig]=useState<Gig|null>(null);const [booking,setBooking]=useState(false);useEffect(()=>{if(id)void api<Gig>(`/gigs/${id}`).then(setGig);},[id]);if(!gig)return <Loading/>;return <section className="page section"><p className="eyebrow">{gig.subject} • {gig.level}</p><h1>{gig.title}</h1><p className="lead">{gig.description}</p><div className="gig-page-grid"><div>{gig.demoUrl&&<iframe className="video" src={gig.demoUrl} title="শিক্ষকের পাঠের ভিডিও" allowFullScreen/>}<Info title="যা যা পাবেন"><ul>{gig.includes.map(x=><li key={x}>{x}</li>)}</ul></Info><Info title="শিক্ষার্থীর জন্য প্রয়োজনীয়তা"><p>{gig.requirements}</p></Info><Info title="সচরাচর জিজ্ঞাসা">{gig.faqs.map(x=><details key={x.q}><summary>{x.q}</summary><p>{x.a}</p></details>)}</Info></div><aside className="package-box"><h2>প্যাকেজ বেছে নিন</h2>{gig.packages.map(p=><article key={p.id}><h3>{p.name}</h3><p>{p.classes}টি ক্লাস • {p.duration} মিনিট</p><b>{money(p.price)}</b><ul>{p.features.map(f=><li key={f}>{f}</li>)}</ul></article>)}<button className="button wide" onClick={()=>setBooking(true)}>ক্লাস বুক করুন</button><p className="help">এই পরিবেশে বুকিংয়ের জন্য বাস্তব অর্থ লেনদেন হয় না।</p></aside></div>{booking&&(user?.role==='STUDENT'?<BookingModal gig={gig} onClose={()=>setBooking(false)} onDone={bid=>go(`/payment/${bid}`)}/>:<LoginHint onClose={()=>setBooking(false)}/>)}</section> }
+export function GigPage({user}:{user:User|null}) {
+  const id=location.hash.split('/')[2]?.split('?')[0];
+  const [gig,setGig]=useState<Gig|null>(null);
+  const [booking,setBooking]=useState(false);
+  const [selectedPackageId,setSelectedPackageId]=useState('');
+  const [loadError,setLoadError]=useState('');
+  const [loadAttempt,setLoadAttempt]=useState(0);
+  useEffect(()=>{
+    let active=true;
+    setGig(null);
+    setLoadError('');
+    if(!id){setLoadError('গিগের ঠিকানাটি সঠিক নয়।');return()=>{active=false;};}
+    void api<Gig>(`/gigs/${id}`).then(item=>{if(active)setGig(item);}).catch(()=>{if(active)setLoadError('এই গিগটি এখন দেখানো যাচ্ছে না। আবার চেষ্টা করুন।');});
+    return()=>{active=false;};
+  },[id,loadAttempt]);
+  const selectedPackage=gig?.packages.find(item=>item.id===selectedPackageId)||gig?.packages[0];
+  if(loadError)return <section className="page gig-detail-page"><div className="gig-detail-empty"><span aria-hidden="true">⌁</span><h1>গিগটি পাওয়া যাচ্ছে না</h1><p>{loadError}</p><div><button className="button" onClick={()=>{setLoadError('');setLoadAttempt(attempt=>attempt+1);}}>আবার চেষ্টা করুন</button><button className="quiet-btn" onClick={()=>go('/gigs')}>সব গিগ দেখুন</button></div></div></section>;
+  if(!gig)return <Loading/>;
+  const teacher=gig.teacher;
+  const cover=gig.media?.find(media=>media.kind==='IMAGE'&&media.cover)||gig.media?.find(media=>media.kind==='IMAGE');
+  const outcomes=gig.outcomes?.filter(Boolean)||[];
+  return <section className="page gig-detail-page">
+    <a className="gig-detail-back" href="#/gigs"><span aria-hidden="true">←</span> সব গিগ দেখুন</a>
+    <header className="gig-detail-hero">
+      <div className="gig-detail-copy">
+        <div className="gig-detail-kicker"><span>{gig.subject}</span><i/>{gig.level&&<span>{gig.level}</span>}{gig.language&&<span>{gig.language} মাধ্যমে</span>}{gig.trial?.enabled&&<span className="gig-trial-pill">ট্রায়াল ক্লাস</span>}</div>
+        <h1>{gig.title}</h1>
+        <p className="gig-detail-lead">{gig.description}</p>
+        {teacher&&<div className="gig-detail-teacher">
+          <Avatar name={teacher.user?.name||'শিক্ষক'} size="md" teacherId={teacher.id}/>
+          <div className="gig-detail-teacher-copy"><span>শিক্ষক</span><b>{teacher.user?.name||'অভিজ্ঞ শিক্ষক'}{teacher.verified&&<i aria-label="যাচাইকৃত শিক্ষক">✓</i>}</b><small>{teacher.headline}</small></div>
+          <div className="gig-detail-teacher-rating">{teacher.reviewCount>0?<><b>★ {teacher.rating.toFixed(1)}</b><small>{bn(teacher.reviewCount)}টি রিভিউ</small></>:<small>নতুন শিক্ষক</small>}</div>
+        </div>}
+      </div>
+      <div className={`gig-detail-art${cover?' has-image':''}`}>
+        {cover?<img src={cover.url} alt="" aria-hidden="true"/>:<div className="gig-detail-art-symbol" aria-hidden="true">{gigSubjectIcons[gig.subject]||'✦'}</div>}
+        <div className="gig-detail-art-caption"><span>{gig.subject}</span><b>{gig.topic}</b><small>বুঝে শিখুন · অনুশীলনে এগিয়ে যান</small></div>
+      </div>
+    </header>
+
+    {teacher&&<div className="gig-detail-stats" aria-label="শিক্ষকের তথ্য">
+      {teacher.reviewCount>0&&<div><b>★ {teacher.rating.toFixed(1)}</b><span>{bn(teacher.reviewCount)}টি রিভিউ</span></div>}
+      <div><b>{bn(teacher.classes)}</b><span>টি ক্লাস সম্পন্ন</span></div>
+      <div><b>{bn(teacher.students)}</b><span>জন শিক্ষার্থী</span></div>
+      <div><b>{bn(teacher.experienceYears)}</b><span>বছরের অভিজ্ঞতা</span></div>
+      {teacher.location&&<div><b>{teacher.location}</b><span>শিক্ষকের অবস্থান</span></div>}
+    </div>}
+
+    <div className="gig-detail-layout">
+      <div className="gig-detail-main">
+        {gig.demoUrl&&<section className="gig-detail-section gig-detail-preview"><p className="eyebrow">ক্লাসের পরিচিতি</p><h2>শিক্ষকের পাঠ দেখুন</h2><iframe className="video" src={gig.demoUrl} title="শিক্ষকের পাঠের ভিডিও" allowFullScreen/></section>}
+        {outcomes.length>0&&<section className="gig-detail-section"><p className="eyebrow">শেখার লক্ষ্য</p><h2>এই ক্লাসে যা শিখবেন</h2><ul className="gig-detail-checklist">{outcomes.map(outcome=><li key={outcome}><span aria-hidden="true">✓</span>{outcome}</li>)}</ul></section>}
+        <section className="gig-detail-section"><p className="eyebrow">ক্লাসের অন্তর্ভুক্ত</p><h2>যা যা পাবেন</h2><ul className="gig-detail-checklist">{gig.includes.map(item=><li key={item}><span aria-hidden="true">✓</span>{item}</li>)}</ul></section>
+        {gig.requirements&&<section className="gig-detail-section gig-requirements"><p className="eyebrow">শুরু করার আগে</p><h2>আপনার যা লাগবে</h2><p>{gig.requirements}</p></section>}
+        {gig.faqs.length>0&&<section className="gig-detail-section gig-detail-faq"><p className="eyebrow">সহায়তা</p><h2>সচরাচর জিজ্ঞাসা</h2>{gig.faqs.map(item=><details key={item.q}><summary>{item.q}</summary><p>{item.a}</p></details>)}</section>}
+        {teacher&&<section className="gig-detail-teacher-card"><div><p className="eyebrow">আপনার শিক্ষক</p><h2>{teacher.user?.name||'অভিজ্ঞ শিক্ষক'}</h2><p>{teacher.bio||teacher.headline}</p><div className="gig-detail-teacher-facts">{teacher.education&&<span>{teacher.education}</span>}{teacher.institution&&<span>{teacher.institution}</span>}{teacher.languages?.length>0&&<span>{teacher.languages.join(' · ')}</span>}</div></div><button className="quiet-btn" onClick={()=>go(`/teacher/${teacher.id}`)}>শিক্ষকের প্রোফাইল <span aria-hidden="true">↗</span></button></section>}
+      </div>
+
+      <aside className="gig-detail-packages">
+        <div className="gig-detail-package-heading"><p className="eyebrow">আপনার শেখার পরিকল্পনা</p><h2>প্যাকেজ বেছে নিন</h2><p>প্রতিটি প্যাকেজে কী থাকছে ও মোট মূল্য আগে দেখে নিন।</p></div>
+        <div className="gig-package-options" aria-label="ক্লাস প্যাকেজ">
+          {gig.packages.map((item,index)=>{
+            const active=selectedPackage?.id===item.id;
+            return <article className={`gig-package-option${active?' selected':''}`} key={item.id}>
+              <div className="gig-package-option-top"><div><span>প্যাকেজ {bn(index+1)}</span><h3>{item.name}</h3></div><b>{money(item.price)}</b></div>
+              <p className="gig-package-meta">{bn(item.classes)}টি ক্লাস <i/> {bn(item.duration)} মিনিট করে</p>
+              <ul>{item.features.map(feature=><li key={feature}><span aria-hidden="true">✓</span>{feature}</li>)}</ul>
+              <button type="button" className="gig-package-select" aria-pressed={active} onClick={()=>setSelectedPackageId(item.id)}>{active?'✓ নির্বাচিত':'এই প্যাকেজ বেছে নিন'}</button>
+            </article>;
+          })}
+        </div>
+        <div className="gig-detail-booking">
+          <div><span>নির্বাচিত প্যাকেজের মোট</span><b>{money(selectedPackage?.price||0)}</b></div>
+          <button className="button wide" disabled={!selectedPackage} onClick={()=>setBooking(true)}>এই প্যাকেজে বুক করুন <span aria-hidden="true">→</span></button>
+          <small>বুকিং নিশ্চিত করার আগে সময় বেছে নিতে পারবেন।</small>
+        </div>
+      </aside>
+    </div>
+    {booking&&(user?.role==='STUDENT'?<BookingModal gig={gig} initialPackageId={selectedPackage?.id} onClose={()=>setBooking(false)} onDone={bookingId=>go(`/payment/${bookingId}`)}/>:<LoginHint onClose={()=>setBooking(false)}/>)}
+  </section>;
+}
 
 export function AuthPage({ kind, onLogin }: { kind: 'login' | 'register'; onLogin: (user: User) => void }) {
   const [name, setName] = useState('');
