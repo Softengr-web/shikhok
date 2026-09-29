@@ -268,17 +268,41 @@
 }
 
 .teacher-search-intro {
+  position: relative;
+  isolation: isolate;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: end;
   gap: 24px;
-  margin-bottom: 25px;
+  overflow: hidden;
+  margin-bottom: 22px;
+  padding: clamp(23px, 3.8vw, 38px);
+  border: 1px solid #d9ebe5;
+  border-radius: 24px;
+  background: radial-gradient(ellipse at 94% 2%, rgba(186, 230, 215, .4), transparent 36%), linear-gradient(120deg, #f2faf6 0%, #fff 70%);
+  box-shadow: 0 14px 34px rgba(12, 54, 51, .045);
 }
+
+.teacher-search-intro::after {
+  position: absolute;
+  z-index: -1;
+  top: -78px;
+  right: 26%;
+  width: 190px;
+  height: 190px;
+  border: 1px solid rgba(69, 154, 137, .12);
+  border-radius: 50%;
+  content: "";
+}
+
+.teacher-search-intro > div:first-child,
+.teacher-search-promise { position: relative; z-index: 1; }
 
 .teacher-search-intro h1 {
   max-width: 790px;
   margin-bottom: 10px;
   font-size: clamp(2.1rem, 4.4vw, 3.25rem);
+  letter-spacing: -.035em;
 }
 
 .teacher-search-description {
@@ -423,6 +447,41 @@
 .teacher-result-count { flex: none; padding: 7px 12px; border: 1px solid #d9eae5; border-radius: 999px; background: #f2faf6; color: var(--deep); font-size: .86rem; font-weight: 700; }
 .teacher-search-results { margin-top: 0; }
 
+.teacher-results-heading[aria-busy="true"] .teacher-result-count { color: #53736d; }
+
+.teacher-search-empty {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: clamp(28px, 5vw, 52px) 18px;
+  border: 1px dashed #cbded8;
+  border-radius: 20px;
+  background: linear-gradient(145deg, #f8fcfa, #fff);
+  text-align: center;
+}
+
+.teacher-search-empty > span {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border-radius: 16px;
+  background: #eaf5f0;
+  color: var(--teal);
+  font-size: 1.8rem;
+}
+
+.teacher-search-empty h3 { margin: 5px 0 0; font-size: 1.12rem; }
+.teacher-search-empty p { margin: 0; color: var(--muted); }
+.teacher-search-empty .quiet-btn { min-height: 42px; margin-top: 7px; padding: 8px 14px; border: 1px solid #cfe3dd; border-radius: 11px; color: var(--deep); font-weight: 700; }
+
+.teacher-search-page button:focus-visible,
+.teacher-search-page input:focus-visible,
+.teacher-search-page select:focus-visible {
+  outline: 3px solid rgba(13, 118, 107, .25);
+  outline-offset: 2px;
+}
+
 .teacher-load-more { display: grid; justify-items: center; gap: 10px; margin: 25px 0 4px; color: var(--muted); font-size: .86rem; }
 .teacher-load-more button { min-width: 205px; min-height: 44px; border: 1px solid #cfe3dd; border-radius: 12px; font-weight: 700; }
 .teacher-load-more button:disabled { opacity: .65; cursor: wait; }
@@ -430,7 +489,7 @@
 .teacher-search-error { margin: 12px 0 18px; padding: 14px 16px; border: 1px solid #efd2c9; border-radius: 13px; background: #fff8f5; color: #8e4037; }
 
 @media (max-width: 900px) {
-  .page.section.teacher-search-page { padding: 42px 20px; }
+  .page.section.teacher-search-page { padding: 38px 20px; }
   .teacher-search-intro { grid-template-columns: minmax(0, 1fr); gap: 16px; }
   .teacher-search-promise { width: fit-content; min-width: 0; }
   .teacher-filter-panel { grid-template-columns: minmax(0, 1.2fr) repeat(2, minmax(130px, .8fr)); gap: 11px; padding: 16px; }
@@ -440,8 +499,9 @@
 
 @media (max-width: 680px) {
   .page.section.teacher-search-page { padding: 32px 16px; }
-  .teacher-search-intro { gap: 13px; margin-bottom: 19px; }
-  .teacher-search-intro h1 { font-size: clamp(1.9rem, 8vw, 2.5rem); }
+  .teacher-search-intro { gap: 13px; margin-bottom: 18px; padding: 22px 18px; border-radius: 20px; }
+  .teacher-search-intro::after { top: -95px; right: -28px; width: 170px; height: 170px; }
+  .teacher-search-intro h1 { font-size: clamp(1.8rem, 8vw, 2.4rem); line-height: 1.2; }
   .teacher-search-description { font-size: .96rem; line-height: 1.7; }
   .teacher-search-promise { padding: 11px 13px; }
   .teacher-search-promise > span { width: 34px; height: 34px; }
@@ -463,10 +523,12 @@
   .teacher-search-results .card-top h3 { white-space: normal; }
   .teacher-search-results .card-meta { flex-wrap: wrap; gap: 5px 12px; }
   .teacher-search-results .card-actions > * { min-height: 42px; }
+  .teacher-search-empty { border-radius: 16px; }
 }
 
 @media (max-width: 380px) {
   .page.section.teacher-search-page { padding-right: 12px; padding-left: 12px; }
+  .teacher-search-intro { padding: 20px 15px; }
   .teacher-filter-panel { padding: 11px; }
   .teacher-search-actions > .button,
   .teacher-search-actions > .quiet-btn { font-size: .82rem; }

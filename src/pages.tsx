@@ -88,8 +88,8 @@ export function Search({user}:{user:User|null}) {
   const [subjects,setSubjects]=useState<Subject[]>([]);
   const [q,setQ]=useState(params.get('q')||'');
   const [subject,setSubject]=useState(params.get('subject')||'');
-  const [rating,setRating]=useState('');
-  const [verified,setVerified]=useState(false);
+  const [rating,setRating]=useState(params.get('rating')||'');
+  const [verified,setVerified]=useState(['true','1'].includes((params.get('verified')||'').toLowerCase()));
   const [teachers,setTeachers]=useState<Teacher[]>([]);
   const [total,setTotal]=useState(0);
   const [page,setPage]=useState(1);
@@ -104,7 +104,7 @@ export function Search({user}:{user:User|null}) {
   const load=async(nextFilters:{q:string;subject:string;rating:string;verified:boolean}=filters,nextPage=1,append=false)=>{
     setError('');
     if(append)setLoadingMore(true);
-    else {setLoading(true);setTeachers([]);}
+    else setLoading(true);
     try {
       const query=new URLSearchParams({...nextFilters,verified:String(nextFilters.verified),page:String(nextPage),perPage:'12'});
       const result=await api<{items:Teacher[];total:number;page:number;perPage:number}>(`/teachers?${query.toString()}`);
@@ -127,13 +127,13 @@ export function Search({user}:{user:User|null}) {
   },[]);
 
   const matching=async()=>{
-    setLoading(true);setLoadingMore(false);setTeachers([]);setError('');
+    setLoading(true);setLoadingMore(false);setError('');
     try {
       const data=await api<Teacher[]>(`/matches?${new URLSearchParams({subject,q,budget:'700',language:'বাংলা'}).toString()}`);
       setTeachers(data);setTotal(data.length);setPage(1);setHasMore(false);
     } catch (e) {
       setError(e instanceof Error?e.message:'স্মার্ট ম্যাচিং করা যায়নি। আবার চেষ্টা করুন।');
-      setTotal(0);setHasMore(false);
+      setTeachers([]);setTotal(0);setHasMore(false);
     } finally {setLoading(false);}
   };
 
@@ -171,12 +171,12 @@ export function Search({user}:{user:User|null}) {
       </div>
     </form>
 
-    <div className="teacher-results-heading"><div><p className="eyebrow">আপনার শেখার সঙ্গী</p><h2>শিক্ষকরা</h2></div><span className="teacher-result-count">{loading&&teachers.length===0?'খোঁজা হচ্ছে…':`${bn(total)} জন শিক্ষক`}</span></div>
+    <div className="teacher-results-heading" aria-busy={loading||loadingMore}><div><p className="eyebrow">আপনার শেখার সঙ্গী</p><h2>শিক্ষকরা</h2></div><span className="teacher-result-count" role="status" aria-live="polite">{loading?teachers.length?'ফলাফল আপডেট হচ্ছে…':'শিক্ষক খোঁজা হচ্ছে…':loadingMore?'আরও শিক্ষক আসছে…':`${bn(total)} জন শিক্ষক`}</span></div>
     {error&&<p className="teacher-search-error" role="alert">{error}</p>}
     {loading&&teachers.length===0?<Loading/>:teachers.length?<>
       <div className="card-grid teacher-search-results">{teachers.map(teacher=><TeacherCard key={teacher.id} teacher={teacher} user={user} compare={compare.some(item=>item.id===teacher.id)} onCompare={toggle}/>)}</div>
       {hasMore&&<div className="teacher-load-more"><span>{bn(teachers.length)} / {bn(total)} জন শিক্ষক দেখানো হচ্ছে</span><button className="quiet-btn" type="button" disabled={loadingMore} onClick={()=>void load(filters,page+1,true)}>{loadingMore?'আরও শিক্ষক আসছে…':'আরও শিক্ষক দেখুন ↓'}</button></div>}
-    </>:!loading&&!error?<Empty>আপনার খোঁজার সঙ্গে মেলে এমন শিক্ষক পাওয়া যায়নি। ফিল্টার বদলে আবার চেষ্টা করুন।</Empty>:null}
+    </>:!loading&&!error?<div className="teacher-search-empty"><span aria-hidden="true">⌕</span><h3>মিলে যাওয়া শিক্ষক পাওয়া যায়নি</h3><p>খোঁজার শব্দ বা ফিল্টার বদলে আবার চেষ্টা করুন।</p>{hasFilters&&<button className="quiet-btn" type="button" onClick={reset}>সব ফিল্টার মুছুন</button>}</div>:null}
     {compare.length>1&&<CompareBar teachers={compare} onRemove={toggle}/>}
   </section>;
 }
