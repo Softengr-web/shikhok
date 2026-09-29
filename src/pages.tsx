@@ -723,5 +723,187 @@ function OfferList({problem,onDone}:{problem:any;onDone:()=>void}){const accept=
 
 export function NotificationsPage(){const [items,setItems]=useState<Notification[]|null>(null);const mark=async(n:Notification)=>{await post(`/notifications/${n.id}/read`);setItems(items?.map(x=>x.id===n.id?{...x,readAt:new Date().toISOString()}:x)||null);go(n.href);};useEffect(()=>{void api<Notification[]>('/notifications').then(setItems);},[]);return <section className="page section"><p className="eyebrow">আপডেট</p><h1>নোটিফিকেশন</h1>{items?<div className="notification-page">{items.length?items.map(n=><button className={n.readAt?'read':''} onClick={()=>void mark(n)} key={n.id}><span>{n.type==='BOOKING'?'▣':'●'}</span><div><b>{n.title}</b><p>{n.body}</p><small>{shortDate(n.createdAt)}</small></div></button>):<Empty>নতুন কোনো নোটিফিকেশন নেই।</Empty>}</div>:<Loading/>}</section>}
 
-export function Classroom({user}:{user:User}){const bookingId=location.hash.split('/')[2];const [booking,setBooking]=useState<Booking|null>(null);const [camera,setCamera]=useState(false);const [mic,setMic]=useState(true);const [tab,setTab]=useState<'board'|'chat'|'notes'>('board');const [chat,setChat]=useState<{name:string;text:string}[]>([]);const [message,setMessage]=useState('');const [notes,setNotes]=useState('');const [recording,setRecording]=useState<'idle'|'recording'|'paused'|'done'>('idle');const [recordUrl,setRecordUrl]=useState('');const [recordSeconds,setRecordSeconds]=useState(0);const stream=useRef<MediaStream|null>(null);const recorder=useRef<MediaRecorder|null>(null);const chunks=useRef<Blob[]>([]);const video=useRef<HTMLVideoElement>(null);useEffect(()=>{void api<Booking[]>('/bookings').then(x=>{const b=x.find(v=>v.id===bookingId)||null;setBooking(b);setNotes(b?.notes||'');});return()=>stream.current?.getTracks().forEach(t=>t.stop());},[bookingId]);useEffect(()=>{if(recording==='recording'){const timer=setInterval(()=>setRecordSeconds(s=>s+1),1000);return()=>clearInterval(timer);}},[recording]);const cameraToggle=async()=>{if(camera){stream.current?.getTracks().forEach(t=>t.stop());stream.current=null;if(video.current)video.current.srcObject=null;setCamera(false);return;}try{stream.current=await navigator.mediaDevices.getUserMedia({video:true,audio:true});if(video.current)video.current.srcObject=stream.current;setCamera(true);}catch{alert('ক্যামেরা/মাইক্রোফোন অনুমতি পাওয়া যায়নি। ব্রাউজারের অনুমতি দিন।');}};const micToggle=()=>{stream.current?.getAudioTracks().forEach(t=>t.enabled=!t.enabled);setMic(!mic);};const toggleRecord=async()=>{if(recording==='idle'){try{if(!stream.current){stream.current=await navigator.mediaDevices.getUserMedia({video:true,audio:true});if(video.current)video.current.srcObject=stream.current;setCamera(true);}chunks.current=[];recorder.current=new MediaRecorder(stream.current);recorder.current.ondataavailable=e=>chunks.current.push(e.data);recorder.current.onstop=()=>{const url=URL.createObjectURL(new Blob(chunks.current,{type:'video/webm'}));setRecordUrl(url);setRecording('done');if(user.role==='TEACHER')void post(`/bookings/${bookingId}/recording`,{name:`ক্লাস রেকর্ডিং ${new Date().toLocaleDateString('bn-BD')}`,duration:recordSeconds});};recorder.current.start();setRecording('recording');}catch{alert('রেকর্ডিং শুরু করা যায়নি। ব্রাউজারের অনুমতি ও ডিভাইস সেটিংস পরীক্ষা করে আবার চেষ্টা করুন।');}}else if(recording==='recording'){recorder.current?.pause();setRecording('paused');}else if(recording==='paused'){recorder.current?.resume();setRecording('recording');}};const stopRecord=()=>{if(['recording','paused'].includes(recording))recorder.current?.stop();};const saveNotes=async()=>{if(user.role!=='TEACHER')return;await post(`/bookings/${bookingId}/notes`,{notes});alert('ক্লাস নোট সংরক্ষিত হয়েছে।');};const end=async()=>{if(user.role==='TEACHER')await post(`/bookings/${bookingId}/status`,{status:'COMPLETED'});go('/bookings');};if(!booking)return <Loading/>;return <section className="classroom"><div className="class-top"><div><span className="live-dot">●</span> ইন্টারঅ্যাকটিভ ক্লাসরুম <small>• {shortDate(booking.date)} {booking.time}</small></div><div><span>{String(Math.floor(recordSeconds/60)).padStart(2,'0')}:{String(recordSeconds%60).padStart(2,'0')}</span><button className="danger-btn" onClick={()=>void end()}>ক্লাস শেষ করুন</button></div></div><div className="class-grid"><div className="class-main"><div className="videos"><div className="video-tile"><video ref={video} autoPlay muted playsInline/><span>{camera?'আপনার ক্যামেরা':'ক্যামেরা বন্ধ'}</span></div><div className="video-tile alt"><Avatar name={user.role==='TEACHER'?'শিক্ষার্থী':'শিক্ষক'} size="lg"/><span>{user.role==='TEACHER'?'শিক্ষার্থী':'শিক্ষক'} (অংশগ্রহণকারী)</span></div></div><div className="class-controls"><button onClick={()=>void cameraToggle()}>{camera?'ক্যামেরা বন্ধ':'ক্যামেরা চালু'}</button><button onClick={micToggle}>{mic?'মাইক বন্ধ':'মাইক চালু'}</button><button onClick={()=>alert('আপনার ব্রাউজারে স্ক্রিন শেয়ার চালু করা যায়নি। অনুমতি ও সেটিংস পরীক্ষা করে আবার চেষ্টা করুন।')}>স্ক্রিন শেয়ার</button><button onClick={()=>void toggleRecord()}>{recording==='idle'?'রেকর্ড শুরু':recording==='recording'?'বিরতি দিন':recording==='paused'?'চালিয়ে যান':'রেকর্ড সম্পন্ন'}</button>{['recording','paused'].includes(recording)&&<button onClick={stopRecord}>রেকর্ড থামান</button>}</div>{recordUrl&&<div className="recorded"><b>রেকর্ডিং প্রস্তুত</b><video src={recordUrl} controls/><a className="quiet-btn" href={recordUrl} download="shikhok-class.webm">ভিডিও ডাউনলোড করুন</a></div>}<div className="workspace"><div className="tabs"><button className={tab==='board'?'active':''} onClick={()=>setTab('board')}>হোয়াইটবোর্ড</button><button className={tab==='chat'?'active':''} onClick={()=>setTab('chat')}>ক্লাস চ্যাট</button><button className={tab==='notes'?'active':''} onClick={()=>setTab('notes')}>ক্লাস নোট</button></div>{tab==='board'?<Whiteboard bookingId={bookingId}/>:tab==='chat'?<div className="class-chat"><div>{chat.length?chat.map((m,i)=><p key={i}><b>{m.name}: </b>{m.text}</p>):<Empty>এখনও কোনো বার্তা নেই।</Empty>}</div><form onSubmit={e=>{e.preventDefault();if(message.trim()){setChat([...chat,{name:user.name,text:message}]);setMessage('')}}}><input value={message} onChange={e=>setMessage(e.target.value)} placeholder="ক্লাসে বার্তা লিখুন"/><button className="button">পাঠান</button></form></div>:<div className="notes-editor">{user.role==='TEACHER'?<><textarea value={notes} onChange={e=>setNotes(e.target.value)} placeholder="আজ কী পড়ানো হয়েছে, সূত্র, বাড়ির কাজ ও পরবর্তী ক্লাসের প্রস্তুতি লিখুন"/><button className="button" onClick={()=>void saveNotes()}>নোট সংরক্ষণ করুন</button></>:<p>{notes||'শিক্ষক এখনও কোনো ক্লাস নোট যোগ করেননি।'}</p>}</div>}</div></div><aside className="participants"><h3>অংশগ্রহণকারী (২)</h3><p><Avatar name={user.name} size="sm"/>{user.name} (আপনি)</p><p><Avatar name={user.role==='TEACHER'?'শিক্ষার্থী':'শিক্ষক'} size="sm"/>{user.role==='TEACHER'?'শিক্ষার্থী':'শিক্ষক'}</p><hr/><h3>উপস্থিতি</h3><p className="help">আপনার উপস্থিতি নথিভুক্ত হয়েছে।</p></aside></div></section>}
+export function Classroom({user}:{user:User}) {
+  const bookingId=location.hash.split('/')[2];
+  const [booking,setBooking]=useState<Booking|null>(null);
+  const [loadError,setLoadError]=useState('');
+  const [camera,setCamera]=useState(false);
+  const [mic,setMic]=useState(false);
+  const [tab,setTab]=useState<'board'|'chat'|'notes'>('board');
+  const [chat,setChat]=useState<{name:string;text:string}[]>([]);
+  const [message,setMessage]=useState('');
+  const [notes,setNotes]=useState('');
+  const [recording,setRecording]=useState<'idle'|'recording'|'paused'|'done'>('idle');
+  const [recordUrl,setRecordUrl]=useState('');
+  const [recordSeconds,setRecordSeconds]=useState(0);
+  const [feedback,setFeedback]=useState('');
+  const stream=useRef<MediaStream|null>(null);
+  const recorder=useRef<MediaRecorder|null>(null);
+  const chunks=useRef<Blob[]>([]);
+  const video=useRef<HTMLVideoElement>(null);
+  const participantRole=user.role==='TEACHER'?'শিক্ষার্থী':'শিক্ষক';
+
+  useEffect(()=>{
+    let active=true;
+    void api<Booking[]>('/bookings').then(items=>{
+      const found=items.find(item=>item.id===bookingId)||null;
+      if(!active)return;
+      setBooking(found);
+      setNotes(found?.notes||'');
+      if(!found)setLoadError('এই ক্লাসের বুকিংটি পাওয়া যায়নি। বুকিং তালিকা থেকে ক্লাসে প্রবেশ করুন।');
+    }).catch(()=>{if(active)setLoadError('ক্লাসরুমের তথ্য লোড করা যায়নি। আবার চেষ্টা করুন।');});
+    return()=>{
+      active=false;
+      stream.current?.getTracks().forEach(track=>track.stop());
+    };
+  },[bookingId]);
+
+  useEffect(()=>{
+    if(recording==='recording'){
+      const timer=setInterval(()=>setRecordSeconds(seconds=>seconds+1),1000);
+      return()=>clearInterval(timer);
+    }
+  },[recording]);
+
+  const requestTracks=async(constraints:MediaStreamConstraints)=>{
+    const incoming=await navigator.mediaDevices.getUserMedia(constraints);
+    if(!stream.current)stream.current=new MediaStream();
+    incoming.getTracks().forEach(track=>stream.current?.addTrack(track));
+    if(video.current)video.current.srcObject=stream.current;
+  };
+  const cameraToggle=async()=>{
+    setFeedback('');
+    if(camera){
+      stream.current?.getVideoTracks().forEach(track=>{track.stop();stream.current?.removeTrack(track);});
+      if(video.current)video.current.srcObject=stream.current;
+      setCamera(false);
+      return;
+    }
+    try{
+      if(!stream.current?.getVideoTracks().some(track=>track.readyState==='live'))await requestTracks({video:true,audio:false});
+      setCamera(true);
+    }catch{setFeedback('ক্যামেরা চালু হয়নি। ব্রাউজারের ক্যামেরা অনুমতি ও ডিভাইস সংযোগ পরীক্ষা করুন।');}
+  };
+  const micToggle=async()=>{
+    setFeedback('');
+    if(mic){
+      stream.current?.getAudioTracks().forEach(track=>{track.enabled=false;});
+      setMic(false);
+      return;
+    }
+    try{
+      const track=stream.current?.getAudioTracks().find(item=>item.readyState==='live');
+      if(track)track.enabled=true;
+      else await requestTracks({audio:true,video:false});
+      setMic(true);
+    }catch{setFeedback('মাইক চালু হয়নি। ব্রাউজারের মাইক্রোফোন অনুমতি ও ডিভাইস সংযোগ পরীক্ষা করুন।');}
+  };
+  const ensureMedia=async()=>{
+    const hasVideo=Boolean(stream.current?.getVideoTracks().some(track=>track.readyState==='live'));
+    const hasAudio=Boolean(stream.current?.getAudioTracks().some(track=>track.readyState==='live'));
+    const needsVideo=!hasVideo;
+    const needsAudio=mic&&!hasAudio;
+    if(needsVideo||needsAudio)await requestTracks({video:needsVideo,audio:needsAudio});
+    if(needsVideo)setCamera(true);
+  };
+  const toggleRecord=async()=>{
+    setFeedback('');
+    if(recording==='idle'){
+      try{
+        await ensureMedia();
+        if(!stream.current?.getTracks().some(track=>track.readyState==='live'))throw new Error('ক্যামেরা বা মাইক চালু নেই');
+        chunks.current=[];
+        recorder.current=new MediaRecorder(stream.current);
+        recorder.current.ondataavailable=event=>chunks.current.push(event.data);
+        recorder.current.onstop=()=>{
+          const url=URL.createObjectURL(new Blob(chunks.current,{type:'video/webm'}));
+          setRecordUrl(url);
+          setRecording('done');
+          if(user.role==='TEACHER')void post(`/bookings/${bookingId}/recording`,{name:`ক্লাস রেকর্ডিং ${new Date().toLocaleDateString('bn-BD')}`,duration:recordSeconds});
+        };
+        recorder.current.start();
+        setRecording('recording');
+      }catch{setFeedback('রেকর্ডিং শুরু হয়নি। ক্যামেরা অনুমতি ও ডিভাইস সংযোগ পরীক্ষা করুন।');}
+    }else if(recording==='recording'){
+      recorder.current?.pause();
+      setRecording('paused');
+    }else if(recording==='paused'){
+      recorder.current?.resume();
+      setRecording('recording');
+    }
+  };
+  const stopRecord=()=>{if(['recording','paused'].includes(recording))recorder.current?.stop();};
+  const saveNotes=async()=>{
+    if(user.role!=='TEACHER')return;
+    try{await post(`/bookings/${bookingId}/notes`,{notes});setFeedback('ক্লাস নোট সংরক্ষিত হয়েছে।');}
+    catch{setFeedback('নোট সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন।');}
+  };
+  const end=async()=>{
+    if(user.role==='TEACHER'&&booking?.status!=='COMPLETED')await post(`/bookings/${bookingId}/status`,{status:'COMPLETED'});
+    go('/bookings');
+  };
+
+  if(loadError)return <section className="classroom classroom-empty"><div><span aria-hidden="true">⌁</span><h1>ক্লাসরুমে প্রবেশ করা যাচ্ছে না</h1><p>{loadError}</p><button className="button" onClick={()=>go('/bookings')}>বুকিং তালিকায় ফিরুন</button></div></section>;
+  if(!booking)return <div className="classroom-loading"><Loading/></div>;
+  const sessionStatus=booking.status==='IN_PROGRESS'?'লাইভ ক্লাস চলছে':booking.status==='COMPLETED'?'ক্লাস সম্পন্ন':'ক্লাসের প্রস্তুতি';
+  const recordingActive=recording==='recording'||recording==='paused';
+
+  return <section className="classroom">
+    <header className="class-top">
+      <div className="class-session-identity">
+        <span className={`session-status${booking.status==='IN_PROGRESS'?' is-live':''}`}><i aria-hidden="true"/>{sessionStatus}</span>
+        <div><b>ইন্টারঅ্যাকটিভ ক্লাসরুম</b><small>{shortDate(booking.date)} · {booking.time}</small></div>
+      </div>
+      <div className="class-session-actions">
+        {recording!=='idle'&&<span className={`recording-timer${recordingActive?' is-recording':''}`}><i aria-hidden="true"/>{recording==='done'?'রেকর্ড সম্পন্ন':recording==='paused'?'রেকর্ড বিরতিতে':'রেকর্ডিং'} <b>{String(Math.floor(recordSeconds/60)).padStart(2,'0')}:{String(recordSeconds%60).padStart(2,'0')}</b></span>}
+        <button className="danger-btn" onClick={()=>void end()}><span aria-hidden="true">↗</span> {user.role==='TEACHER'?'ক্লাস শেষ করুন':'ক্লাস থেকে বের হন'}</button>
+      </div>
+    </header>
+
+    <div className="class-grid">
+      <div className="class-main">
+        <div className="videos">
+          <div className="video-tile alt participant-stage">
+            <div className="participant-placeholder"><Avatar name={participantRole} size="lg"/><b>{participantRole}</b><span>অংশগ্রহণকারীর ক্যামেরা বন্ধ</span></div>
+            <span className="video-name-label">{participantRole} · অংশগ্রহণকারী</span>
+          </div>
+          <div className="video-tile self-stage">
+            <video ref={video} autoPlay muted playsInline/>
+            {!camera&&<div className="self-video-placeholder"><Avatar name={user.name} size="md"/><span>আপনার ক্যামেরা বন্ধ</span></div>}
+            <span className="video-name-label">{user.name} · আপনি</span>
+          </div>
+        </div>
+
+        <div className="class-controls" aria-label="ক্লাস কন্ট্রোল">
+          <button className={`class-control${camera?' is-active':''}`} aria-pressed={camera} onClick={()=>void cameraToggle()}><span aria-hidden="true">▣</span>{camera?'ক্যামেরা বন্ধ':'ক্যামেরা চালু'}</button>
+          <button className={`class-control${mic?' is-active':''}`} aria-pressed={mic} onClick={()=>void micToggle()}><span aria-hidden="true">◖</span>{mic?'মাইক বন্ধ':'মাইক চালু'}</button>
+          <button className="class-control" onClick={()=>setFeedback('স্ক্রিন শেয়ার সুবিধাটি এই ক্লাসরুমে এখনো চালু হয়নি।')}><span aria-hidden="true">⇧</span>স্ক্রিন শেয়ার</button>
+          <button className={`class-control${recordingActive?' is-recording':''}`} disabled={recording==='done'} onClick={()=>void toggleRecord()}><span aria-hidden="true">●</span>{recording==='idle'?'রেকর্ড শুরু':recording==='recording'?'বিরতি দিন':recording==='paused'?'চালিয়ে যান':'রেকর্ড সম্পন্ন'}</button>
+          {recordingActive&&<button className="class-control is-stop" onClick={stopRecord}><span aria-hidden="true">■</span>রেকর্ড থামান</button>}
+        </div>
+        {feedback&&<p className="class-feedback" role="status">{feedback}<button onClick={()=>setFeedback('')} aria-label="বার্তাটি বন্ধ করুন">×</button></p>}
+        {recordUrl&&<div className="recorded"><div><b>আপনার ক্লাস রেকর্ডিং</b><a className="quiet-btn" href={recordUrl} download="shikhok-class.webm">ভিডিও ডাউনলোড করুন ↓</a></div><video src={recordUrl} controls/></div>}
+
+        <section className="workspace" aria-label="ক্লাসের কাজের জায়গা">
+          <div className="tabs" role="tablist" aria-label="ক্লাস টুল">
+            <button id="class-tab-board" role="tab" aria-selected={tab==='board'} aria-controls="class-panel-board" className={tab==='board'?'active':''} onClick={()=>setTab('board')}><span aria-hidden="true">▤</span> হোয়াইটবোর্ড</button>
+            <button id="class-tab-chat" role="tab" aria-selected={tab==='chat'} aria-controls="class-panel-chat" className={tab==='chat'?'active':''} onClick={()=>setTab('chat')}><span aria-hidden="true">◌</span> ক্লাস চ্যাট{chat.length>0&&<i>{bn(chat.length)}</i>}</button>
+            <button id="class-tab-notes" role="tab" aria-selected={tab==='notes'} aria-controls="class-panel-notes" className={tab==='notes'?'active':''} onClick={()=>setTab('notes')}><span aria-hidden="true">▧</span> ক্লাস নোট</button>
+          </div>
+          {tab==='board'?<div id="class-panel-board" className="workspace-panel" role="tabpanel" aria-labelledby="class-tab-board"><Whiteboard bookingId={bookingId}/></div>:tab==='chat'?<div id="class-panel-chat" className="workspace-panel" role="tabpanel" aria-labelledby="class-tab-chat"><div className="class-chat"><div className="class-chat-messages">{chat.length?chat.map((item,index)=><p key={index}><b>{item.name}</b><span>{item.text}</span></p>):<Empty>ক্লাসের প্রশ্ন, উত্তর ও গুরুত্বপূর্ণ বার্তা এখানে লিখুন।</Empty>}</div><form onSubmit={event=>{event.preventDefault();if(message.trim()){setChat(items=>[...items,{name:user.name,text:message.trim()}]);setMessage('');}}}><input value={message} onChange={event=>setMessage(event.target.value)} placeholder="ক্লাসে বার্তা লিখুন…" aria-label="ক্লাসে বার্তা লিখুন"/><button className="button" disabled={!message.trim()}>পাঠান <span aria-hidden="true">→</span></button></form></div></div>:<div id="class-panel-notes" className="workspace-panel" role="tabpanel" aria-labelledby="class-tab-notes"><div className="notes-editor">{user.role==='TEACHER'?<><label htmlFor="class-notes">আজকের পাঠ, সূত্র, বাড়ির কাজ ও পরবর্তী ক্লাসের প্রস্তুতি</label><textarea id="class-notes" value={notes} onChange={event=>setNotes(event.target.value)} placeholder="ক্লাস নোট এখানে লিখুন…"/><button className="button" onClick={()=>void saveNotes()}>নোট সংরক্ষণ করুন <span aria-hidden="true">✓</span></button></>:<p>{notes||'শিক্ষক এখনও কোনো ক্লাস নোট যোগ করেননি।'}</p>}</div></div>}
+        </section>
+      </div>
+
+      <aside className="participants">
+        <div className="participants-heading"><div><p className="eyebrow">সেশন প্যানেল</p><h3>অংশগ্রহণকারী <span>২</span></h3></div><span className="participants-ready">● প্রস্তুত</span></div>
+        <div className="participant-list">
+          <div className="participant-card"><Avatar name={user.name} size="sm"/><span><b>{user.name}</b><small>{user.role==='TEACHER'?'শিক্ষক · আপনি':'শিক্ষার্থী · আপনি'}</small></span><i aria-label="অনলাইনে আছেন"/></div>
+          <div className="participant-card"><Avatar name={participantRole} size="sm"/><span><b>{participantRole}</b><small>{user.role==='TEACHER'?'শিক্ষার্থী':'শিক্ষক'}</small></span><i aria-label="ক্লাসে যুক্ত আছেন"/></div>
+        </div>
+        <div className="participant-attendance"><span>উপস্থিতি</span><b><i aria-hidden="true">✓</i> নথিভুক্ত হয়েছে</b><small>আপনি এই ক্লাসের অংশগ্রহণকারী।</small></div>
+        <div className="participant-tip"><span aria-hidden="true">✦</span><p>হোয়াইটবোর্ড, চ্যাট ও ক্লাস নোট—সব টুল এই সেশনেই ব্যবহার করুন।</p></div>
+      </aside>
+    </div>
+  </section>;
+}
 function Whiteboard({bookingId}:{bookingId:string}){const canvas=useRef<HTMLCanvasElement>(null);const [tool,setTool]=useState('pen');const [color,setColor]=useState('#164e63');const [size,setSize]=useState(4);const [,setHistory]=useState<string[]>([]);const [,setRedo]=useState<string[]>([]);const [pages,setPages]=useState<string[]>(['']);const [page,setPage]=useState(0);const draw=useRef(false);const start=useRef({x:0,y:0});const base=useRef('');const setup=()=>{const c=canvas.current;if(!c)return;const ctx=c.getContext('2d')!;if(!c.width){c.width=1000;c.height=560;ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);const saved=localStorage.getItem(`shikhok-board-${bookingId}`);if(saved){const img=new Image();img.onload=()=>ctx.drawImage(img,0,0);img.src=saved;}}};useEffect(()=>{setup();},[]);const point=(e:React.PointerEvent)=>{const r=canvas.current!.getBoundingClientRect();return{x:(e.clientX-r.left)*(canvas.current!.width/r.width),y:(e.clientY-r.top)*(canvas.current!.height/r.height)}};const restore=(url:string)=>{if(!url)return;const ctx=canvas.current!.getContext('2d')!;const img=new Image();img.onload=()=>{ctx.clearRect(0,0,canvas.current!.width,canvas.current!.height);ctx.drawImage(img,0,0);};img.src=url;};const save=()=>{const u=canvas.current!.toDataURL();setHistory(h=>[...h,u]);setRedo([]);localStorage.setItem(`shikhok-board-${bookingId}`,u);setPages(p=>p.map((x,i)=>i===page?u:x));};const down=(e:React.PointerEvent)=>{const c=canvas.current!;c.setPointerCapture(e.pointerId);const p=point(e);start.current=p;base.current=c.toDataURL();draw.current=true;const ctx=c.getContext('2d')!;ctx.strokeStyle=tool==='eraser'?'#ffffff':color;ctx.fillStyle=color;ctx.lineWidth=size;ctx.lineCap='round';if(tool==='text'){const value=window.prompt('বোর্ডে কী লিখবেন?');if(value){ctx.font=`${Math.max(18,size*5)}px sans-serif`;ctx.fillText(value,p.x,p.y);save();}draw.current=false;return;}if(['pen','eraser'].includes(tool)){ctx.beginPath();ctx.moveTo(p.x,p.y);}};const move=(e:React.PointerEvent)=>{if(!draw.current)return;const c=canvas.current!,ctx=c.getContext('2d')!,p=point(e);if(['pen','eraser'].includes(tool)){ctx.lineTo(p.x,p.y);ctx.stroke();return;}restore(base.current);ctx.strokeStyle=color;ctx.lineWidth=size;ctx.beginPath();if(tool==='line'){ctx.moveTo(start.current.x,start.current.y);ctx.lineTo(p.x,p.y);}if(tool==='rect')ctx.rect(start.current.x,start.current.y,p.x-start.current.x,p.y-start.current.y);if(tool==='circle'){const r=Math.hypot(p.x-start.current.x,p.y-start.current.y);ctx.arc(start.current.x,start.current.y,r,0,Math.PI*2);}ctx.stroke();};const up=()=>{if(draw.current){draw.current=false;save();}};const undo=()=>{setHistory(h=>{if(h.length<2)return h;const old=h[h.length-2];setRedo(r=>[h[h.length-1],...r]);restore(old);localStorage.setItem(`shikhok-board-${bookingId}`,old);return h.slice(0,-1);});};const redoDraw=()=>{setRedo(r=>{if(!r.length)return r;const next=r[0];restore(next);setHistory(h=>[...h,next]);return r.slice(1);});};const clear=()=>{const c=canvas.current!,ctx=c.getContext('2d')!;ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);save();};const nextPage=()=>{save();const c=canvas.current!,ctx=c.getContext('2d')!;ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);setPages([...pages,'']);setPage(pages.length);setHistory([]);};const switchPage=(index:number)=>{save();setPage(index);setTimeout(()=>restore(pages[index]),0);};return <div className="whiteboard"><div className="board-tools"><select value={tool} onChange={e=>setTool(e.target.value)}><option value="pen">কলম</option><option value="eraser">ইরেজার</option><option value="text">টেক্সট</option><option value="line">রেখা</option><option value="rect">আয়তক্ষেত্র</option><option value="circle">বৃত্ত</option></select><input type="color" aria-label="রঙ নির্বাচন" value={color} onChange={e=>setColor(e.target.value)}/><input type="range" aria-label="কলমের আকার" min="1" max="20" value={size} onChange={e=>setSize(Number(e.target.value))}/><button onClick={undo}>পূর্বাবস্থায়</button><button onClick={redoDraw}>পুনরায়</button><button onClick={clear}>মুছুন</button><button onClick={nextPage}>নতুন পাতা</button><button onClick={()=>{const u=canvas.current?.toDataURL()||'';localStorage.setItem(`shikhok-board-${bookingId}`,u);alert('হোয়াইটবোর্ডটি এই ডিভাইসে সংরক্ষিত হয়েছে।')}}>সংরক্ষণ</button></div><canvas ref={canvas} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerLeave={up} aria-label="ইন্টারঅ্যাক্টিভ হোয়াইটবোর্ড"/><div className="page-pills">{pages.map((_,i)=><button className={i===page?'active':''} key={i} onClick={()=>switchPage(i)}>পাতা {bn(i+1)}</button>)}</div></div>}
