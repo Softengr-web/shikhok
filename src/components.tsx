@@ -44,7 +44,14 @@ export function Shell({user,children,onLogout}:{user:User|null;children:ReactNod
     return()=>desktop.removeEventListener('change',onDesktop);
   },[]);
 
-  const links=[
+  const isAdmin=user&&['ADMIN','SUPER_ADMIN'].includes(user.role);
+  const links=isAdmin?[
+    ['/dashboard','অ্যাডমিন ড্যাশবোর্ড'],
+    ['/admin/users','ব্যবহারকারী'],
+    ['/admin/reports','রিপোর্ট'],
+    ['/bookings','বুকিং'],
+    ['/gigs','গিগ']
+  ]:[
     ['/search','শিক্ষক খুঁজুন'],
     ['/gigs','জনপ্রিয় গিগ'],
     ['/problems','সমস্যা সমাধান'],
@@ -75,7 +82,7 @@ export function Shell({user,children,onLogout}:{user:User|null;children:ReactNod
     <footer><div className="brand footer-brand"><img src="/images/private-tutor-logo.png" alt="" /><span className="footer-wordmark"><span className="footer-private">Private</span> <b>Tutor</b><i aria-hidden="true"></i></span></div><p>Created By Tanvir Alam Prince</p></footer>
   </>;
 }
-function MobileNav({user,onLogout}:{user:User;onLogout:()=>void}) { const items=user.role==='TEACHER'?[['⌂','ড্যাশবোর্ড','/dashboard'],['▣','বুকিং','/bookings'],['♙','শিক্ষার্থী','/messages'],['✎','পরীক্ষা','/teacher/exams'],['◉','প্রোফাইল','/profile']]:[['⌂','হোম','/'],['⌕','খুঁজুন','/search'],['▣','বুকিং','/bookings'],['✉','বার্তা','/messages'],['◉','প্রোফাইল','/dashboard']];return <nav className="mobile-nav">{items.map(([icon,label,href])=><a href={`#${href}`} key={label}><b>{icon}</b><small>{label}</small></a>)}<button className="mobile-logout" onClick={onLogout} aria-label="লগআউট"><b>↪</b><small>লগআউট</small></button></nav>}
+function MobileNav({user,onLogout}:{user:User;onLogout:()=>void}) { const isAdmin=['ADMIN','SUPER_ADMIN'].includes(user.role);const items=user.role==='TEACHER'?[['⌂','ড্যাশবোর্ড','/dashboard'],['▣','বুকিং','/bookings'],['♙','শিক্ষার্থী','/messages'],['✎','পরীক্ষা','/teacher/exams'],['◉','প্রোফাইল','/profile']]:isAdmin?[['⌂','ড্যাশবোর্ড','/dashboard'],['♙','ব্যবহারকারী','/admin/users'],['▣','বুকিং','/bookings'],['⚑','রিপোর্ট','/admin/reports']]:[['⌂','হোম','/'],['⌕','খুঁজুন','/search'],['▣','বুকিং','/bookings'],['✉','বার্তা','/messages'],['◉','প্রোফাইল','/dashboard']];return <nav className={`mobile-nav${isAdmin?' is-admin':''}`}>{items.map(([icon,label,href])=><a href={`#${href}`} key={label}><b>{icon}</b><small>{label}</small></a>)}<button className="mobile-logout" onClick={onLogout} aria-label="লগআউট"><b>↪</b><small>লগআউট</small></button></nav>}
 
 export function TeacherCard({teacher,user,compare,onCompare}:{teacher:Teacher;user:User|null;compare:boolean;onCompare:(t:Teacher)=>void}) { void user; const [saved,setSaved]=useState(false); const favorite=async()=>{try{const r=await post<{saved:boolean}>('/favorites',{kind:'TEACHER',itemId:teacher.id});setSaved(r.saved);}catch{go('/login');}};return <article className="teacher-card"><div className="card-top"><Avatar name={teacher.user.name} size="lg" teacherId={teacher.id}/><div className="grow"><h3>{teacher.user.name}{teacher.verified&&<em className="verified">✓ যাচাইকৃত</em>}</h3><p>{teacher.headline}</p><div className="stars">★ {teacher.rating.toFixed(1)} <small>({bn(teacher.reviewCount)} রিভিউ)</small></div></div><button className="save-btn" onClick={favorite} aria-label="সংরক্ষণ করুন">{saved?'♥':'♡'}</button></div><div className="chips">{teacher.subjects.slice(0,2).map(s=><span key={s}>{s}</span>)}<span>{teacher.experienceYears} বছরের অভিজ্ঞতা</span></div><div className="card-meta"><span>{money(teacher.hourlyRate)} / ঘণ্টা</span><span>{teacher.languages.join(', ')}</span></div><div className="card-actions"><button className="quiet-btn" onClick={()=>onCompare(teacher)}>{compare?'তুলনায় আছে':'তুলনা করুন'}</button><button className="button" onClick={()=>go(`/teacher/${teacher.id}`)}>প্রোফাইল দেখুন</button></div></article> }
 
