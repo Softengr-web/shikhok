@@ -83,7 +83,103 @@ export function GigsPage() {
 }
 function CompareBar({teachers,onRemove}:{teachers:Teacher[];onRemove:(t:Teacher)=>void}) { return <aside className="compare-bar"><span>{teachers.length} জন শিক্ষক তুলনায় আছে</span>{teachers.map(t=><button key={t.id} onClick={()=>onRemove(t)}>{t.user.name} ×</button>)}<button className="button" onClick={()=>go(`/compare?ids=${teachers.map(t=>t.id).join(',')}`)}>তুলনা দেখুন</button></aside> }
 
-export function Search({user}:{user:User|null}) { const params=new URLSearchParams(location.hash.split('?')[1]||'');const [subjects,setSubjects]=useState<Subject[]>([]);const [q,setQ]=useState(params.get('q')||'');const [subject,setSubject]=useState(params.get('subject')||'');const [rating,setRating]=useState('');const [verified,setVerified]=useState(false);const [teachers,setTeachers]=useState<Teacher[]>([]);const [total,setTotal]=useState(0);const [loading,setLoading]=useState(true);const [compare,setCompare]=useState<Teacher[]>([]);const load=async()=>{setLoading(true);try{const result=await api<{items:Teacher[];total:number}>(`/teachers?${new URLSearchParams({q,subject,rating,verified:String(verified)}).toString()}`);setTeachers(result.items);setTotal(result.total);}finally{setLoading(false);}};useEffect(()=>{void api<Subject[]>('/subjects').then(setSubjects);void load();},[]);const matching=async()=>{setLoading(true);try{const data=await api<Teacher[]>(`/matches?${new URLSearchParams({subject,q,budget:'700',language:'বাংলা'}).toString()}`);setTeachers(data);setTotal(data.length);}finally{setLoading(false);}};const toggle=(t:Teacher)=>setCompare(c=>c.some(x=>x.id===t.id)?c.filter(x=>x.id!==t.id):c.length<3?[...c,t]:c);return <section className="page section"><p className="eyebrow">শিক্ষক মার্কেটপ্লেস</p><h1>শিক্ষক খুঁজুন</h1><form className="filter-panel" onSubmit={e=>{e.preventDefault();void load();}}><input value={q} onChange={e=>setQ(e.target.value)} placeholder="বিষয়, টপিক বা শিক্ষকের নাম লিখুন"/><select value={subject} onChange={e=>setSubject(e.target.value)}><option value="">সব বিষয়</option>{subjects.map(s=><option key={s.id}>{s.name}</option>)}</select><select value={rating} onChange={e=>setRating(e.target.value)}><option value="">সব রেটিং</option><option value="4.5">৪.৫ বা বেশি</option><option value="4">৪.০ বা বেশি</option></select><label className="check"><input type="checkbox" checked={verified} onChange={e=>setVerified(e.target.checked)}/> যাচাইকৃত শিক্ষক</label><button className="button">খুঁজুন</button><button type="button" className="quiet-btn" onClick={()=>void matching()}>স্মার্ট ম্যাচিং</button></form><p className="result-count">{bn(total)} জন শিক্ষক পাওয়া গেছে</p>{loading?<Loading/>:teachers.length?<div className="card-grid">{teachers.map(t=><TeacherCard key={t.id} teacher={t} user={user} compare={compare.some(x=>x.id===t.id)} onCompare={toggle}/>)}</div>:<Empty>এখনও কোনো শিক্ষক পাওয়া যায়নি। অন্যভাবে খুঁজে দেখুন।</Empty>}{compare.length>1&&<CompareBar teachers={compare} onRemove={toggle}/>}</section> }
+export function Search({user}:{user:User|null}) {
+  const params=new URLSearchParams(location.hash.split('?')[1]||'');
+  const [subjects,setSubjects]=useState<Subject[]>([]);
+  const [q,setQ]=useState(params.get('q')||'');
+  const [subject,setSubject]=useState(params.get('subject')||'');
+  const [rating,setRating]=useState('');
+  const [verified,setVerified]=useState(false);
+  const [teachers,setTeachers]=useState<Teacher[]>([]);
+  const [total,setTotal]=useState(0);
+  const [page,setPage]=useState(1);
+  const [hasMore,setHasMore]=useState(false);
+  const [loading,setLoading]=useState(true);
+  const [loadingMore,setLoadingMore]=useState(false);
+  const [error,setError]=useState('');
+  const [compare,setCompare]=useState<Teacher[]>([]);
+  const filters={q,subject,rating,verified};
+  const hasFilters=Boolean(q.trim()||subject||rating||verified);
+
+  const load=async(nextFilters:{q:string;subject:string;rating:string;verified:boolean}=filters,nextPage=1,append=false)=>{
+    setError('');
+    if(append)setLoadingMore(true);
+    else {setLoading(true);setTeachers([]);}
+    try {
+      const query=new URLSearchParams({...nextFilters,verified:String(nextFilters.verified),page:String(nextPage),perPage:'12'});
+      const result=await api<{items:Teacher[];total:number;page:number;perPage:number}>(`/teachers?${query.toString()}`);
+      setTeachers(current=>append?[...current,...result.items]:result.items);
+      setTotal(result.total);
+      setPage(result.page);
+      setHasMore(result.page*result.perPage<result.total);
+    } catch (e) {
+      setError(e instanceof Error?e.message:'শিক্ষকদের তথ্য আনা যায়নি। আবার চেষ্টা করুন।');
+      if(!append){setTeachers([]);setTotal(0);setHasMore(false);}
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  };
+
+  useEffect(()=>{
+    void api<Subject[]>('/subjects').then(setSubjects).catch(()=>setSubjects([]));
+    void load();
+  },[]);
+
+  const matching=async()=>{
+    setLoading(true);setLoadingMore(false);setTeachers([]);setError('');
+    try {
+      const data=await api<Teacher[]>(`/matches?${new URLSearchParams({subject,q,budget:'700',language:'বাংলা'}).toString()}`);
+      setTeachers(data);setTotal(data.length);setPage(1);setHasMore(false);
+    } catch (e) {
+      setError(e instanceof Error?e.message:'স্মার্ট ম্যাচিং করা যায়নি। আবার চেষ্টা করুন।');
+      setTotal(0);setHasMore(false);
+    } finally {setLoading(false);}
+  };
+
+  const reset=()=>{
+    const defaults={q:'',subject:'',rating:'',verified:false};
+    setQ('');setSubject('');setRating('');setVerified(false);
+    void load(defaults);
+  };
+  const toggle=(teacher:Teacher)=>setCompare(current=>current.some(item=>item.id===teacher.id)?current.filter(item=>item.id!==teacher.id):current.length<3?[...current,teacher]:current);
+
+  return <section className="page section teacher-search-page">
+    <header className="teacher-search-intro">
+      <div>
+        <p className="eyebrow">শিক্ষক মার্কেটপ্লেস</p>
+        <h1>আপনার জন্য সঠিক শিক্ষক খুঁজুন</h1>
+        <p className="teacher-search-description">বিষয়, অভিজ্ঞতা ও রেটিং মিলিয়ে শিক্ষক বেছে নিন। প্রোফাইল তুলনা করে আপনার শেখা শুরু করুন।</p>
+      </div>
+      <div className="teacher-search-promise"><span aria-hidden="true">✓</span><div><b>বিশ্বস্ত শিক্ষক</b><small>প্রোফাইল ও অভিজ্ঞতা দেখে বেছে নিন</small></div></div>
+    </header>
+
+    <form className="teacher-filter-panel" onSubmit={event=>{event.preventDefault();void load(filters);}}>
+      <label className="teacher-search-field">
+        <span aria-hidden="true">⌕</span>
+        <input type="search" value={q} onChange={event=>setQ(event.target.value)} placeholder="শিক্ষক, বিষয় বা টপিক খুঁজুন" aria-label="শিক্ষক, বিষয় বা টপিক খুঁজুন"/>
+      </label>
+      <label className="teacher-select-field"><span>বিষয়</span><select value={subject} onChange={event=>setSubject(event.target.value)}><option value="">সব বিষয়</option>{subjects.map(item=><option key={item.id} value={item.name}>{item.name}</option>)}</select></label>
+      <label className="teacher-select-field"><span>ন্যূনতম রেটিং</span><select value={rating} onChange={event=>setRating(event.target.value)}><option value="">সব রেটিং</option><option value="4.5">৪.৫ বা বেশি</option><option value="4">৪.০ বা বেশি</option></select></label>
+      <div className="teacher-filter-footer">
+        <label className="teacher-verified"><input type="checkbox" checked={verified} onChange={event=>setVerified(event.target.checked)}/><span><b>যাচাইকৃত শিক্ষক</b><small>যাচাই করা প্রোফাইল দেখুন</small></span></label>
+        <div className="teacher-search-actions">
+          <button className="button" disabled={loading||loadingMore}><span aria-hidden="true">⌕</span> শিক্ষক খুঁজুন</button>
+          <button type="button" className="quiet-btn" onClick={()=>void matching()} disabled={loading||loadingMore}><span aria-hidden="true">✦</span> স্মার্ট ম্যাচিং</button>
+          {hasFilters&&<button type="button" className="teacher-reset" onClick={reset}>ফিল্টার মুছুন</button>}
+        </div>
+      </div>
+    </form>
+
+    <div className="teacher-results-heading"><div><p className="eyebrow">আপনার শেখার সঙ্গী</p><h2>শিক্ষকরা</h2></div><span className="teacher-result-count">{loading&&teachers.length===0?'খোঁজা হচ্ছে…':`${bn(total)} জন শিক্ষক`}</span></div>
+    {error&&<p className="teacher-search-error" role="alert">{error}</p>}
+    {loading&&teachers.length===0?<Loading/>:teachers.length?<>
+      <div className="card-grid teacher-search-results">{teachers.map(teacher=><TeacherCard key={teacher.id} teacher={teacher} user={user} compare={compare.some(item=>item.id===teacher.id)} onCompare={toggle}/>)}</div>
+      {hasMore&&<div className="teacher-load-more"><span>{bn(teachers.length)} / {bn(total)} জন শিক্ষক দেখানো হচ্ছে</span><button className="quiet-btn" type="button" disabled={loadingMore} onClick={()=>void load(filters,page+1,true)}>{loadingMore?'আরও শিক্ষক আসছে…':'আরও শিক্ষক দেখুন ↓'}</button></div>}
+    </>:!loading&&!error?<Empty>আপনার খোঁজার সঙ্গে মেলে এমন শিক্ষক পাওয়া যায়নি। ফিল্টার বদলে আবার চেষ্টা করুন।</Empty>:null}
+    {compare.length>1&&<CompareBar teachers={compare} onRemove={toggle}/>}
+  </section>;
+}
 
 export function Compare() {
   const [items, setItems] = useState<Teacher[]>([]);
