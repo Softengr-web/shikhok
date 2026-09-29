@@ -232,7 +232,7 @@ export function Compare() {
   </section>;
 }
 
-export function TeacherPage({user}:{user:User|null}) { const id=location.hash.split('/')[2]?.split('?')[0];const [teacher,setTeacher]=useState<Teacher|null>(null);const [booking,setBooking]=useState<Gig|null>(null);useEffect(()=>{if(id)void api<Teacher>(`/teachers/${id}`).then(setTeacher);},[id]);useEffect(()=>{if(!teacher)return;let secondFrame=0;const firstFrame=requestAnimationFrame(()=>{secondFrame=requestAnimationFrame(()=>window.scrollTo(0,0));});return()=>{cancelAnimationFrame(firstFrame);cancelAnimationFrame(secondFrame);};},[teacher]);if(!teacher)return <Loading/>;return <section className="page"><div className="profile-hero"><Avatar name={teacher.user.name} size="lg" teacherId={teacher.id}/><div><p className="eyebrow">{teacher.level}</p><h1>{teacher.user.name} {teacher.verified&&<em className="verified">✓ যাচাইকৃত</em>}</h1><p>{teacher.headline}</p><div className="profile-stats"><span>★ {teacher.rating} রেটিং</span><span>{teacher.experienceYears} বছরের অভিজ্ঞতা</span><span>{money(teacher.hourlyRate)} / ঘণ্টা</span></div></div><div className="profile-cta"><button className="button" onClick={()=>teacher.gigs?.[0]&&setBooking(teacher.gigs[0])}>ক্লাস বুক করুন</button><button className="quiet-btn" onClick={()=>go('/messages')}>বার্তা পাঠান</button></div></div><div className="profile-layout"><div className="profile-content"><Info title="পরিচিতি"><p>{teacher.bio}</p></Info><Info title="শিক্ষাগত যোগ্যতা"><p>{teacher.education} — {teacher.institution}</p></Info><Info title="বিষয় ও দক্ষতা"><div className="chips">{[...teacher.subjects,...teacher.skills].map(x=><span key={x}>{x}</span>)}</div></Info><Info title="পড়ানোর পদ্ধতি"><p>লাইভ ইন্টারঅ্যাক্টিভ ক্লাস, উদাহরণভিত্তিক ব্যাখ্যা এবং ক্লাস-পরবর্তী নোট।</p></Info><Info title="শিক্ষকের পাঠের ভিডিও">{teacher.demoUrl?<iframe className="video" src={teacher.demoUrl} title="শিক্ষকের পাঠের ভিডিও" allowFullScreen/>:<Empty>শিক্ষক এখনো কোনো পাঠের ভিডিও যুক্ত করেননি।</Empty>}</Info><Info title="শিক্ষকের গিগ স্টোরফ্রন্ট"><div className="teacher-gig-storefront">{teacher.gigs?.map(g=><TeacherGigCard key={g.id} gig={g} onBook={()=>setBooking(g)}/>)}</div></Info></div><aside className="aside-card"><h3>সময়সূচি</h3>{Object.entries(teacher.availability).map(([d,t])=><p key={d}><b>{d}</b><br/>{t.join(' • ')}</p>)}<hr/><p>ভাষা: {teacher.languages.join(', ')}</p><p>অবস্থান: {teacher.location}</p></aside></div>{booking&&(user?.role==='STUDENT'?<BookingModal gig={booking} onClose={()=>setBooking(null)} onDone={bid=>go(`/payment/${bid}`)}/>:<LoginHint onClose={()=>setBooking(null)}/>)}</section> }
+export function TeacherPage({user}:{user:User|null}) { const id=location.hash.split('/')[2]?.split('?')[0];const [teacher,setTeacher]=useState<Teacher|null>(null);const [booking,setBooking]=useState<Gig|null>(null);useEffect(()=>{if(id)void api<Teacher>(`/teachers/${id}`).then(setTeacher);},[id]);useEffect(()=>{if(!teacher)return;let secondFrame=0;const firstFrame=requestAnimationFrame(()=>{secondFrame=requestAnimationFrame(()=>window.scrollTo(0,0));});return()=>{cancelAnimationFrame(firstFrame);cancelAnimationFrame(secondFrame);};},[teacher]);if(!teacher)return <Loading/>;return <section className="page"><div className="profile-hero"><Avatar name={teacher.user.name} size="lg" teacherId={teacher.id}/><div><p className="eyebrow">{teacher.level}</p><h1>{teacher.user.name} {teacher.verified&&<em className="verified">✓ যাচাইকৃত</em>}</h1><p>{teacher.headline}</p><div className="profile-stats"><span>★ {teacher.rating} রেটিং</span><span>{teacher.experienceYears} বছরের অভিজ্ঞতা</span><span>{money(teacher.hourlyRate)} / ঘণ্টা</span></div></div><div className="profile-cta"><button className="button" onClick={()=>teacher.gigs?.[0]&&setBooking(teacher.gigs[0])}>ক্লাস বুক করুন</button><button className="quiet-btn" onClick={()=>go(user?.role==='STUDENT'?`/messages?with=${encodeURIComponent(teacher.user.id)}`:'/messages')}>বার্তা পাঠান</button></div></div><div className="profile-layout"><div className="profile-content"><Info title="পরিচিতি"><p>{teacher.bio}</p></Info><Info title="শিক্ষাগত যোগ্যতা"><p>{teacher.education} — {teacher.institution}</p></Info><Info title="বিষয় ও দক্ষতা"><div className="chips">{[...teacher.subjects,...teacher.skills].map(x=><span key={x}>{x}</span>)}</div></Info><Info title="পড়ানোর পদ্ধতি"><p>লাইভ ইন্টারঅ্যাক্টিভ ক্লাস, উদাহরণভিত্তিক ব্যাখ্যা এবং ক্লাস-পরবর্তী নোট।</p></Info><Info title="শিক্ষকের পাঠের ভিডিও">{teacher.demoUrl?<iframe className="video" src={teacher.demoUrl} title="শিক্ষকের পাঠের ভিডিও" allowFullScreen/>:<Empty>শিক্ষক এখনো কোনো পাঠের ভিডিও যুক্ত করেননি।</Empty>}</Info><Info title="শিক্ষকের গিগ স্টোরফ্রন্ট"><div className="teacher-gig-storefront">{teacher.gigs?.map(g=><TeacherGigCard key={g.id} gig={g} onBook={()=>setBooking(g)}/>)}</div></Info></div><aside className="aside-card"><h3>সময়সূচি</h3>{Object.entries(teacher.availability).map(([d,t])=><p key={d}><b>{d}</b><br/>{t.join(' • ')}</p>)}<hr/><p>ভাষা: {teacher.languages.join(', ')}</p><p>অবস্থান: {teacher.location}</p></aside></div>{booking&&(user?.role==='STUDENT'?<BookingModal gig={booking} onClose={()=>setBooking(null)} onDone={bid=>go(`/payment/${bid}`)}/>:<LoginHint onClose={()=>setBooking(null)}/>)}</section> }
 
 function TeacherGigCard({gig,onBook}:{gig:Gig;onBook:()=>void}) { return <article className="teacher-gig-card"><div className="teacher-gig-card-head"><div><span className="preview-badge">{gig.subject} · {gig.level}</span><h3>{gig.title}</h3><p>{gig.description}</p></div><strong>{gig.badges?.[0]||'শিক্ষক সেবা'}</strong></div><div className="chips">{gig.tags.map(tag=><span key={tag}>{tag}</span>)}{gig.classType&&<span>{gig.classType}</span>}{gig.duration&&<span>{bn(gig.duration)} মিনিট</span>}{gig.trial?.enabled&&<span>ট্রায়াল ক্লাস</span>}</div>{gig.outcomes?.length&&<div className="gig-detail-block"><b>শিক্ষার্থী যা শিখবেন</b><ul>{gig.outcomes.filter(Boolean).map(outcome=><li key={outcome}>{outcome}</li>)}</ul></div>}<div className="gig-package-grid">{gig.packages.map(pack=><div className="teacher-gig-package" key={pack.id}><b>{pack.name}</b><span>{bn(pack.classes)}টি ক্লাস · {bn(pack.duration)} মিনিট</span><strong>{money(pack.price)}</strong><small>{pack.features.join(' · ')}</small></div>)}</div>{gig.extras?.length&&<div className="gig-detail-block"><b>অতিরিক্ত সেবা</b><p>{gig.extras.map(extra=>`${extra.name} (${money(extra.price)})`).join(' · ')}</p></div>}{gig.media?.length&&<div className="gig-detail-block"><b>মিডিয়া ও উপকরণ</b><p>{gig.media.map(media=>media.caption||media.kind).join(' · ')}</p></div>}{gig.faqs.length>0&&<details className="gig-faq"><summary>সচরাচর জিজ্ঞাসা ({bn(gig.faqs.length)})</summary>{gig.faqs.map(faq=><p key={faq.q}><b>{faq.q}</b><br/>{faq.a}</p>)}</details>}<div className="teacher-gig-footer"><span>{gig.availability&&Object.keys(gig.availability).length?`উপলভ্য: ${Object.keys(gig.availability).join(', ')}`:'সময় শিক্ষককে জিজ্ঞাসা করুন'}</span><button className="button" onClick={onBook}>প্যাকেজ বেছে বুক করুন</button></div></article> }
 function Info({title,children}:{title:string;children:React.ReactNode}) {return <section className="info"><h2>{title}</h2>{children}</section>}
@@ -357,7 +357,7 @@ export function AuthPage({ kind, onLogin }: { kind: 'login' | 'register'; onLogi
           <h1 className="auth-wordmark" aria-label="Private Tutor">
             <span>Private</span> <b>Tutor</b><i aria-hidden="true" />
           </h1>
-          <p className="eyebrow auth-demo-label"><span aria-hidden="true" />শিখোক শিক্ষক মার্কেটপ্লেস</p>
+          <p className="eyebrow auth-demo-label"><span aria-hidden="true" />শিখোক · শেখা ও শেখানোর নির্ভরযোগ্য ঠিকানা</p>
           <h2>শেখা ও শেখানোর সহজ শুরু</h2>
           <p className="auth-description">শিক্ষার্থী, শিক্ষক, অভিভাবক বা অ্যাডমিন—নিজের ভূমিকা বেছে নিয়ে শিখোকের সুবিধাগুলো ব্যবহার করুন। এই পরিবেশে বাস্তব অর্থ লেনদেন চালু নেই।</p>
         </div>
@@ -620,7 +620,157 @@ export function PaymentPage({user}:{user:User}){const bookingId=location.hash.sp
 
 export function Wallet(){const [data,setData]=useState<{total:number;pending:number;commission:number;entries:any[]}|null>(null);const [message,setMessage]=useState('');const load=()=>void api<typeof data>('/wallet').then(x=>setData(x as any));useEffect(load,[]);if(!data)return <Loading/>;const payout=async()=>{try{const r=await post<{message:string;amount:number}>('/wallet/payout');setMessage(`${r.message} (${money(r.amount)})`);load();}catch(e){setMessage(e instanceof Error?e.message:'সমস্যা হয়েছে');}};return <section className="page section"><p className="eyebrow">শিক্ষকের আয় ও লেনদেন</p><h1>আয় ও লেনদেন</h1><div className="stats"><Stat label="মোট আয়" value={money(data.total)} accent="green"/><Stat label="অপেক্ষমাণ আয়" value={money(data.pending)}/><Stat label="প্ল্যাটফর্ম কমিশন" value={money(data.commission)} accent="purple"/></div><div className="wallet-box"><div><h2>উত্তোলনের সুবিধা</h2><p>এই হিসাবটি পরীক্ষামূলক; প্রকৃত অর্থ জমা বা উত্তোলন এখনো চালু নেই।</p></div><button className="button" onClick={()=>void payout()}>পরীক্ষামূলক উত্তোলন করুন</button></div>{message&&<p className="success">{message}</p>}<Info title="লেনদেনের ইতিহাস">{data.entries.length?<div className="ledger">{data.entries.slice().reverse().map(e=><p key={e.id}><span>{e.note}<small>{shortDate(e.createdAt)}</small></span><b className={e.amount>=0?'green':'red'}>{e.amount>=0?'+':'−'}{money(Math.abs(e.amount))}</b></p>)}</div>:<Empty>এখনও কোনো লেনদেন নেই।</Empty>}</Info></section>}
 
-export function Messages({user}:{user:User}){const requestedId=new URLSearchParams(location.hash.split('?')[1]||'').get('with');const [items,setItems]=useState<{user:User;lastMessage?:{body:string;createdAt:string};unreadCount:number}[]>([]);const [other,setOther]=useState<User|null>(null);const [messages,setMessages]=useState<any[]>([]);const [body,setBody]=useState('');const [error,setError]=useState('');const [loading,setLoading]=useState(true);useEffect(()=>{void api<typeof items>('/messages').then(conversations=>{setItems(conversations);const selected=conversations.find(item=>item.user.id===requestedId)||conversations[0];if(selected)setOther(selected.user);}).catch(e=>setError(e instanceof Error?e.message:'কথোপকথন লোড করা যায়নি।')).finally(()=>setLoading(false));},[requestedId]);useEffect(()=>{if(!other)return;setError('');void api<any[]>(`/messages/${other.id}`).then(setMessages).then(()=>post(`/messages/${other.id}/read`)).catch(e=>setError(e instanceof Error?e.message:'বার্তা লোড করা যায়নি।'));const protocol=location.protocol==='https:'?'wss':'ws';const socket=new WebSocket(`${protocol}://${location.host}/ws`);socket.onmessage=event=>{try{const packet=JSON.parse(event.data) as {type:string;data?:any};if(packet.type==='message'&&packet.data&&(packet.data.senderId===other.id||packet.data.receiverId===other.id)){setMessages(current=>current.some(item=>item.id===packet.data.id)?current:[...current,packet.data]);if(packet.data.receiverId===user.id)void post(`/messages/${other.id}/read`);}}catch{setError('বার্তার আপডেট পাওয়া যায়নি।')}};socket.onerror=()=>setError('রিয়েল-টাইম সংযোগ পাওয়া যাচ্ছে না; HTTP মোডে বার্তা পাঠানো যাবে।');return()=>socket.close();},[other,user.id]);const send=async(e:React.FormEvent)=>{e.preventDefault();if(!other||!body.trim())return;const value=body.trim();try{const protocol=location.protocol==='https:'?'wss':'ws';const socket=new WebSocket(`${protocol}://${location.host}/ws`);await new Promise<void>((resolve,reject)=>{socket.onopen=()=>{socket.send(JSON.stringify({type:'message',to:other.id,body:value}));resolve();};socket.onerror=()=>reject(new Error('রিয়েল-টাইম সংযোগ পাওয়া যায়নি।'));});socket.close();setMessages(current=>[...current,{id:`local-${Date.now()}`,senderId:user.id,receiverId:other.id,body:value,createdAt:new Date().toISOString()}]);setBody('');}catch{try{const message=await post<any>(`/messages/${other.id}`,{body:value});setMessages(current=>[...current,message]);setBody('');}catch(e){setError(e instanceof Error?e.message:'বার্তা পাঠানো যায়নি।');}}};return <section className="page section"><p className="eyebrow">বার্তা</p><h1>শিক্ষক ও শিক্ষার্থীর কথোপকথন</h1><div className="chat"><aside><b>কথোপকথন</b>{items.length?items.map(item=><button className={`conversation ${other?.id===item.user.id?'active':''}`} key={item.user.id} onClick={()=>setOther(item.user)}><Avatar name={item.user.name} size="sm"/><span>{item.user.name}<small>{item.unreadCount?`${bn(item.unreadCount)}টি অপঠিত বার্তা`:item.lastMessage?.body||'কথোপকথন শুরু করুন'}</small></span></button>):<p className="help">কোনো কথোপকথন নেই। শিক্ষক প্রোফাইল থেকে বার্তা পাঠান।</p>}</aside><div className="chat-main">{loading?<Loading/>:error?<p className="form-error">{error}</p>:other?<><div className="chat-heading"><Avatar name={other.name} size="sm"/><b>{other.name}</b></div><div className="messages">{messages.map(m=><p className={m.senderId===user.id?'mine':''} key={m.id}>{m.body}<small>{new Date(m.createdAt).toLocaleTimeString('bn-BD',{hour:'2-digit',minute:'2-digit'})}</small></p>)}</div><form onSubmit={send}><input value={body} onChange={e=>setBody(e.target.value)} placeholder="বার্তা লিখুন" required/><button className="button">পাঠান</button></form></>:<Empty>একটি কথোপকথন নির্বাচন করুন।</Empty>}</div></div></section>}
+type Conversation = { user: User; lastMessage?: { body: string; createdAt: string }; unreadCount: number };
+type DirectMessage = { id: string; senderId: string; receiverId: string; body: string; createdAt: string };
+
+const messageRoleLabel = (role: User['role']) => ({ STUDENT: 'শিক্ষার্থী', TEACHER: 'শিক্ষক', PARENT: 'অভিভাবক', ADMIN: 'অ্যাডমিন', SUPER_ADMIN: 'অ্যাডমিন' })[role];
+const messageTime = (value?: string) => value ? new Intl.DateTimeFormat('bn-BD', { hour: 'numeric', minute: '2-digit' }).format(new Date(value)) : '';
+
+export function Messages({ user }: { user: User }) {
+  const requestedId = new URLSearchParams(location.hash.split('?')[1] || '').get('with');
+  const [items, setItems] = useState<Conversation[]>([]);
+  const [other, setOther] = useState<User | null>(null);
+  const [messages, setMessages] = useState<DirectMessage[]>([]);
+  const [body, setBody] = useState('');
+  const [query, setQuery] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [threadLoading, setThreadLoading] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [mobileThread, setMobileThread] = useState(false);
+  const [live, setLive] = useState(false);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let active = true;
+    void api<Conversation[]>('/messages').then(async conversations => {
+      if (!active) return;
+      setItems(conversations);
+      const selected = conversations.find(item => item.user.id === requestedId) || conversations[0];
+      if (selected) setOther(selected.user);
+      if (requestedId) {
+        setMobileThread(true);
+        if (!selected) {
+          const contact = await api<User>(`/messages/contacts/${encodeURIComponent(requestedId)}`);
+          if (active) setOther(contact);
+        }
+      }
+    }).catch(cause => {
+      if (active) setError(cause instanceof Error ? cause.message : 'কথোপকথন লোড করা যায়নি।');
+    }).finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [requestedId]);
+
+  useEffect(() => {
+    if (!other) { setMessages([]); return; }
+    let active = true;
+    setThreadLoading(true);
+    setError('');
+    setMessages([]);
+    void api<DirectMessage[]>(`/messages/${other.id}`).then(async conversation => {
+      if (!active) return;
+      setMessages(conversation);
+      await post(`/messages/${other.id}/read`);
+      if (active) setItems(current => current.map(item => item.user.id === other.id ? { ...item, unreadCount: 0 } : item));
+    }).catch(cause => {
+      if (active) setError(cause instanceof Error ? cause.message : 'বার্তা লোড করা যায়নি।');
+    }).finally(() => { if (active) setThreadLoading(false); });
+
+    const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
+    const socket = new WebSocket(`${protocol}://${location.host}/ws`);
+    socket.onopen = () => { if (active) setLive(true); };
+    socket.onclose = () => { if (active) setLive(false); };
+    socket.onerror = () => { if (active) setLive(false); };
+    socket.onmessage = event => {
+      try {
+        const packet = JSON.parse(event.data) as { type: string; data?: DirectMessage; message?: string };
+        if (packet.type === 'message' && packet.data && (packet.data.senderId === other.id || packet.data.receiverId === other.id)) {
+          const message = packet.data;
+          setMessages(current => current.some(item => item.id === message.id) ? current : [...current, message]);
+          setItems(current => current.map(item => item.user.id === other.id ? { ...item, lastMessage: message, unreadCount: message.receiverId === user.id ? 0 : item.unreadCount } : item));
+          if (message.receiverId === user.id) void post(`/messages/${other.id}/read`);
+        } else if (packet.type === 'error' && packet.message) setError(packet.message);
+      } catch { setError('বার্তার আপডেট পাওয়া যায়নি।'); }
+    };
+    return () => { active = false; socket.close(); };
+  }, [other, user.id]);
+
+  useEffect(() => { if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight; }, [messages, other]);
+
+  const filteredItems = items.filter(item => `${item.user.name} ${item.lastMessage?.body || ''}`.toLocaleLowerCase('bn').includes(query.trim().toLocaleLowerCase('bn')));
+  const unreadTotal = items.reduce((total, item) => total + item.unreadCount, 0);
+
+  const selectConversation = (person: User) => {
+    setOther(person);
+    setMobileThread(true);
+    setError('');
+  };
+
+  const send = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!other || !body.trim() || sending) return;
+    const value = body.trim();
+    setSending(true);
+    setError('');
+    try {
+      const sent = await post<DirectMessage>(`/messages/${other.id}`, { body: value });
+      setMessages(current => current.some(item => item.id === sent.id) ? current : [...current, sent]);
+      setItems(current => {
+        const existing = current.find(item => item.user.id === other.id);
+        const updated = existing ? { ...existing, lastMessage: sent, unreadCount: 0 } : { user: other, lastMessage: sent, unreadCount: 0 };
+        return [updated, ...current.filter(item => item.user.id !== other.id)];
+      });
+      setBody('');
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'বার্তা পাঠানো যায়নি। আবার চেষ্টা করুন।');
+    } finally { setSending(false); }
+  };
+
+  return <section className={`messages-page page section${mobileThread ? ' show-thread' : ''}`}>
+    <header className="messages-intro">
+      <div><p className="eyebrow">যোগাযোগ</p><h1>বার্তা</h1><p>শিক্ষক ও শিক্ষার্থীর সঙ্গে শেখার প্রয়োজনীয় কথা বলুন—সব কথোপকথন এক জায়গায়।</p></div>
+      <div className="messages-summary"><span className="messages-summary-icon" aria-hidden="true">✉</span><span><b>{bn(items.length)}</b><small>টি কথোপকথন</small></span>{unreadTotal > 0 && <span className="unread-total">{bn(unreadTotal)} অপঠিত</span>}</div>
+    </header>
+    <div className="messages-shell">
+      <aside className="messages-sidebar" aria-label="কথোপকথনের তালিকা">
+        <div className="inbox-heading"><div><h2>ইনবক্স</h2><p>আপনার সব বার্তা</p></div><span className="inbox-count">{bn(items.length)}</span></div>
+        <label className="conversation-search"><span aria-hidden="true">⌕</span><input value={query} onChange={event => setQuery(event.target.value)} placeholder="নাম বা বার্তা খুঁজুন" aria-label="কথোপকথন খুঁজুন"/><kbd>/</kbd></label>
+        <div className="conversation-list">
+          {loading ? <Loading/> : error && !other ? <div className="messages-inline-error" role="alert">{error}</div> : filteredItems.length ? filteredItems.map(item => <button type="button" className={`conversation-card${other?.id === item.user.id ? ' active' : ''}`} key={item.user.id} onClick={() => selectConversation(item.user)} aria-current={other?.id === item.user.id ? 'true' : undefined}>
+            <span className="conversation-avatar"><Avatar name={item.user.name} size="sm"/>{item.unreadCount > 0 && <i aria-label={`${bn(item.unreadCount)}টি অপঠিত বার্তা`}/>}</span>
+            <span className="conversation-details"><span className="conversation-name-row"><b>{item.user.name}</b><time>{messageTime(item.lastMessage?.createdAt)}</time></span><small className="conversation-role">{messageRoleLabel(item.user.role)}</small><span className="conversation-preview">{item.lastMessage?.body || 'কথোপকথন শুরু করুন'}</span></span>
+            {item.unreadCount > 0 && <span className="unread-count">{bn(item.unreadCount)}</span>}
+          </button>) : <div className="inbox-empty"><span aria-hidden="true">✉</span><b>{items.length ? 'কোনো মিল পাওয়া যায়নি' : 'ইনবক্স এখনো ফাঁকা'}</b><p>{items.length ? 'অন্য নাম বা শব্দ দিয়ে খুঁজে দেখুন।' : user.role === 'STUDENT' ? 'শিক্ষকের প্রোফাইল থেকে যোগাযোগ শুরু করলে কথোপকথন এখানে দেখা যাবে।' : 'শিক্ষার্থীর সঙ্গে কথোপকথন শুরু হলে এখানে দেখা যাবে।'}</p>{!items.length && <a className="quiet-btn" href={user.role === 'STUDENT' ? '#/search' : '#/bookings'}>{user.role === 'STUDENT' ? 'শিক্ষক খুঁজুন' : 'বুকিং দেখুন'} <span aria-hidden="true">→</span></a>}</div>}
+        </div>
+        <div className="inbox-footnote"><span aria-hidden="true">🔒</span> আপনার কথোপকথন ব্যক্তিগত</div>
+      </aside>
+
+      <div className="message-thread">
+        {other ? <>
+          <header className="thread-header">
+            <button type="button" className="thread-back" onClick={() => setMobileThread(false)} aria-label="ইনবক্সে ফিরুন">←</button>
+            <Avatar name={other.name} size="sm"/>
+            <span className="thread-person"><b>{other.name}</b><small>{messageRoleLabel(other.role)} · শিখোক</small></span>
+            <span className={`connection-state${live ? ' is-live' : ''}`}><i/>{live ? 'সংযুক্ত' : 'বার্তা'}</span>
+          </header>
+          <div className="thread-messages" ref={listRef} aria-live="polite">
+            {threadLoading ? <Loading/> : messages.length ? <>
+              <div className="thread-date-label"><span>কথোপকথন</span></div>
+              {messages.map(message => <article className={`message-bubble${message.senderId === user.id ? ' mine' : ''}`} key={message.id}>
+                <p>{message.body}</p><time>{messageTime(message.createdAt)}</time>
+              </article>)}
+            </> : !error && <div className="thread-empty"><span aria-hidden="true">☀</span><b>কথা শুরু হোক</b><p>ক্লাস, সময় বা শেখার লক্ষ্য নিয়ে আপনার প্রথম বার্তাটি পাঠান।</p></div>}
+          </div>
+          {error && other && <p className="thread-error" role="alert">{error}</p>}
+          <form className="message-composer" onSubmit={send}>
+            <label className="composer-field"><textarea value={body} onChange={event => setBody(event.target.value)} placeholder="আপনার বার্তা লিখুন…" aria-label="আপনার বার্তা লিখুন" rows={1} maxLength={1000} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }}/><small>Enter পাঠাবে · Shift + Enter নতুন লাইন</small></label>
+            <button className="button send-button" disabled={!body.trim() || sending} aria-label="বার্তা পাঠান">{sending ? 'পাঠানো হচ্ছে…' : <>পাঠান <span aria-hidden="true">↑</span></>}</button>
+          </form>
+        </> : <div className="thread-placeholder"><span className="placeholder-mark" aria-hidden="true">✉</span><p className="eyebrow">শিখোক বার্তা</p><h2>{items.length ? 'কথোপকথন বেছে নিন' : 'শেখার কথা শুরু করুন'}</h2><p>{items.length ? 'ইনবক্স থেকে একজনকে বেছে নিয়ে বার্তা পড়ুন ও উত্তর দিন।' : 'শিক্ষক বা শিক্ষার্থীর সঙ্গে প্রয়োজনীয় আলোচনা এখানে গুছিয়ে রাখুন।'}</p>{!items.length && <a className="button" href={user.role === 'STUDENT' ? '#/search' : '#/bookings'}>{user.role === 'STUDENT' ? 'শিক্ষক খুঁজুন' : 'বুকিং দেখুন'} <span aria-hidden="true">→</span></a>}</div>}
+      </div>
+    </div>
+  </section>;
+}
 
 export function Exams({ user }: { user: User }) {
   const [exams, setExams] = useState<Exam[] | null>(null);
@@ -812,7 +962,7 @@ export function Problems({user}:{user:User|null}) {
         {teachers.length?teachers.slice(0,4).map(t=><article className="problem-live-teacher" key={t.id}>
           <div className="problem-live-person"><Avatar name={t.user.name} size="sm" teacherId={t.id}/><div><b>{t.user.name}</b><small>{t.subjects[0]} · {bn(t.experienceYears)} বছরের অভিজ্ঞতা</small></div><span className={'live-pill '+(t.isLive?'online':'offline')}>{t.isLive?'লাইভ':'অফলাইন'}</span></div>
           <p>{t.headline}</p><div className="problem-live-rating"><span>★ {t.rating.toFixed(1)} <small>({bn(t.reviewCount)} রিভিউ)</small></span><b>{money(t.sessionPrice??t.hourlyRate)}</b></div>
-          <div className="problem-live-actions"><button className="quiet-btn" onClick={()=>go('/messages')}>চ্যাট</button><button className="button" onClick={()=>setBookingTeacher(t)}>সময় বেছে নিন</button></div>
+          <div className="problem-live-actions"><button className="quiet-btn" onClick={()=>go(user?.role==='STUDENT'?`/messages?with=${encodeURIComponent(t.user.id)}`:'/messages')}>চ্যাট</button><button className="button" onClick={()=>setBookingTeacher(t)}>সময় বেছে নিন</button></div>
         </article>):<div className="problem-live-empty">এই মুহূর্তে লাইভ শিক্ষক নেই। পরে আবার দেখুন।</div>}
         <a className="problem-all-teachers" href="#/search">সব শিক্ষক দেখুন <span>→</span></a>
       </aside>
