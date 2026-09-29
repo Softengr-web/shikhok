@@ -136,6 +136,16 @@
     z-index: 30;
   }
 
+  .head-actions {
+    flex: none;
+    gap: 8px;
+    margin-left: auto;
+  }
+
+  .menu-btn {
+    margin-left: 0;
+  }
+
   .topbar nav.open {
     top: calc(100% + 10px);
     left: 16px;
