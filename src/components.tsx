@@ -1,4 +1,4 @@
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { post } from './api';
 import type { Gig, Teacher, User } from './models';
 
@@ -10,7 +10,71 @@ export function teacherPortrait(teacherId:string) { const featured:Record<string
 export function Avatar({name,size='md',teacherId}:{name:string;size?:'sm'|'md'|'lg';teacherId?:string}) { return <span className={`avatar ${size}${teacherId?' has-portrait':''}`} aria-hidden={teacherId?true:undefined}>{teacherId?<img src={teacherPortrait(teacherId)} alt="" loading="lazy"/>:name.trim().slice(0,1)}</span>; }
 
 export function Toast({message,onClose}:{message:string;onClose:()=>void}) { return <div className="toast" role="status"><span>{message}</span><button aria-label="বার্তাটি বন্ধ করুন" onClick={onClose}>×</button></div>; }
-export function Shell({user,children,onLogout}:{user:User|null;children:ReactNode;onLogout:()=>void}) { const [open,setOpen]=useState(false); const dashboard=user?'/dashboard':'/login';return <><header className="topbar"><a className="brand" href="#/" aria-label="Private Tutor হোম"><img src="/images/private-tutor-logo.png" alt="" /></a><nav className={open?'open':''}><a href="#/search">শিক্ষক খুঁজুন</a><a href="#/gigs">জনপ্রিয় গিগ</a><a href="#/problems">সমস্যা সমাধান</a>{user&&<a href="#/exams">পরীক্ষা</a>}</nav><div className="head-actions">{user?<><button className="icon-btn" aria-label="নোটিফিকেশন" onClick={()=>go('/notifications')}>🔔</button><button className="user-pill" onClick={()=>go(dashboard)}><Avatar name={user.name} size="sm"/><span>{user.name}</span></button><button className="quiet-btn logout" onClick={onLogout}>লগআউট</button></>:<><a className="quiet-btn" href="#/login">লগইন</a><a className="button small" href="#/register">নিবন্ধন</a></>}</div><button className="menu-btn" onClick={()=>setOpen(!open)} aria-label="মেনু খুলুন">☰</button></header><main>{children}</main>{user&&<MobileNav user={user} onLogout={onLogout}/>}<footer><div className="brand footer-brand"><img src="/images/private-tutor-logo.png" alt="" /><span className="footer-wordmark"><span className="footer-private">Private</span> <b>Tutor</b><i aria-hidden="true"></i></span></div><p>Created By Tanvir Alam Prince</p></footer></> }
+export function Shell({user,children,onLogout}:{user:User|null;children:ReactNode;onLogout:()=>void}) {
+  const [open,setOpen]=useState(false);
+  const menuButton=useRef<HTMLButtonElement>(null);
+  const dashboard=user?'/dashboard':'/login';
+  const currentPath=location.hash.slice(1).split('?')[0]||'/';
+  const closeMenu=()=>setOpen(false);
+
+  useEffect(()=>{
+    if(!open)return;
+    const previousOverflow=document.body.style.overflow;
+    document.body.style.overflow='hidden';
+    const onKeyDown=(event:KeyboardEvent)=>{
+      if(event.key==='Escape'){
+        closeMenu();
+        menuButton.current?.focus();
+      }
+    };
+    const onHashChange=()=>closeMenu();
+    window.addEventListener('keydown',onKeyDown);
+    window.addEventListener('hashchange',onHashChange);
+    return()=>{
+      document.body.style.overflow=previousOverflow;
+      window.removeEventListener('keydown',onKeyDown);
+      window.removeEventListener('hashchange',onHashChange);
+    };
+  },[open]);
+
+  useEffect(()=>{
+    const desktop=window.matchMedia('(min-width: 901px)');
+    const onDesktop=()=>setOpen(false);
+    desktop.addEventListener('change',onDesktop);
+    return()=>desktop.removeEventListener('change',onDesktop);
+  },[]);
+
+  const links=[
+    ['/search','শিক্ষক খুঁজুন'],
+    ['/gigs','জনপ্রিয় গিগ'],
+    ['/problems','সমস্যা সমাধান'],
+    ...(user?[['/exams','পরীক্ষা']]:[])
+  ];
+
+  return <>
+    <header className="topbar">
+      <a className="brand" href="#/" aria-label="Private Tutor হোম" onClick={closeMenu}><img src="/images/private-tutor-logo.png" alt="" /></a>
+      <nav id="primary-navigation" className={open?'open':''} aria-label="প্রধান নেভিগেশন">
+        {links.map(([href,label])=><a href={`#${href}`} key={href} aria-current={currentPath===href?'page':undefined} onClick={closeMenu}>{label}</a>)}
+      </nav>
+      <div className="head-actions">{user?<>
+        <button className="icon-btn" aria-label="নোটিফিকেশন" onClick={()=>{closeMenu();go('/notifications');}}>🔔</button>
+        <button className="user-pill" onClick={()=>{closeMenu();go(dashboard);}}><Avatar name={user.name} size="sm"/><span>{user.name}</span></button>
+        <button className="quiet-btn logout" onClick={()=>{closeMenu();onLogout();}}>লগআউট</button>
+      </>:<>
+        <a className="quiet-btn" href="#/login" onClick={closeMenu}>লগইন</a>
+        <a className="button small" href="#/register" onClick={closeMenu}>নিবন্ধন</a>
+      </>}</div>
+      <button ref={menuButton} className="menu-btn" type="button" aria-controls="primary-navigation" aria-expanded={open} aria-label={open?'মেনু বন্ধ করুন':'মেনু খুলুন'} onClick={()=>setOpen(value=>!value)}>
+        <span className={open?'menu-icon is-open':'menu-icon'} aria-hidden="true"><i></i><i></i><i></i></span>
+      </button>
+    </header>
+    {open&&<button className="menu-backdrop" type="button" aria-label="মেনু বন্ধ করুন" onClick={closeMenu}/>}
+    <main>{children}</main>
+    {user&&<MobileNav user={user} onLogout={onLogout}/>}
+    <footer><div className="brand footer-brand"><img src="/images/private-tutor-logo.png" alt="" /><span className="footer-wordmark"><span className="footer-private">Private</span> <b>Tutor</b><i aria-hidden="true"></i></span></div><p>Created By Tanvir Alam Prince</p></footer>
+  </>;
+}
 function MobileNav({user,onLogout}:{user:User;onLogout:()=>void}) { const items=user.role==='TEACHER'?[['⌂','ড্যাশবোর্ড','/dashboard'],['▣','বুকিং','/bookings'],['♙','শিক্ষার্থী','/messages'],['✎','পরীক্ষা','/teacher/exams'],['◉','প্রোফাইল','/profile']]:[['⌂','হোম','/'],['⌕','খুঁজুন','/search'],['▣','বুকিং','/bookings'],['✉','বার্তা','/messages'],['◉','প্রোফাইল','/dashboard']];return <nav className="mobile-nav">{items.map(([icon,label,href])=><a href={`#${href}`} key={label}><b>{icon}</b><small>{label}</small></a>)}<button className="mobile-logout" onClick={onLogout} aria-label="লগআউট"><b>↪</b><small>লগআউট</small></button></nav>}
 
 export function TeacherCard({teacher,user,compare,onCompare}:{teacher:Teacher;user:User|null;compare:boolean;onCompare:(t:Teacher)=>void}) { void user; const [saved,setSaved]=useState(false); const favorite=async()=>{try{const r=await post<{saved:boolean}>('/favorites',{kind:'TEACHER',itemId:teacher.id});setSaved(r.saved);}catch{go('/login');}};return <article className="teacher-card"><div className="card-top"><Avatar name={teacher.user.name} size="lg" teacherId={teacher.id}/><div className="grow"><h3>{teacher.user.name}{teacher.verified&&<em className="verified">✓ যাচাইকৃত</em>}</h3><p>{teacher.headline}</p><div className="stars">★ {teacher.rating.toFixed(1)} <small>({bn(teacher.reviewCount)} রিভিউ)</small></div></div><button className="save-btn" onClick={favorite} aria-label="সংরক্ষণ করুন">{saved?'♥':'♡'}</button></div><div className="chips">{teacher.subjects.slice(0,2).map(s=><span key={s}>{s}</span>)}<span>{teacher.experienceYears} বছরের অভিজ্ঞতা</span></div><div className="card-meta"><span>{money(teacher.hourlyRate)} / ঘণ্টা</span><span>{teacher.languages.join(', ')}</span></div><div className="card-actions"><button className="quiet-btn" onClick={()=>onCompare(teacher)}>{compare?'তুলনায় আছে':'তুলনা করুন'}</button><button className="button" onClick={()=>go(`/teacher/${teacher.id}`)}>প্রোফাইল দেখুন</button></div></article> }
