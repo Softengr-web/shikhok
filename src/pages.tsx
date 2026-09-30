@@ -710,6 +710,8 @@ export function Messages({ user }: { user: User }) {
   const [mobileThread, setMobileThread] = useState(false);
   const [live, setLive] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
+  const selectedUserRef = useRef<User | null>(other);
+  selectedUserRef.current = other;
 
   useEffect(() => {
     let active = true;
@@ -746,24 +748,77 @@ export function Messages({ user }: { user: User }) {
       if (active) setError(cause instanceof Error ? cause.message : 'বার্তা লোড করা যায়নি।');
     }).finally(() => { if (active) setThreadLoading(false); });
 
-    const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-    const socket = new WebSocket(`${protocol}://${location.host}/ws`);
-    socket.onopen = () => { if (active) setLive(true); };
-    socket.onclose = () => { if (active) setLive(false); };
-    socket.onerror = () => { if (active) setLive(false); };
-    socket.onmessage = event => {
-      try {
-        const packet = JSON.parse(event.data) as { type: string; data?: DirectMessage; message?: string };
-        if (packet.type === 'message' && packet.data && (packet.data.senderId === other.id || packet.data.receiverId === other.id)) {
-          const message = packet.data;
-          setMessages(current => current.some(item => item.id === message.id) ? current : [...current, message]);
-          setItems(current => current.map(item => item.user.id === other.id ? { ...item, lastMessage: message, unreadCount: message.receiverId === user.id ? 0 : item.unreadCount } : item));
-          if (message.receiverId === user.id) void post(`/messages/${other.id}/read`);
-        } else if (packet.type === 'error' && packet.message) setError(packet.message);
-      } catch { setError('বার্তার আপডেট পাওয়া যায়নি।'); }
-    };
-    return () => { active = false; socket.close(); };
+    return () => { active = false; };
   }, [other, user.id]);
+
+  // Keep the inbox subscribed even before either person opens a conversation.
+  // This lets a teacher with an empty inbox see the student's first message live.
+  useEffect(() => {
+    let active = true;
+    let socket: WebSocket | null = null;
+    let reconnectTimer: number | undefined;
+    let reconnectDelay = 1000;
+    const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
+
+    const connect = () => {
+      if (!active) return;
+      socket = new WebSocket(`${protocol}://${location.host}/ws`);
+      socket.onopen = () => {
+        if (!active) return;
+        reconnectDelay = 1000;
+        setLive(true);
+        void api<Conversation[]>('/messages').then(conversations => {
+          if (active) setItems(conversations);
+        }).catch(() => undefined);
+        const selected = selectedUserRef.current;
+        if (selected) {
+          void api<DirectMessage[]>(`/messages/${selected.id}`).then(conversation => {
+            if (active && selectedUserRef.current?.id === selected.id) setMessages(conversation);
+          }).catch(() => undefined);
+        }
+      };
+      socket.onclose = () => {
+        if (!active) return;
+        setLive(false);
+        reconnectTimer = window.setTimeout(connect, reconnectDelay);
+        reconnectDelay = Math.min(reconnectDelay * 2, 30000);
+      };
+      socket.onerror = () => {
+        if (active) setLive(false);
+        socket?.close();
+      };
+      socket.onmessage = event => {
+        try {
+          const packet = JSON.parse(event.data) as { type: string; data?: DirectMessage; message?: string };
+          if (packet.type === 'message' && packet.data) {
+            const message = packet.data;
+            const otherId = message.senderId === user.id ? message.receiverId : message.senderId;
+            const selected = selectedUserRef.current;
+            if (selected?.id === otherId) {
+              setMessages(current => current.some(item => item.id === message.id) ? current : [...current, message]);
+              if (message.receiverId === user.id) {
+                void post(`/messages/${otherId}/read`).then(() => {
+                  setItems(current => current.map(item => item.user.id === otherId ? { ...item, unreadCount: 0 } : item));
+                });
+              }
+            }
+            // Refresh contact details, latest message, and unread counts; this also
+            // inserts a brand-new conversation into an inbox that was previously empty.
+            void api<Conversation[]>('/messages').then(conversations => {
+              if (active) setItems(conversations);
+            }).catch(() => undefined);
+          } else if (packet.type === 'error' && packet.message) setError(packet.message);
+        } catch { setError('বার্তার আপডেট পাওয়া যায়নি।'); }
+      };
+    };
+
+    connect();
+    return () => {
+      active = false;
+      if (reconnectTimer !== undefined) window.clearTimeout(reconnectTimer);
+      socket?.close();
+    };
+  }, [user.id]);
 
   useEffect(() => { if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight; }, [messages, other]);
 
@@ -821,7 +876,7 @@ export function Messages({ user }: { user: User }) {
             <button type="button" className="thread-back" onClick={() => setMobileThread(false)} aria-label="ইনবক্সে ফিরুন">←</button>
             <Avatar name={other.name} size="sm" photoUrl={photoFromUser(other)}/>
             <span className="thread-person"><b>{other.name}</b><small>{messageRoleLabel(other.role)} · শিখোক</small></span>
-            <span className={`connection-state${live ? ' is-live' : ''}`}><i/>{live ? 'সংযুক্ত' : 'বার্তা'}</span>
+            <span className={`connection-state${live ? ' is-live' : ' is-reconnecting'}`} role="status"><i/>{live ? 'লাইভ' : 'সংযোগ হচ্ছে'}</span>
           </header>
           <div className="thread-messages" ref={listRef} aria-live="polite">
             {threadLoading ? <Loading/> : messages.length ? <>
