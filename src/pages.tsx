@@ -425,7 +425,15 @@ export function AuthPage({ kind, onLogin }: { kind: 'login' | 'register'; onLogi
               <h3 id="demo-account-title">দ্রুত প্রবেশের জন্য ভূমিকা বেছে নিন</h3>
               <p>একটি বাছলে লগইন তথ্য বসবে—তারপর লগইন করুন।</p>
             </div>
-            <span className="demo-count">৪টি প্রোফাইল</span>
+            <span className="demo-count">
+              <span className="demo-avatar-stack" aria-hidden="true">
+                <img src="/images/teachers/teacher-01.svg" alt="" />
+                <img src="/images/teachers/teacher-02.svg" alt="" />
+                <img src="/images/teachers/teacher-03.svg" alt="" />
+                <img src="/images/teachers/teacher-04.svg" alt="" />
+              </span>
+              <span>৪টি প্রোফাইল</span>
+            </span>
           </div>
           <div className="demo-accounts">
             <button type="button" onClick={() => chooseDemo('student@demo.local')}>

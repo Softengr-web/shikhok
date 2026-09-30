@@ -98,8 +98,11 @@
 .demo-account-panel { padding: 19px; border: 1px solid #dcece7; border-radius: 18px; background: rgba(255,255,255,.94); box-shadow: 0 12px 32px rgba(12,54,51,.06); }
 .demo-account-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
 .demo-account-heading h3 { margin: 0 0 4px; color: var(--ink); font-size: 1.05rem; }
-.demo-account-heading p { margin: 0; color: var(--muted); font-size: .85rem; }
-.demo-count { flex: none; padding: 4px 8px; border-radius: 999px; background: #edf6f3; color: var(--deep); font-size: .75rem; font-weight: 700; }
+.auth-aside .demo-account-heading p:not(.eyebrow) { margin: 0; color: #405e59; font-size: .9rem; font-weight: 500; line-height: 1.55; }
+.demo-count { display: inline-flex; flex: none; align-items: center; gap: 7px; padding: 4px 9px 4px 5px; border-radius: 999px; background: #edf6f3; color: var(--deep); font-size: .75rem; font-weight: 700; }
+.demo-avatar-stack { display: flex; flex: none; align-items: center; padding-left: 2px; }
+.demo-avatar-stack img { display: block; width: 21px; height: 21px; border: 2px solid #edf6f3; border-radius: 50%; background: #fff; object-fit: cover; }
+.demo-avatar-stack img + img { margin-left: -7px; }
 .demo-accounts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin: 0; }
 .demo-accounts button { display: flex; min-width: 0; align-items: center; gap: 10px; padding: 11px; border: 1px solid #dce9e5; border-radius: 12px; background: #fff; color: var(--ink); text-align: left; }
 .demo-accounts button:hover, .demo-accounts button:focus-visible { border-color: #6bb4a6; background: #f5fbf8; box-shadow: 0 5px 15px rgba(12,54,51,.08); transform: translateY(-1px); outline: none; }
@@ -136,7 +139,7 @@
   .auth-aside .auth-description { font-size: .97rem; }
   .demo-account-panel { padding: 15px; }
   .demo-account-heading { display: block; }
-  .demo-count { display: inline-block; margin-top: 9px; }
+  .demo-count { display: inline-flex; margin-top: 9px; }
   .demo-accounts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .demo-accounts button { gap: 8px; padding: 9px; }
   .demo-role-icon { width: 32px; height: 32px; }
