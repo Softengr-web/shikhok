@@ -21,6 +21,8 @@
 .video-tile { position: relative; display: grid; min-width: 0; place-items: center; overflow: hidden; border: 1px solid rgba(201,233,221,.12); border-radius: 17px; background: radial-gradient(ellipse at 50% 38%,#284542 0,#1a3433 49%,#132b2b 100%); }
 .video-tile.alt { background: radial-gradient(ellipse at 50% 40%,#2d5650 0,#1b3c39 55%,#122d2d 100%); }
 .video-tile video { width: 100%; height: 100%; object-fit: cover; }
+.remote-audio-prompt { position: absolute; z-index: 2; top: 13px; right: 13px; min-height: 38px; padding: 8px 12px; border: 1px solid rgba(255,255,255,.22); border-radius: 9px; background: rgba(9,26,26,.82); color: #f4fbf8; font-size: .78rem; font-weight: 650; cursor: pointer; }
+.remote-audio-prompt:hover { background: rgba(23,92,72,.94); }
 .participant-stage>video,.self-stage>video { position: absolute; inset: 0; }
 .participant-placeholder,.self-video-placeholder { display: grid; justify-items: center; gap: 7px; color: #dcebe5; text-align: center; }
 .participant-placeholder,.self-video-placeholder { position: absolute; inset: 0; z-index: 1; align-content: center; }
