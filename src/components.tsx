@@ -61,7 +61,7 @@ export function Shell({user,children,onLogout}:{user:User|null;children:ReactNod
 
   return <>
     <header className="topbar">
-      <a className="brand" href="#/" aria-label="Private Tutor হোম" onClick={closeMenu}><img src="/images/private-tutor-logo.png" alt="" /></a>
+      <a className="brand" href="#/" aria-label="Private Tutor হোম" onClick={closeMenu}><picture><source srcSet="/images/private-tutor-logo.webp" type="image/webp"/><img src="/images/private-tutor-logo.png" alt="" width={44} height={44} fetchPriority="high" decoding="async"/></picture></a>
       <nav id="primary-navigation" className={open?'open':''} aria-label="প্রধান নেভিগেশন">
         {links.map(([href,label])=><a href={`#${href}`} key={href} aria-current={currentPath===href?'page':undefined} onClick={closeMenu}>{label}</a>)}
       </nav>
@@ -80,7 +80,7 @@ export function Shell({user,children,onLogout}:{user:User|null;children:ReactNod
     {open&&<button className="menu-backdrop" type="button" aria-label="মেনু বন্ধ করুন" onClick={closeMenu}/>}
     <main>{children}</main>
     {user&&<MobileNav user={user} onLogout={onLogout}/>}
-    <footer><div className="brand footer-brand"><img src="/images/private-tutor-logo.png" alt="" /><span className="footer-wordmark"><span className="footer-private">Private</span> <b>Tutor</b><i aria-hidden="true"></i></span></div><p>Founded by Tanvir Alam Prince</p></footer>
+    <footer><div className="brand footer-brand"><picture><source srcSet="/images/private-tutor-logo.webp" type="image/webp"/><img src="/images/private-tutor-logo.png" alt="" width={44} height={44} loading="lazy" decoding="async"/></picture><span className="footer-wordmark"><span className="footer-private">Private</span> <b>Tutor</b><i aria-hidden="true"></i></span></div><p>Founded by Tanvir Alam Prince</p></footer>
   </>;
 }
 type MobileNavIconName = 'home' | 'search' | 'booking' | 'message' | 'exam' | 'profile' | 'logout' | 'users' | 'report';
