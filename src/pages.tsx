@@ -5,6 +5,8 @@ import { StudentProfileEditor } from './profile-editors';
 import { TeacherDashboardLive } from './teacher-dashboard';
 import type { Booking, Exam, ExamAttemptResult, Gig, Notification, ProblemPost, Subject, Teacher, User } from './models';
 import { ExamAnswerReview } from './exam-review';
+import { ClassroomRoom } from './classroom-room';
+export const Classroom = ClassroomRoom;
 
 export function Home({ user }: { user: User | null }) {
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -1105,7 +1107,7 @@ function OfferList({problem,onDone}:{problem:any;onDone:()=>void}){const accept=
 
 export function NotificationsPage(){const [items,setItems]=useState<Notification[]|null>(null);const mark=async(n:Notification)=>{await post(`/notifications/${n.id}/read`);setItems(items?.map(x=>x.id===n.id?{...x,readAt:new Date().toISOString()}:x)||null);go(n.href);};useEffect(()=>{void api<Notification[]>('/notifications').then(setItems);},[]);return <section className="page section"><p className="eyebrow">আপডেট</p><h1>নোটিফিকেশন</h1>{items?<div className="notification-page">{items.length?items.map(n=><button className={n.readAt?'read':''} onClick={()=>void mark(n)} key={n.id}><span>{n.type==='BOOKING'?'▣':'●'}</span><div><b>{n.title}</b><p>{n.body}</p><small>{shortDate(n.createdAt)}</small></div></button>):<Empty>নতুন কোনো নোটিফিকেশন নেই।</Empty>}</div>:<Loading/>}</section>}
 
-export function Classroom({user}:{user:User}) {
+function LegacyClassroom({user}:{user:User}) {
   const bookingId=location.hash.split('/')[2];
   const [booking,setBooking]=useState<Booking|null>(null);
   const [loadError,setLoadError]=useState('');

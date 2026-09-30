@@ -6,7 +6,7 @@ import { randomUUID } from 'node:crypto';
 import { store } from './store.js';
 import { DomainError, authenticate, changeBookingStatus, cleanText, conversation, createBooking, createExam, createGig, createProblemSession, createReview, deleteExam, duplicateExam, findTeachers, getExamForStudent, listConversations, listTeacherExams, markConversationRead, matchTeachers, payBooking, privateUser, publicTeacher, publicUser, publishExam, register, requireRole, requireUser, sendMessage, setExamStatus, submitExam, teacherExamResults, updateExam, updateTeacher, updateUserProfile, wallet } from './services.js';
 import { id } from './seed.js';
-import type { BookingStatus, Role, User } from './types.js';
+import type { BookingStatus, ClassroomBoard, Role, User } from './types.js';
 import { getGigDraft, publishGigDraft, saveGigDraft } from './gig-builder.js';
 import { acceptCustomOffer, createCustomOffer, duplicateGig, editGig, moderateGig, recordGigView } from './gig-capabilities.js';
 import { WebSocket, WebSocketServer } from 'ws';
@@ -122,12 +122,66 @@ const httpServer=createServer(app);
 const sockets=new Map<string,Set<WebSocket>>();
 const sendToUser=(userId:string,payload:unknown)=>{for(const socket of sockets.get(userId)||[])if(socket.readyState===WebSocket.OPEN)socket.send(JSON.stringify(payload));};
 const wsUser=(request:import('node:http').IncomingMessage)=>{const token=request.headers.cookie?.split(';').map(v=>v.trim()).find(v=>v.startsWith('shikhok_session='))?.slice('shikhok_session='.length);const userId=token&&sessions.get(token);return userId?store.read().users.find(u=>u.id===userId):undefined;};
-const wsServer=new WebSocketServer({server:httpServer,path:'/ws'});
+type ClassroomSocket = { socket: WebSocket; userId: string; user: { id: string; name: string; role: Role }; camera: boolean; mic: boolean; screen: boolean };
+const classroomRooms=new Map<string,Set<ClassroomSocket>>();
+const socketRooms=new Map<WebSocket,{bookingId:string;participant:ClassroomSocket}>();
+const sendSocket=(socket:WebSocket,payload:unknown)=>{if(socket.readyState===WebSocket.OPEN)socket.send(JSON.stringify(payload));};
+const sendClassroom=(bookingId:string,payload:unknown,except?:WebSocket)=>{for(const participant of classroomRooms.get(bookingId)||[])if(participant.socket!==except)sendSocket(participant.socket,payload);};
+const leaveClassroom=(socket:WebSocket)=>{const current=socketRooms.get(socket);if(!current)return;const room=classroomRooms.get(current.bookingId);room?.delete(current.participant);socketRooms.delete(socket);sendClassroom(current.bookingId,{type:'classroom:peer-left',userId:current.participant.userId},socket);if(!room?.size)classroomRooms.delete(current.bookingId);};
+const wsServer=new WebSocketServer({server:httpServer,path:'/ws',maxPayload:8*1024*1024});
 wsServer.on('connection',(socket,request)=>{
   const user=wsUser(request); if(!user){socket.close(1008,'Authentication required');return;}
   const userSockets=sockets.get(user.id)||new Set<WebSocket>(); userSockets.add(socket); sockets.set(user.id,userSockets);
-  socket.on('message',raw=>{try{const input=JSON.parse(raw.toString()) as {type?:string;to?:string;body?:unknown};if(input.type!=='message'||!input.to)throw new DomainError('বার্তার গন্তব্য সঠিক নয়।');const message=store.transaction(s=>sendMessage(s,user,input.to!,input.body));const payload={type:'message',data:message};sendToUser(user.id,payload);sendToUser(message.receiverId,payload);}catch(error){socket.send(JSON.stringify({type:'error',message:error instanceof Error?error.message:'বার্তা পাঠানো যায়নি।'}));}});
-  socket.on('close',()=>{userSockets.delete(socket);if(!userSockets.size)sockets.delete(user.id);});
+  socket.on('message',raw=>{try{
+    const input=JSON.parse(raw.toString()) as {type?:string;to?:string;body?:unknown;bookingId?:string;data?:unknown;board?:ClassroomBoard;camera?:boolean;mic?:boolean;screen?:boolean};
+    if(input.type==='classroom:join'){
+      const bookingId=String(input.bookingId||'');
+      const booking=store.read().bookings.find(item=>item.id===bookingId);
+      if(!booking||![booking.studentId,booking.teacherId].includes(user.id)||!['CONFIRMED','IN_PROGRESS'].includes(booking.status))throw new DomainError('এই বুকিংয়ের অংশগ্রহণকারী হিসেবে ক্লাসে যোগ দেওয়া যাচ্ছে না।',403);
+      leaveClassroom(socket);
+      const state=store.read();
+      const participant:ClassroomSocket={socket,userId:user.id,user:publicUser(user),camera:false,mic:false,screen:false};
+      const room=classroomRooms.get(bookingId)||new Set<ClassroomSocket>();
+      const peers=[...room].filter(peer=>peer.userId!==user.id);
+      room.add(participant);classroomRooms.set(bookingId,room);socketRooms.set(socket,{bookingId,participant});
+      const roomData=state.classroomData?.[bookingId];
+      sendSocket(socket,{type:'classroom:joined',bookingId,user:participant.user,peers:peers.map(peer=>({user:peer.user,camera:peer.camera,mic:peer.mic,screen:peer.screen})),board:roomData?.board,chat:roomData?.chat||[]});
+      sendClassroom(bookingId,{type:'classroom:peer-joined',user:participant.user,camera:false,mic:false,screen:false},socket);
+      return;
+    }
+    if(input.type==='classroom:leave'){leaveClassroom(socket);return;}
+    if(input.type==='classroom:offer'||input.type==='classroom:answer'||input.type==='classroom:ice'){
+      const room=socketRooms.get(socket);if(!room)throw new DomainError('আগে ক্লাসরুমে যুক্ত হন।',403);
+      const target=String(input.to||'');if(![...classroomRooms.get(room.bookingId)||[]].some(peer=>peer.userId===target))throw new DomainError('ক্লাসে এই অংশগ্রহণকারীকে পাওয়া যায়নি।',404);
+      const signal={type:input.type,fromId:user.id,data:input.data};
+      for(const peer of classroomRooms.get(room.bookingId)||[])if(peer.userId===target)sendSocket(peer.socket,signal);
+      return;
+    }
+    if(input.type==='classroom:media'||input.type==='classroom:board'||input.type==='classroom:chat'){
+      const room=socketRooms.get(socket);if(!room)throw new DomainError('আগে ক্লাসরুমে যুক্ত হন।',403);
+      const members=classroomRooms.get(room.bookingId)||new Set<ClassroomSocket>();
+      if(input.type==='classroom:media'){
+        const member=[...members].find(peer=>peer.socket===socket);if(!member)throw new DomainError('ক্লাস সংযোগ পাওয়া যায়নি।');
+        member.camera=input.camera===true;member.mic=input.mic===true;member.screen=input.screen===true;
+        sendClassroom(room.bookingId,{type:'classroom:media',userId:user.id,camera:member.camera,mic:member.mic,screen:member.screen},socket);return;
+      }
+      if(input.type==='classroom:board'){
+        const board=input.board;
+        if(!board||!Array.isArray(board.pages)||board.pages.length<1||board.pages.length>8||!Number.isInteger(board.page)||board.page<0||board.page>=board.pages.length)throw new DomainError('হোয়াইটবোর্ডের তথ্য সঠিক নয়।');
+        const pages=board.pages.map((page:string)=>{if(page===''||page==='white')return page;if(typeof page!=='string'||page.length>900_000||!/^data:image\/png;base64,[A-Za-z0-9+/]+=*$/.test(page))throw new DomainError('হোয়াইটবোর্ডের পাতার আকার সীমার বাইরে।');return page;});
+        if(pages.reduce((sum,page)=>sum+page.length,0)>6*1024*1024)throw new DomainError('হোয়াইটবোর্ডের মোট আকার সীমার বাইরে।');
+        const saved={pages,page:board.page};
+        store.transaction(state=>{state.classroomData??={};const roomData=state.classroomData[room.bookingId]??(state.classroomData[room.bookingId]={chat:[],updatedAt:new Date().toISOString()});roomData.board=saved;roomData.updatedAt=new Date().toISOString();});
+        sendClassroom(room.bookingId,{type:'classroom:board',board:saved,fromId:user.id},socket);return;
+      }
+      const text=cleanText(input.body,'ক্লাস বার্তা',1000);
+      const chatMessage={id:id('class-chat'),senderId:user.id,name:user.name,text,createdAt:new Date().toISOString()};
+      store.transaction(state=>{state.classroomData??={};const roomData=state.classroomData[room.bookingId]??(state.classroomData[room.bookingId]={chat:[],updatedAt:new Date().toISOString()});roomData.chat.push(chatMessage);roomData.chat=roomData.chat.slice(-200);roomData.updatedAt=chatMessage.createdAt;});
+      sendClassroom(room.bookingId,{type:'classroom:chat',message:chatMessage},socket);sendSocket(socket,{type:'classroom:chat',message:chatMessage});return;
+    }
+    if(input.type!=='message'||!input.to)throw new DomainError('বার্তার গंतব্য সঠিক নয়।');const message=store.transaction(s=>sendMessage(s,user,input.to!,input.body));const payload={type:'message',data:message};sendToUser(user.id,payload);sendToUser(message.receiverId,payload);
+  }catch(error){sendSocket(socket,{type:'error',message:error instanceof Error?error.message:'বার্তা পাঠানো যায়নি।'});}});
+  socket.on('close',()=>{leaveClassroom(socket);userSockets.delete(socket);if(!userSockets.size)sockets.delete(user.id);});
 });
 httpServer.listen(port,()=>console.log(`শিখক লোকাল ডেমো সার্ভার: http://localhost:${port}`));
 

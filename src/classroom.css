@@ -21,16 +21,23 @@
 .video-tile { position: relative; display: grid; min-width: 0; place-items: center; overflow: hidden; border: 1px solid rgba(201,233,221,.12); border-radius: 17px; background: radial-gradient(ellipse at 50% 38%,#284542 0,#1a3433 49%,#132b2b 100%); }
 .video-tile.alt { background: radial-gradient(ellipse at 50% 40%,#2d5650 0,#1b3c39 55%,#122d2d 100%); }
 .video-tile video { width: 100%; height: 100%; object-fit: cover; }
+.participant-stage>video,.self-stage>video { position: absolute; inset: 0; }
 .participant-placeholder,.self-video-placeholder { display: grid; justify-items: center; gap: 7px; color: #dcebe5; text-align: center; }
+.participant-placeholder,.self-video-placeholder { position: absolute; inset: 0; z-index: 1; align-content: center; }
 .participant-placeholder .avatar { width: 82px; height: 82px; border: 3px solid rgba(236,246,241,.18); box-shadow: 0 8px 30px rgba(0,0,0,.2); }
 .participant-placeholder>b { color: #f4fbf8; font-size: 1.1rem; }
 .participant-placeholder>span,.self-video-placeholder>span { color: #a7bcb5; font-size: .78rem; }
 .video-name-label { position: absolute; bottom: 13px; left: 13px; display: inline-flex; align-items: center; gap: 7px; max-width: calc(100% - 26px); padding: 6px 10px; overflow: hidden; border: 1px solid rgba(255,255,255,.11); border-radius: 8px; background: rgba(9,26,26,.74); color: #edf7f2; font-size: .75rem; text-overflow: ellipsis; white-space: nowrap; backdrop-filter: blur(10px); }
+.video-name-label { z-index: 2; }
 .self-stage { position: absolute; right: 17px; bottom: 17px; width: 190px; height: 132px; border: 2px solid rgba(213,238,226,.63); border-radius: 13px; background: linear-gradient(145deg,#365b53,#243f3d); box-shadow: 0 10px 30px rgba(0,0,0,.27); }
 .self-stage .avatar { width: 48px; height: 48px; border: 2px solid rgba(255,255,255,.2); }
 .self-video-placeholder { gap: 5px; }
 .self-stage .video-name-label { bottom: 6px; left: 7px; padding: 4px 7px; font-size: .65rem; }
 .class-controls { display: flex; flex-wrap: wrap; justify-content: center; gap: 9px; margin: 0 auto; padding: 12px; border: 1px solid rgba(203,229,218,.1); border-radius: 14px; background: #132a2a; }
+.class-call-status { display: flex; align-items: center; justify-content: center; gap: 7px; min-height: 28px; color: #a4bcb3; font-size: .75rem; }
+.class-call-status>span { width: 7px; height: 7px; border-radius: 50%; background: #d3a94e; }
+.class-call-status>span.is-ready { background: #4ed59a; box-shadow: 0 0 0 4px rgba(78,213,154,.1); }
+.class-call-status small { color: #8fd8b5; }
 .classroom .class-control { display: inline-flex; min-width: 104px; min-height: 58px; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 6px 12px; border: 1px solid rgba(201,228,217,.11); border-radius: 10px; background: #1b3736; color: #e2efea; font-size: .74rem; font-weight: 600; }
 .classroom .class-control>span:first-child { color: #a9c8bb; font-size: 1.15rem; line-height: 1; }
 .classroom .class-control:hover:not(:disabled) { border-color: rgba(104,185,151,.5); background: #234542; }
@@ -60,6 +67,10 @@
 .board-tools select { min-height: 40px; padding: 6px 32px 6px 10px; border: 1px solid #d9e6e0; border-radius: 9px; background: #fbfdfa; color: #3f5e53; }
 .board-tools input[type=color] { width: 38px; height: 38px; border: 1px solid #d9e6e0; border-radius: 9px; background: #fff; }
 .board-tools input[type=range] { width: 95px; accent-color: var(--teal); }
+.board-size-label { display: inline-flex; align-items: center; gap: 5px; color: #70887c; font-size: .72rem; }
+.board-sync-state { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; color: #658375; font-size: .71rem; white-space: nowrap; }
+.board-sync-state i { width: 7px; height: 7px; border-radius: 50%; background: #43ae7b; box-shadow: 0 0 0 3px #e9f6ef; }
+.tabs button>i.board-live-dot { min-width: 8px; width: 8px; height: 8px; background: #45b681; box-shadow: 0 0 0 3px #e9f6ef; }
 .board-tools button { min-height: 38px; padding: 7px 11px; border: 1px solid #dce9e2; border-radius: 8px; background: #f6faf7; color: #4b6a5f; font-size: .79rem; }
 .board-tools button:hover { border-color: #b5d5c6; background: #eaf5ee; color: #175b4c; }
 .whiteboard canvas { display: block; border-color: #e1eae5; border-radius: 11px; box-shadow: inset 0 0 0 1px rgba(18,88,68,.015); }
@@ -92,6 +103,11 @@
 .participant-card b { overflow: hidden; color: #e3f0e9; font-size: .78rem; text-overflow: ellipsis; white-space: nowrap; }
 .participant-card small { color: #91aaa0; font-size: .68rem; }
 .participant-card>i { width: 7px; height: 7px; flex: none; border-radius: 50%; background: #51cc92; box-shadow: 0 0 0 4px rgba(81,204,146,.08); }
+.participant-card>i.is-away { background: #bdc8c2; box-shadow: none; }
+.participants-ready { display: inline-flex; align-items: center; gap: 6px; }
+.participants-ready i { width: 7px; height: 7px; border-radius: 50%; background: #4ed59a; }
+.participants-ready.is-waiting { color: #e5c781; background: rgba(183,143,58,.12); }
+.participants-ready.is-waiting i { background: #d3a94e; }
 .participant-attendance { display: grid; gap: 5px; padding: 13px 0; border-top: 1px solid rgba(201,229,216,.11); border-bottom: 1px solid rgba(201,229,216,.11); }
 .participant-attendance>span { color: #99b1a8; font-size: .72rem; }
 .participant-attendance>b { display: flex; align-items: center; gap: 6px; color: #c7ead8; font-size: .78rem; }
@@ -145,6 +161,7 @@
   .classroom .class-control { min-width: 0; min-height: 48px; gap: 3px; padding: 5px 3px; border-radius: 8px; font-size: .65rem; }
   .classroom .class-control>span:first-child { font-size: 1rem; }
   .classroom .class-control.is-stop { min-width: 0; }
+  .class-call-status { font-size: .67rem; }
   .class-feedback { margin-top: 8px; font-size: .73rem; }
   .workspace { margin-top: 12px; border-radius: 13px; }
   .tabs { min-height: 50px; gap: 0; padding: 0 7px; overflow-x: auto; scrollbar-width: none; }
@@ -155,6 +172,7 @@
   .board-tools select { min-height: 36px; max-width: 125px; font-size: .73rem; }
   .board-tools input[type=color] { width: 34px; height: 34px; }
   .board-tools input[type=range] { width: 74px; }
+  .board-sync-state { flex-basis: 100%; justify-content: flex-end; margin: 0; }
   .board-tools button { min-height: 34px; padding: 5px 8px; font-size: .69rem; }
   .workspace-panel { min-height: 300px; }
   .class-chat { min-height: 340px; }

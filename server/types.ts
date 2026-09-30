@@ -57,6 +57,9 @@ export interface ProblemOffer { id: string; problemId: string; teacherId: string
 export interface ParentChild { id: string; parentId: string; childId: string; createdAt: string; }
 export interface Report { id: string; reporterId: string; subjectType: string; subjectId: string; reason: string; status: 'OPEN' | 'RESOLVED'; createdAt: string; }
 export interface AuditLog { id: string; actorId: string; action: string; entity: string; entityId: string; at: string; }
+export interface ClassroomBoard { pages: string[]; page: number; }
+export interface ClassroomChatMessage { id: string; senderId: string; name: string; text: string; createdAt: string; }
+export interface ClassroomRoomData { board?: ClassroomBoard; chat: ClassroomChatMessage[]; updatedAt: string; }
 export interface GigCustomOffer { id:string; gigId:string; teacherId:string; studentId?:string; title:string; description:string; price:number; status:'DRAFT'|'SENT'|'ACCEPTED'|'DECLINED'; expiresAt?:string; createdAt:string; }
 export interface GigVersion { id:string; gigId:string; version:number; snapshot:Record<string, unknown>; createdAt:string; }
 export interface GigAnalytics { gigId:string; views:number; favorites:number; bookings:number; revenue:number; conversion:number; averageRating:number; }
@@ -65,5 +68,5 @@ export interface AppState {
   users: User[]; subjects: Subject[]; teachers: Teacher[]; gigs: Gig[]; gigDrafts?: GigDraft[]; gigOffers?: GigCustomOffer[]; gigVersions?: GigVersion[]; gigAnalytics?: GigAnalytics[]; gigModeration?: GigModeration[]; bookings: Booking[]; payments: Payment[];
   ledger: LedgerEntry[]; messages: Message[]; notifications: Notification[]; reviews: Review[]; questions: Question[];
   exams: Exam[]; attempts: ExamAttempt[]; favorites: Favorite[]; problems: Problem[]; offers: ProblemOffer[];
-  parentChildren: ParentChild[]; reports: Report[]; audit: AuditLog[];
+  parentChildren: ParentChild[]; reports: Report[]; audit: AuditLog[]; classroomData?: Record<string, ClassroomRoomData>;
 }
