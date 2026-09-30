@@ -21,6 +21,7 @@
 .video-tile { position: relative; display: grid; min-width: 0; place-items: center; overflow: hidden; border: 1px solid rgba(201,233,221,.12); border-radius: 17px; background: radial-gradient(ellipse at 50% 38%,#284542 0,#1a3433 49%,#132b2b 100%); }
 .video-tile.alt { background: radial-gradient(ellipse at 50% 40%,#2d5650 0,#1b3c39 55%,#122d2d 100%); }
 .video-tile video { width: 100%; height: 100%; object-fit: cover; }
+.participant-stage.is-screen-share video,.self-stage video.screen-share-video { object-fit: contain; background: #071b1a; }
 .remote-audio-prompt { position: absolute; z-index: 2; top: 13px; right: 13px; min-height: 38px; padding: 8px 12px; border: 1px solid rgba(255,255,255,.22); border-radius: 9px; background: rgba(9,26,26,.82); color: #f4fbf8; font-size: .78rem; font-weight: 650; cursor: pointer; }
 .remote-audio-prompt:hover { background: rgba(23,92,72,.94); }
 .participant-stage>video,.self-stage>video { position: absolute; inset: 0; }
@@ -34,6 +35,7 @@
 .video-name-label { position: absolute; bottom: 13px; left: 13px; display: inline-flex; align-items: center; gap: 7px; max-width: calc(100% - 26px); padding: 6px 10px; overflow: hidden; border: 1px solid rgba(255,255,255,.11); border-radius: 8px; background: rgba(9,26,26,.74); color: #edf7f2; font-size: .75rem; text-overflow: ellipsis; white-space: nowrap; backdrop-filter: blur(10px); }
 .video-tile .video-name-label { position: absolute; bottom: 13px; left: 13px; z-index: 2; padding: 6px 10px; }
 .self-stage { position: absolute; right: 17px; bottom: 17px; width: 190px; height: 132px; border: 2px solid rgba(213,238,226,.63); border-radius: 13px; background: linear-gradient(145deg,#365b53,#243f3d); box-shadow: 0 10px 30px rgba(0,0,0,.27); }
+.videos.has-remote-share .self-stage { width: 154px; height: 106px; }
 .self-stage .avatar { width: 48px; height: 48px; border: 2px solid rgba(255,255,255,.2); }
 .self-video-placeholder { gap: 5px; }
 .self-stage .video-name-label { bottom: 6px; left: 7px; padding: 4px 7px; font-size: .65rem; }
@@ -158,6 +160,7 @@
   .participant-placeholder>span { font-size: .69rem; }
   .video-name-label { bottom: 9px; left: 9px; padding: 5px 8px; font-size: .66rem; }
   .self-stage { right: 10px; bottom: 10px; width: 126px; height: 91px; border-width: 1px; border-radius: 10px; }
+  .videos.has-remote-share .self-stage { width: 104px; height: 74px; }
   .self-stage .avatar { width: 36px; height: 36px; }
   .self-stage .video-name-label { bottom: 5px; left: 5px; font-size: .57rem; }
   .self-video-placeholder>span { font-size: .62rem; }

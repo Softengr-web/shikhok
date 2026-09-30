@@ -36,6 +36,8 @@ export function ClassroomRoom({ user }: { user: User }) {
   const [remoteCamera, setRemoteCamera] = useState(false);
   const [remoteMic, setRemoteMic] = useState(false);
   const [remoteScreen, setRemoteScreen] = useState(false);
+  const [remoteVideoReady, setRemoteVideoReady] = useState(false);
+  const [screenShareBusy, setScreenShareBusy] = useState(false);
   const [needsAudioTap, setNeedsAudioTap] = useState(false);
   const [otherUser, setOtherUser] = useState<RoomUser | null>(null);
   const [board, setBoard] = useState<BoardState>(emptyBoard);
@@ -107,9 +109,25 @@ export function ClassroomRoom({ user }: { user: User }) {
   const syncTrack = async (kind: 'audio' | 'video', track: MediaStreamTrack | null) => {
     const connection = peer.current;
     if (!connection || connection.connectionState === 'closed') return;
-    let transceiver = connection.getTransceivers().find(item => (item.sender.track?.kind || item.receiver.track.kind) === kind);
+    let transceiver = connection.getTransceivers().find(item => item.receiver.track.kind === kind);
     if (!transceiver) transceiver = connection.addTransceiver(kind, { direction: 'sendrecv' });
-    await transceiver.sender.replaceTrack(track);
+    const screenTrack = kind === 'video' ? displayStream.current?.getVideoTracks().find(item => item.readyState === 'live') : undefined;
+    const nextTrack = screenTrack || track;
+    await transceiver.sender.replaceTrack(nextTrack?.readyState === 'live' ? nextTrack : null);
+  };
+
+  const activeLocalTrack = (kind: 'audio' | 'video') => {
+    const tracks = kind === 'video'
+      ? [...(displayStream.current?.getVideoTracks() || []), ...(stream.current?.getVideoTracks() || [])]
+      : stream.current?.getAudioTracks() || [];
+    return tracks.find(track => track.readyState === 'live') || null;
+  };
+
+  const syncLocalTracks = async (connection: RTCPeerConnection) => {
+    await Promise.all((['audio', 'video'] as const).map(async kind => {
+      const transceiver = connection.getTransceivers().find(item => item.receiver.track.kind === kind);
+      if (transceiver) await transceiver.sender.replaceTrack(activeLocalTrack(kind));
+    }));
   };
 
   const makePeer = () => {
@@ -118,16 +136,14 @@ export function ClassroomRoom({ user }: { user: User }) {
     peer.current = null;
     pendingIce.current = [];
     remoteStream.current = new MediaStream();
+    setRemoteVideoReady(false);
     if (remoteVideo.current) remoteVideo.current.srcObject = null;
     const connection = new RTCPeerConnection({ iceServers });
     connection.addTransceiver('audio', { direction: 'sendrecv' });
     connection.addTransceiver('video', { direction: 'sendrecv' });
-    for (const track of stream.current?.getTracks() || []) {
-      const transceiver = connection.getTransceivers().find(item => (item.sender.track?.kind || item.receiver.track.kind) === track.kind);
-      if (transceiver) void transceiver.sender.replaceTrack(track.enabled ? track : null);
-    }
-    connection.onicecandidate = event => { if (event.candidate) sendRoom({ type: 'classroom:ice', to: otherUserRef.current?.id, data: event.candidate.toJSON() }); };
+    connection.onicecandidate = event => { if (peer.current === connection && event.candidate) sendRoom({ type: 'classroom:ice', to: otherUserRef.current?.id, data: event.candidate.toJSON() }); };
     connection.ontrack = event => {
+      if (peer.current !== connection) return;
       // replaceTrack() on an addTransceiver() sender can produce streamless tracks.
       // Keep one receiver stream so a later audio/video track cannot replace the first.
       const incoming = remoteStream.current || (remoteStream.current = new MediaStream());
@@ -141,15 +157,16 @@ export function ClassroomRoom({ user }: { user: User }) {
       }
       if (event.track.kind === 'video') setRemoteCamera(!event.track.muted);
       if (event.track.kind === 'audio') setRemoteMic(!event.track.muted);
-      event.track.onmute = () => { if (event.track.kind === 'video') setRemoteCamera(false); if (event.track.kind === 'audio') setRemoteMic(false); };
+      event.track.onmute = () => { if (event.track.kind === 'video') { setRemoteCamera(false); setRemoteVideoReady(false); } if (event.track.kind === 'audio') setRemoteMic(false); };
       event.track.onunmute = () => { if (event.track.kind === 'video') setRemoteCamera(true); if (event.track.kind === 'audio') setRemoteMic(true); };
       event.track.onended = () => {
         incoming.removeTrack(event.track);
-        if (event.track.kind === 'video') setRemoteCamera(false);
+        if (event.track.kind === 'video') { setRemoteCamera(false); setRemoteVideoReady(false); }
         if (event.track.kind === 'audio') setRemoteMic(false);
       };
     };
     connection.onconnectionstatechange = () => {
+      if (peer.current !== connection) return;
       const state = connection.connectionState;
       setCallState(state === 'connected' ? 'connected' : state === 'failed' || state === 'disconnected' ? 'disconnected' : 'connecting');
       if (state === 'connected') { iceRestartAttempts.current = 0; setFeedback(''); }
@@ -173,6 +190,7 @@ export function ClassroomRoom({ user }: { user: User }) {
     try {
       if (iceRestart && peer.current?.connectionState === 'failed') makePeer();
       const connection = makePeer();
+      await syncLocalTracks(connection);
       const offer = await connection.createOffer(iceRestart ? { iceRestart: true } : undefined);
       await connection.setLocalDescription(offer);
       sendRoom({ type: 'classroom:offer', to: otherId, data: connection.localDescription });
@@ -226,16 +244,17 @@ export function ClassroomRoom({ user }: { user: User }) {
           setOtherUser(null); setPeerOnline(false); setRemoteCamera(false); setRemoteMic(false); setRemoteScreen(false); setCallState('waiting');
           peer.current?.close(); peer.current = null; pendingIce.current = [];
           remoteStream.current = new MediaStream(); setNeedsAudioTap(false);
+          setRemoteVideoReady(false);
           if (remoteVideo.current) remoteVideo.current.srcObject = null;
         } else if (packet.type === 'classroom:media' && packet.userId === otherUserRef.current?.id) {
           setRemoteCamera(Boolean(packet.camera)); setRemoteMic(Boolean(packet.mic)); setRemoteScreen(Boolean(packet.screen));
         } else if (packet.type === 'classroom:offer' && packet.data) {
           void (async () => {
-            try { const connection = makePeer(); await connection.setRemoteDescription(packet.data! as RTCSessionDescriptionInit); await flushIce(connection); const answer = await connection.createAnswer(); await connection.setLocalDescription(answer); sendRoom({ type: 'classroom:answer', to: packet.fromId, data: connection.localDescription }); }
+            try { const connection = makePeer(); await connection.setRemoteDescription(packet.data! as RTCSessionDescriptionInit); await syncLocalTracks(connection); await flushIce(connection); const answer = await connection.createAnswer(); await connection.setLocalDescription(answer); sendRoom({ type: 'classroom:answer', to: packet.fromId, data: connection.localDescription }); }
             catch { setFeedback('ভিডিও কলের সংযোগ স্থাপন করা যায়নি।'); }
           })();
         } else if (packet.type === 'classroom:answer' && packet.data) {
-          void (async () => { try { const connection = makePeer(); await connection.setRemoteDescription(packet.data! as RTCSessionDescriptionInit); await flushIce(connection); } catch { setFeedback('ভিডিও কলের উত্তর পাওয়া যায়নি।'); } })();
+          void (async () => { try { const connection = makePeer(); await connection.setRemoteDescription(packet.data! as RTCSessionDescriptionInit); await syncLocalTracks(connection); await flushIce(connection); } catch { setFeedback('ভিডিও কলের উত্তর পাওয়া যায়নি।'); } })();
         } else if (packet.type === 'classroom:ice' && packet.data) {
           const candidate = packet.data as RTCIceCandidateInit;
           if (peer.current?.remoteDescription) void peer.current.addIceCandidate(candidate).catch(() => undefined);
@@ -252,6 +271,7 @@ export function ClassroomRoom({ user }: { user: User }) {
         setPeerOnline(false); setCallState('disconnected');
         peer.current?.close(); peer.current = null; pendingIce.current = [];
         remoteStream.current = new MediaStream(); setNeedsAudioTap(false);
+        setRemoteVideoReady(false);
         if (remoteVideo.current) remoteVideo.current.srcObject = null;
         retryTimer = window.setTimeout(connect, retryDelay);
         retryDelay = Math.min(retryDelay * 2, 30000);
@@ -334,23 +354,35 @@ export function ClassroomRoom({ user }: { user: User }) {
     const displayed = displayStream.current; displayStream.current = null;
     if (displayed) displayed.getTracks().forEach(track => { track.onended = null; track.stop(); });
     const cameraTrack = camera ? stream.current?.getVideoTracks().find(track => track.readyState === 'live') || null : null;
-    await syncTrack('video', cameraTrack);
+    try { await syncTrack('video', cameraTrack); }
+    catch { setFeedback('স্ক্রিন শেয়ার বন্ধ হয়েছে, তবে ক্যামেরায় ফিরতে সমস্যা হয়েছে। ক্যামেরা আবার চালু করুন।'); }
     if (video.current) video.current.srcObject = stream.current;
     setSharing(false); sendRoom({ type: 'classroom:media', camera, mic, screen: false });
   };
 
   const toggleScreenShare = async () => {
-    if (sharing) { await stopScreenShare(); return; }
-    setFeedback('');
+    if (screenShareBusy) return;
+    setScreenShareBusy(true); setFeedback('');
     try {
+      if (sharing) { await stopScreenShare(); return; }
+      if (!navigator.mediaDevices?.getDisplayMedia) throw new Error('unsupported');
       const display = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
       displayStream.current = display;
       const track = display.getVideoTracks()[0];
+      if (!track) throw new Error('no-video-track');
       if (video.current) video.current.srcObject = display;
       await syncTrack('video', track);
       track.onended = () => { void stopScreenShare(); };
       setSharing(true); sendRoom({ type: 'classroom:media', camera, mic, screen: true });
-    } catch { displayStream.current?.getTracks().forEach(track => track.stop()); displayStream.current = null; setSharing(false); setFeedback('স্ক্রিন শেয়ার শুরু হয়নি। ব্রাউজারের স্ক্রিন শেয়ার অনুমতি দিন।'); }
+    } catch (error) {
+      const display = displayStream.current; displayStream.current = null;
+      display?.getTracks().forEach(track => { track.onended = null; track.stop(); });
+      if (video.current) video.current.srcObject = stream.current;
+      try { await syncTrack('video', camera ? activeLocalTrack('video') : null); } catch { /* Keep the permission/error message visible. */ }
+      setSharing(false);
+      const reason = error instanceof DOMException ? error.name : '';
+      setFeedback(reason === 'NotAllowedError' ? 'স্ক্রিন শেয়ার অনুমতি দিন বা শেয়ার করার একটি উইন্ডো বেছে নিন।' : reason === 'AbortError' ? 'স্ক্রিন শেয়ার নির্বাচন বাতিল হয়েছে।' : 'স্ক্রিন শেয়ার শুরু করা যায়নি। HTTPS ব্রাউজার ও screen capture support পরীক্ষা করুন।');
+    } finally { setScreenShareBusy(false); }
   };
 
   const ensureMedia = async () => {
@@ -412,15 +444,15 @@ export function ClassroomRoom({ user }: { user: User }) {
 
     <div className="class-grid">
       <div className="class-main">
-        <div className="videos">
-          <div className="video-tile alt participant-stage">
-            <video ref={remoteVideo} autoPlay playsInline aria-label={`${otherName} এর লাইভ ভিডিও`}/>
-            {!remoteCamera && !remoteScreen && <div className="participant-placeholder"><Avatar name={otherName} size="lg" photoUrl={otherUser ? photoFromUser(otherUser as User) : undefined}/><b>{otherName}</b><span>{peerOnline ? remoteMic ? 'ক্যামেরা বন্ধ · মাইক চালু' : 'ক্যামেরা ও মাইক বন্ধ' : 'অন্য অংশগ্রহণকারীর অপেক্ষায়'}</span></div>}
+        <div className={`videos${remoteScreen ? ' has-remote-share' : ''}`}>
+          <div className={`video-tile alt participant-stage${remoteScreen ? ' is-screen-share' : ''}`}>
+            <video ref={remoteVideo} autoPlay playsInline onLoadedData={() => setRemoteVideoReady(true)} onEmptied={() => setRemoteVideoReady(false)} aria-label={`${otherName} এর লাইভ ভিডিও`}/>
+            {!remoteVideoReady && <div className="participant-placeholder"><Avatar name={otherName} size="lg" photoUrl={otherUser ? photoFromUser(otherUser as User) : undefined}/><b>{otherName}</b><span>{remoteScreen ? 'স্ক্রিন শেয়ার সংযোগ হচ্ছে…' : remoteCamera ? 'ভিডিও সংযোগ হচ্ছে…' : peerOnline ? remoteMic ? 'ক্যামেরা বন্ধ · মাইক চালু' : 'ক্যামেরা ও মাইক বন্ধ' : 'অন্য অংশগ্রহণকারীর অপেক্ষায়'}</span></div>}
             {needsAudioTap && remoteMic && <button className="remote-audio-prompt" onClick={() => { void remoteVideo.current?.play().then(() => setNeedsAudioTap(false)).catch(() => setNeedsAudioTap(true)); }}>অন্য পাশের অডিও চালু করুন</button>}
             <span className="video-name-label">{otherName} · {remoteScreen ? 'স্ক্রিন শেয়ার' : participantRole}</span>
           </div>
           <div className="video-tile self-stage">
-            <video ref={video} autoPlay muted playsInline aria-label="আপনার ক্যামেরার প্রিভিউ"/>
+            <video ref={video} className={sharing ? 'screen-share-video' : undefined} autoPlay muted playsInline aria-label={sharing ? 'আপনার স্ক্রিন শেয়ারের প্রিভিউ' : 'আপনার ক্যামেরার প্রিভিউ'}/>
             {!camera && !sharing && <div className="self-video-placeholder"><Avatar name={user.name} size="md" photoUrl={photoFromUser(user)}/><span>আপনার ক্যামেরা বন্ধ</span></div>}
             <span className="video-name-label">{user.name} · {sharing ? 'স্ক্রিন শেয়ার' : 'আপনি'}</span>
           </div>
@@ -430,7 +462,7 @@ export function ClassroomRoom({ user }: { user: User }) {
         <div className="class-controls" aria-label="ক্লাস কন্ট্রোল">
           <button className={`class-control${camera ? ' is-active' : ''}`} aria-pressed={camera} disabled={mediaBusy} onClick={() => void cameraToggle()}><span aria-hidden="true">▣</span>{camera ? 'ক্যামেরা বন্ধ' : 'ক্যামেরা চালু'}</button>
           <button className={`class-control${mic ? ' is-active' : ''}`} aria-pressed={mic} disabled={mediaBusy} onClick={() => void micToggle()}><span aria-hidden="true">◖</span>{mic ? 'মাইক বন্ধ' : 'মাইক চালু'}</button>
-          <button className={`class-control${sharing ? ' is-active' : ''}`} aria-pressed={sharing} onClick={() => void toggleScreenShare()}><span aria-hidden="true">⇧</span>{sharing ? 'শেয়ার বন্ধ' : 'স্ক্রিন শেয়ার'}</button>
+          <button className={`class-control${sharing ? ' is-active' : ''}`} aria-pressed={sharing} disabled={screenShareBusy} onClick={() => void toggleScreenShare()}><span aria-hidden="true">⇧</span>{screenShareBusy ? 'স্ক্রিন শেয়ার হচ্ছে…' : sharing ? 'শেয়ার বন্ধ' : 'স্ক্রিন শেয়ার'}</button>
           <button className={`class-control${recordingActive ? ' is-recording' : ''}`} disabled={recording === 'done'} onClick={() => void toggleRecord()}><span aria-hidden="true">●</span>{recording === 'idle' ? 'রেকর্ড শুরু' : recording === 'recording' ? 'বিরতি দিন' : recording === 'paused' ? 'চালিয়ে যান' : 'রেকর্ড সম্পন্ন'}</button>
           {recordingActive && <button className="class-control is-stop" onClick={stopRecord}><span aria-hidden="true">■</span>রেকর্ড থামান</button>}
         </div>
