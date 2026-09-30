@@ -80,7 +80,7 @@ export function Shell({user,children,onLogout}:{user:User|null;children:ReactNod
     {open&&<button className="menu-backdrop" type="button" aria-label="মেনু বন্ধ করুন" onClick={closeMenu}/>}
     <main>{children}</main>
     {user&&<MobileNav user={user} onLogout={onLogout}/>}
-    <footer><div className="brand footer-brand"><img src="/images/private-tutor-logo.png" alt="" /><span className="footer-wordmark"><span className="footer-private">Private</span> <b>Tutor</b><i aria-hidden="true"></i></span></div><p>Created By Tanvir Alam Prince</p></footer>
+    <footer><div className="brand footer-brand"><img src="/images/private-tutor-logo.png" alt="" /><span className="footer-wordmark"><span className="footer-private">Private</span> <b>Tutor</b><i aria-hidden="true"></i></span></div><p>Founded by Tanvir Alam Prince</p></footer>
   </>;
 }
 type MobileNavIconName = 'home' | 'search' | 'booking' | 'message' | 'exam' | 'profile' | 'logout' | 'users' | 'report';
