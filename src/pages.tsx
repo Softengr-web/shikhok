@@ -41,8 +41,12 @@ export function Home({ user }: { user: User | null }) {
         </form>
         <div className="hero-points"><span>✓ যাচাইকৃত শিক্ষক</span><span>✓ স্বচ্ছ মূল্য ও প্যাকেজ</span><span>✓ ইন্টারঅ্যাকটিভ ক্লাসরুম</span></div>
       </div>
-      <div className="hero-visual" aria-hidden="true">
-        <img src="/images/shikhok-hero.webp" alt="" fetchPriority="high" decoding="async" />
+      <div className="hero-panel">
+        <span className="spark">✦</span>
+        <p>আজই শুরু করুন</p>
+        <b>বিভিন্ন বিষয়ের শিক্ষক</b>
+        <small>বিষয়, স্তর ও বাজেট মিলিয়ে আপনার উপযোগী ক্লাস বেছে নিন</small>
+        <a href="#/register" className="button light">বিনামূল্যে শুরু করুন</a>
       </div>
     </section>
     <section className="section">
