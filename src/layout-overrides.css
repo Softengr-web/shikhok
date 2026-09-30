@@ -47,23 +47,33 @@
 
 .auth-aside {
   min-width: 0;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
   padding: clamp(32px, 5vw, 64px);
   border: 1px solid #dceee8;
   border-radius: 26px;
-  background-color: #f4faf7;
-  background-image:
-    radial-gradient(ellipse at 8% 0%, rgba(217, 243, 232, .96) 0, transparent 42%),
-    linear-gradient(180deg, rgba(239, 249, 245, .96) 0%, rgba(248, 252, 250, .88) 36%, rgba(248, 252, 250, .52) 72%, rgba(248, 252, 250, .28) 100%),
-    url('/images/shikhok-hero-lineart.webp');
-  background-repeat: no-repeat;
-  background-position: left top, center, center bottom;
-  background-size: auto, auto, 100% auto;
+  background: radial-gradient(ellipse at 8% 0%, #d9f3e8 0, transparent 42%), linear-gradient(145deg, #eff9f5, #f8fcfa 72%);
   color: var(--ink);
   display: flex;
   flex-direction: column;
   justify-content: center;
   gap: clamp(28px, 4vw, 48px);
 }
+
+.auth-aside::before {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  border-radius: inherit;
+  background: url('/images/shikhok-hero-lineart.webp') no-repeat right 18% / auto 84%;
+  content: '';
+  opacity: .34;
+  pointer-events: none;
+  mask-image: linear-gradient(90deg, transparent 20%, rgba(0, 0, 0, .05) 48%, #000 82%);
+}
+
+.auth-aside > * { position: relative; z-index: 1; }
 
 .auth-wordmark {
   display: inline-flex;
@@ -119,7 +129,8 @@
 
 @media (max-width: 720px) {
   .auth-page { grid-template-columns: minmax(0, 1fr); gap: 16px; padding: 18px 16px 32px; }
-  .auth-aside { min-height: 0; gap: 24px; padding: 28px 20px; border-radius: 20px; background-position: left top, center, 68% bottom; background-size: auto, auto, auto 48%; }
+  .auth-aside { min-height: 0; gap: 24px; padding: 28px 20px; border-radius: 20px; }
+  .auth-aside::before { background-size: auto 58%; background-position: right 24%; mask-image: linear-gradient(90deg, transparent 12%, rgba(0, 0, 0, .05) 38%, #000 78%); }
   .auth-wordmark { margin-bottom: 17px; font-size: clamp(2.7rem, 13vw, 4rem); }
   .auth-intro h2 { font-size: 1.75rem; }
   .auth-aside .auth-description { font-size: .97rem; }
