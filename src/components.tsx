@@ -83,7 +83,38 @@ export function Shell({user,children,onLogout}:{user:User|null;children:ReactNod
     <footer><div className="brand footer-brand"><img src="/images/private-tutor-logo.png" alt="" /><span className="footer-wordmark"><span className="footer-private">Private</span> <b>Tutor</b><i aria-hidden="true"></i></span></div><p>Created By Tanvir Alam Prince</p></footer>
   </>;
 }
-function MobileNav({user,onLogout}:{user:User;onLogout:()=>void}) { const isAdmin=['ADMIN','SUPER_ADMIN'].includes(user.role);const items=user.role==='TEACHER'?[['⌂','ড্যাশবোর্ড','/dashboard'],['▣','বুকিং','/bookings'],['♙','শিক্ষার্থী','/messages'],['✎','পরীক্ষা','/teacher/exams'],['◉','প্রোফাইল','/profile']]:isAdmin?[['⌂','ড্যাশবোর্ড','/dashboard'],['♙','ব্যবহারকারী','/admin/users'],['▣','বুকিং','/bookings'],['⚑','রিপোর্ট','/admin/reports']]:[['⌂','হোম','/'],['⌕','খুঁজুন','/search'],['▣','বুকিং','/bookings'],['✉','বার্তা','/messages'],['◉','প্রোফাইল','/dashboard']];return <nav className={`mobile-nav${isAdmin?' is-admin':''}`}>{items.map(([icon,label,href])=><a href={`#${href}`} key={label}><b>{icon}</b><small>{label}</small></a>)}<button className="mobile-logout" onClick={onLogout} aria-label="লগআউট"><b>↪</b><small>লগআউট</small></button></nav>}
+type MobileNavIconName = 'home' | 'search' | 'booking' | 'message' | 'exam' | 'profile' | 'logout' | 'users' | 'report';
+function MobileNavIcon({name}:{name:MobileNavIconName}) {
+  const common={viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:1.8,strokeLinecap:'round' as const,strokeLinejoin:'round' as const,focusable:false,'aria-hidden':true as const};
+  if(name==='home')return <svg {...common}><path d="m3 10 9-7 9 7"/><path d="M5 9v11h14V9M9 20v-6h6v6"/></svg>;
+  if(name==='search')return <svg {...common}><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 4.5 4.5"/></svg>;
+  if(name==='booking')return <svg {...common}><rect x="3.5" y="5" width="17" height="16" rx="2.5"/><path d="M8 3v4M16 3v4M4 9.5h16M8 13h3M8 16.5h6"/></svg>;
+  if(name==='message')return <svg {...common}><path d="M20 11.3a7.3 7.3 0 0 1-7.3 7.3H7l-3.5 2v-5A7.3 7.3 0 1 1 20 11.3Z"/><path d="M8 10h8M8 13.5h5"/></svg>;
+  if(name==='exam')return <svg {...common}><rect x="5" y="4.5" width="14" height="17" rx="2"/><path d="M9 4.5a3 3 0 0 1 6 0v2H9zM9 12h6M9 16h6"/></svg>;
+  if(name==='profile')return <svg {...common}><circle cx="12" cy="8" r="3.5"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></svg>;
+  if(name==='logout')return <svg {...common}><path d="M10 17l5-5-5-5M15 12H3"/><path d="M12 4h6a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6"/></svg>;
+  if(name==='users')return <svg {...common}><circle cx="9" cy="8" r="3"/><path d="M3.5 20a5.5 5.5 0 0 1 11 0M16 5.5a3 3 0 0 1 0 5.8M17 14a5.2 5.2 0 0 1 3.5 5"/></svg>;
+  return <svg {...common}><path d="M4 20h16M6 16v-5M11 16V7M16 16V4M20 16V9"/></svg>;
+}
+
+function MobileNav({user,onLogout}:{user:User;onLogout:()=>void}) {
+  const isAdmin=['ADMIN','SUPER_ADMIN'].includes(user.role);
+  const items:Array<{icon:MobileNavIconName;label:string;href:string}>=user.role==='TEACHER'
+    ?[{icon:'home',label:'ড্যাশবোর্ড',href:'/dashboard'},{icon:'booking',label:'বুকিং',href:'/bookings'},{icon:'message',label:'বার্তা',href:'/messages'},{icon:'exam',label:'পরীক্ষা',href:'/teacher/exams'},{icon:'profile',label:'প্রোফাইল',href:'/profile'}]
+    :isAdmin
+      ?[{icon:'home',label:'ড্যাশবোর্ড',href:'/dashboard'},{icon:'users',label:'ব্যবহারকারী',href:'/admin/users'},{icon:'booking',label:'বুকিং',href:'/bookings'},{icon:'report',label:'রিপোর্ট',href:'/admin/reports'}]
+      :[{icon:'home',label:'হোম',href:'/'},{icon:'search',label:'খুঁজুন',href:'/search'},{icon:'booking',label:'বুকিং',href:'/bookings'},{icon:'message',label:'বার্তা',href:'/messages'},{icon:'profile',label:'প্রোফাইল',href:'/dashboard'}];
+  const currentPath=location.hash.slice(1).split('?')[0]||'/';
+  const active=(href:string)=>currentPath===href||currentPath.startsWith(`${href}/`)||(user.role!=='TEACHER'&&href==='/profile'&&currentPath==='/dashboard');
+  return <nav className={`mobile-nav${isAdmin?' is-admin':''}`} aria-label="মোবাইল নেভিগেশন">
+    {items.map(item=><a className="mobile-nav-item" href={`#${item.href}`} key={item.label} aria-current={active(item.href)?'page':undefined}>
+      <span className="mobile-nav-icon"><MobileNavIcon name={item.icon}/></span><small>{item.label}</small>
+    </a>)}
+    <button className="mobile-nav-item mobile-logout" onClick={onLogout} aria-label="লগআউট">
+      <span className="mobile-nav-icon"><MobileNavIcon name="logout"/></span><small>লগআউট</small>
+    </button>
+  </nav>;
+}
 
 export function TeacherCard({teacher,user,compare,onCompare}:{teacher:Teacher;user:User|null;compare:boolean;onCompare:(t:Teacher)=>void}) { void user; const [saved,setSaved]=useState(false); const favorite=async()=>{try{const r=await post<{saved:boolean}>('/favorites',{kind:'TEACHER',itemId:teacher.id});setSaved(r.saved);}catch{go('/login');}};return <article className="teacher-card"><div className="card-top"><Avatar name={teacher.user.name} size="lg" teacherId={teacher.id} photoUrl={photoFromUser(teacher.user)}/><div className="grow"><h3>{teacher.user.name}{teacher.verified&&<em className="verified">✓ যাচাইকৃত</em>}</h3><p>{teacher.headline}</p><div className="stars">★ {teacher.rating.toFixed(1)} <small>({bn(teacher.reviewCount)} রিভিউ)</small></div></div><button className="save-btn" onClick={favorite} aria-label="সংরক্ষণ করুন">{saved?'♥':'♡'}</button></div><div className="chips">{teacher.subjects.slice(0,2).map(s=><span key={s}>{s}</span>)}<span>{teacher.experienceYears} বছরের অভিজ্ঞতা</span></div><div className="card-meta"><span>{money(teacher.hourlyRate)} / ঘণ্টা</span><span>{teacher.languages.join(', ')}</span></div><div className="card-actions"><button className="quiet-btn" onClick={()=>onCompare(teacher)}>{compare?'তুলনায় আছে':'তুলনা করুন'}</button><button className="button" onClick={()=>go(`/teacher/${teacher.id}`)}>প্রোফাইল দেখুন</button></div></article> }
 

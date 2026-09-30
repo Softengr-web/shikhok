@@ -954,6 +954,50 @@
   .mobile-nav.is-admin small { font-size: .62rem; }
 }
 
+@media (max-width: 900px) {
+  .mobile-nav {
+    display: grid;
+    grid-template-columns: repeat(6,minmax(0,1fr));
+    align-items: stretch;
+    gap: 2px;
+    min-height: calc(66px + env(safe-area-inset-bottom));
+    padding: 6px clamp(4px,1.5vw,12px) calc(6px + env(safe-area-inset-bottom));
+    border-top: 1px solid rgba(13,118,107,.12);
+    background: rgba(255,253,250,.97);
+    box-shadow: 0 -8px 28px rgba(12,54,51,.12);
+    backdrop-filter: blur(16px);
+  }
+
+  .mobile-nav.is-admin { grid-template-columns: repeat(5,minmax(0,1fr)); }
+
+  .mobile-nav-item {
+    display: grid;
+    min-width: 0;
+    min-height: 52px;
+    align-content: center;
+    justify-items: center;
+    gap: 3px;
+    padding: 4px 2px;
+    border: 0;
+    border-radius: 12px;
+    background: transparent;
+    color: #637772;
+    text-decoration: none;
+  }
+
+  .mobile-nav-item[aria-current="page"] { background: #e7f4ef; color: #07554e; }
+  .mobile-nav-item[aria-current="page"] small { color: #07554e; font-weight: 700; }
+  .mobile-nav-item small { display: block; max-width: 100%; overflow: hidden; color: inherit; font-size: clamp(.57rem,2.05vw,.7rem); line-height: 1.15; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
+  .mobile-nav-icon { display: grid; width: 28px; height: 28px; place-items: center; border-radius: 9px; }
+  .mobile-nav-icon svg { display: block; width: 21px; height: 21px; }
+  .mobile-logout { cursor: pointer; font: inherit; color: #a24646; }
+}
+
+@media (max-width: 360px) {
+  .mobile-nav-item small { font-size: .55rem; }
+  .mobile-nav { gap: 0; }
+}
+
 /* Faint, right-aligned learning artwork keeps route headers cohesive without competing with their copy. */
 .learning-art-header {
   position: relative;

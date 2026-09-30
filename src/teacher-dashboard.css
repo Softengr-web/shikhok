@@ -78,6 +78,13 @@
   font-size: 0.95rem;
 }
 
+.teacher-dashboard-profile > .teacher-dashboard-profile-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
 .teacher-dashboard .teacher-dashboard-stats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -440,8 +447,11 @@
   .teacher-dashboard-heading { align-items: flex-start; flex-direction: column; padding: 22px 19px; border-radius: 18px; }
   .teacher-dashboard-heading h1 { font-size: 1.85rem; }
   .teacher-dashboard-heading-copy > p:last-child { font-size: 0.9rem; }
-  .teacher-dashboard-profile { width: 100%; }
+  .teacher-dashboard-profile { display: grid; width: 100%; grid-template-columns: auto minmax(0,1fr); }
+  .teacher-dashboard-profile > .avatar { width: 48px; height: 48px; }
   .teacher-dashboard-profile > div { flex: 1; }
+  .teacher-dashboard-profile > .teacher-dashboard-profile-actions { display: grid; width: 100%; grid-column: 1 / -1; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
+  .teacher-dashboard-profile-actions > button { min-width: 0; min-height: 42px; padding: 8px 10px; font-size: .78rem; }
   .teacher-dashboard .teacher-dashboard-stats { gap: 9px; margin-bottom: 17px; }
   .teacher-dashboard .teacher-stat { min-height: 100px; gap: 9px; padding: 12px 10px; border-radius: 14px; }
   .teacher-stat-icon { width: 36px; height: 36px; border-radius: 11px; font-size: 1rem; }

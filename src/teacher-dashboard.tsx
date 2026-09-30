@@ -59,7 +59,10 @@ export function TeacherDashboardLive({ data, onUserUpdated }: { data: DashboardD
       <div className="teacher-dashboard-profile">
         <Avatar name={data.user.name} size="lg" teacherId={data.teacher?.id} photoUrl={photoFromUser(data.user)} />
         <div><small>আপনার প্রোফাইল</small><b>{data.teacher?.level || 'শিক্ষক'}</b></div>
-        <button className="quiet-btn" onClick={() => setProfileOpen(true)}>সম্পাদনা</button>
+        <div className="teacher-dashboard-profile-actions">
+          <button className="quiet-btn" onClick={() => setProfileOpen(true)}>প্রোফাইল সম্পাদনা</button>
+          <button className="button small" onClick={() => go('/messages')} aria-label="শিক্ষার্থীদের বার্তা খুলুন">শিক্ষার্থীদের বার্তা</button>
+        </div>
       </div>
     </header>
 
