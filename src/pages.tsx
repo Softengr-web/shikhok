@@ -401,9 +401,24 @@ export function AuthPage({ kind, onLogin }: { kind: 'login' | 'register'; onLogi
         ? await post<User>('/auth/login', { email, password })
         : await post<User>('/auth/register', { name, email, password, role });
       onLogin(user);
-      go('/dashboard');
+      const requestedRoute = location.hash.startsWith('#/') ? location.hash.slice(1) : '';
+      go(requestedRoute && !['/login', '/register', '/'].includes(requestedRoute) ? requestedRoute : '/dashboard');
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'সমস্যা হয়েছে');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const joinDemoClass = async (demoEmail: string) => {
+    setBusy(true);
+    setError('');
+    try {
+      const user = await post<User>('/auth/login', { email: demoEmail, password: 'demo123' });
+      onLogin(user);
+      go('/classroom/booking-demo-live');
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'ডেমো ক্লাসে প্রবেশ করা যায়নি।');
     } finally {
       setBusy(false);
     }
@@ -459,6 +474,14 @@ export function AuthPage({ kind, onLogin }: { kind: 'login' | 'register'; onLogi
               <span className="demo-role-arrow" aria-hidden="true">↗</span>
             </button>
           </div>
+          {kind === 'login' && <section className="demo-classroom-actions" aria-label="ডেমো লাইভ ক্লাসে যোগ দিন">
+            <b>ডেমো লাইভ ক্লাসে যোগ দিন</b>
+            <p>দুই পক্ষকে একসঙ্গে দেখতে শিক্ষার্থী ও শিক্ষককে আলাদা ব্রাউজার বা ডিভাইসে খুলুন।</p>
+            <div>
+              <button type="button" disabled={busy} onClick={() => void joinDemoClass('student@demo.local')}>শিক্ষার্থী হিসেবে যোগ দিন</button>
+              <button type="button" disabled={busy} onClick={() => void joinDemoClass('teacher@demo.local')}>শিক্ষক হিসেবে যোগ দিন</button>
+            </div>
+          </section>}
         </section>
       </aside>
 
@@ -558,7 +581,7 @@ function StudentDashboard({data,onUserUpdated}:{data:DashboardData;onUserUpdated
         {upcoming&&<article className="student-next-class">
           <div className="student-next-icon" aria-hidden="true">▣</div>
           <div className="student-next-copy"><span className={`student-next-status ${upcoming.status==='IN_PROGRESS'?'is-live':''}`}>{upcoming.status==='IN_PROGRESS'?'● লাইভ ক্লাস চলছে':'পরবর্তী ক্লাস'}</span><b>{shortDate(upcoming.date)} <span>•</span> {upcoming.time}</b><small>বুকিং #{upcoming.id.slice(-5)} <span>·</span> {money(upcoming.price)}</small></div>
-          <button className={upcoming.status==='IN_PROGRESS'?'button':'quiet-btn'} onClick={()=>go(`/classroom/${upcoming.id}`)}>{upcoming.status==='IN_PROGRESS'?'ক্লাসে যোগ দিন':'ক্লাসের বিস্তারিত'}</button>
+          <button className={upcoming.status==='IN_PROGRESS'?'button':'quiet-btn'} onClick={()=>go(`/classroom/${upcoming.id}`)}>{upcoming.status==='IN_PROGRESS'?'লাইভ ক্লাসে যোগ দিন':'ক্লাসে যোগ দিন'}</button>
         </article>}
         {data.bookings.length>0?<BookingList bookings={upcoming?data.bookings.filter(booking=>booking.id!==upcoming.id):data.bookings}/>:<div className="student-empty-state"><span aria-hidden="true">▣</span><b>এখনও কোনো ক্লাস বুক করা নেই</b><p>আপনার পছন্দের শিক্ষক খুঁজে প্রথম ক্লাসটি বুক করুন।</p><button className="quiet-btn" onClick={()=>go('/search')}>শিক্ষক দেখুন</button></div>}
       </section>

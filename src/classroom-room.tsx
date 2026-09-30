@@ -59,12 +59,16 @@ export function ClassroomRoom({ user }: { user: User }) {
     void api<Booking[]>('/bookings').then(items => {
       const found = items.find(item => item.id === bookingId) || null;
       if (!active) return;
+      if (bookingId === 'booking-1' && found?.status === 'COMPLETED' && ['student-1', 'teacher-1'].includes(user.id)) {
+        go('/classroom/booking-demo-live');
+        return;
+      }
       setBooking(found);
       setNotes(found?.notes || '');
       if (!found) setLoadError('এই ক্লাসের বুকিংটি পাওয়া যায়নি। বুকিং তালিকা থেকে ক্লাসে প্রবেশ করুন।');
     }).catch(() => { if (active) setLoadError('ক্লাসরুমের তথ্য লোড করা যায়নি। আবার চেষ্টা করুন।'); });
     return () => { active = false; };
-  }, [bookingId]);
+  }, [bookingId, user.id]);
 
   const sendRoom = (payload: Record<string, unknown>) => {
     const socket = roomSocket.current;
@@ -327,7 +331,7 @@ export function ClassroomRoom({ user }: { user: User }) {
     catch { setFeedback('নোট সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন।'); }
   };
   const end = async () => {
-    if (user.role === 'TEACHER' && booking?.status !== 'COMPLETED') await post(`/bookings/${bookingId}/status`, { status: 'COMPLETED' });
+    if (user.role === 'TEACHER' && booking?.id !== 'booking-demo-live' && booking?.status !== 'COMPLETED') await post(`/bookings/${bookingId}/status`, { status: 'COMPLETED' });
     go('/bookings');
   };
 
@@ -345,7 +349,7 @@ export function ClassroomRoom({ user }: { user: User }) {
       </div>
       <div className="class-session-actions">
         {recording !== 'idle' && <span className={`recording-timer${recordingActive ? ' is-recording' : ''}`}><i aria-hidden="true"/>{recording === 'done' ? 'রেকর্ড সম্পন্ন' : recording === 'paused' ? 'রেকর্ড বিরতিতে' : 'রেকর্ডিং'} <b>{String(Math.floor(recordSeconds / 60)).padStart(2, '0')}:{String(recordSeconds % 60).padStart(2, '0')}</b></span>}
-        <button className="danger-btn" onClick={() => void end()}><span aria-hidden="true">↗</span> {user.role === 'TEACHER' ? 'ক্লাস শেষ করুন' : 'ক্লাস থেকে বের হন'}</button>
+        <button className="danger-btn" onClick={() => void end()}><span aria-hidden="true">↗</span> {user.role === 'TEACHER' && booking.id !== 'booking-demo-live' ? 'ক্লাস শেষ করুন' : 'ক্লাস থেকে বের হন'}</button>
       </div>
     </header>
 
