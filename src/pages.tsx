@@ -29,7 +29,7 @@ export function Home({ user }: { user: User | null }) {
   );
 
   return <>
-    <section className="hero">
+    <section className="hero learning-art-header">
       <div className="hero-copy">
         <p className="hero-brand" aria-label="Private Tutor">Private <span>Tutor</span><i aria-hidden="true"></i></p>
         <p className="eyebrow">বাংলাদেশের শিক্ষক মার্কেটপ্লেস</p>
@@ -106,7 +106,7 @@ export function GigsPage() {
   });
 
   return <section className="page section marketplace-page">
-    <div className="gig-market-hero">
+    <div className="gig-market-hero learning-art-header">
       <div className="gig-market-copy">
         <p className="eyebrow">শিখুন নিজের গতিতে</p>
         <h1>দক্ষ শিক্ষকের তৈরি<br/><span>জনপ্রিয় গিগ</span></h1>
@@ -211,7 +211,7 @@ export function Search({user}:{user:User|null}) {
   const toggle=(teacher:Teacher)=>setCompare(current=>current.some(item=>item.id===teacher.id)?current.filter(item=>item.id!==teacher.id):current.length<3?[...current,teacher]:current);
 
   return <section className="page section teacher-search-page">
-    <header className="teacher-search-intro">
+    <header className="teacher-search-intro learning-art-header">
       <div>
         <p className="eyebrow">শিক্ষক মার্কেটপ্লেস</p>
         <h1>আপনার জন্য সঠিক শিক্ষক খুঁজুন</h1>
@@ -278,7 +278,7 @@ export function Compare() {
   ];
 
   return <section className="page section compare-page">
-    <div className="compare-heading"><div><p className="eyebrow">শিক্ষক তুলনা</p><h1>শিক্ষক নির্বাচন সহজ করুন</h1><p>রেটিং, অভিজ্ঞতা, শিক্ষা ও ফি পাশাপাশি মিলিয়ে দেখুন।</p></div><span className="compare-count"><b>{bn(items.length)}</b> জন শিক্ষক</span></div>
+    <div className="compare-heading learning-art-header"><div><p className="eyebrow">শিক্ষক তুলনা</p><h1>শিক্ষক নির্বাচন সহজ করুন</h1><p>রেটিং, অভিজ্ঞতা, শিক্ষা ও ফি পাশাপাশি মিলিয়ে দেখুন।</p></div><span className="compare-count"><b>{bn(items.length)}</b> জন শিক্ষক</span></div>
     <div className="compare-table-wrap" role="region" aria-label="শিক্ষক তুলনার ছক" tabIndex={0}>
       <table className="compare-table" aria-label="শিক্ষক তুলনা">
         <thead><tr><th scope="col" className="compare-topic"><span>তুলনার বিষয়</span><small>প্রয়োজনীয় তথ্য</small></th>{items.map(teacher => <th scope="col" key={teacher.id}><div className="compare-person"><Avatar name={teacher.user.name} size="lg" teacherId={teacher.id} photoUrl={photoFromUser(teacher.user)}/><div className="compare-person-info"><b>{teacher.user.name}</b><p>{teacher.headline}</p><span className={`compare-status ${teacher.verified ? 'is-verified' : 'is-pending'}`}>{teacher.verified ? '✓ যাচাইকৃত' : 'যাচাই চলছে'}</span></div></div></th>)}</tr></thead>
@@ -289,7 +289,7 @@ export function Compare() {
   </section>;
 }
 
-export function TeacherPage({user}:{user:User|null}) { const id=location.hash.split('/')[2]?.split('?')[0];const [teacher,setTeacher]=useState<Teacher|null>(null);const [booking,setBooking]=useState<Gig|null>(null);useEffect(()=>{if(id)void api<Teacher>(`/teachers/${id}`).then(setTeacher);},[id]);useEffect(()=>{if(!teacher)return;let secondFrame=0;const firstFrame=requestAnimationFrame(()=>{secondFrame=requestAnimationFrame(()=>window.scrollTo(0,0));});return()=>{cancelAnimationFrame(firstFrame);cancelAnimationFrame(secondFrame);};},[teacher]);if(!teacher)return <Loading/>;return <section className="page"><div className="profile-hero"><Avatar name={teacher.user.name} size="lg" teacherId={teacher.id} photoUrl={photoFromUser(teacher.user)}/><div><p className="eyebrow">{teacher.level}</p><h1>{teacher.user.name} {teacher.verified&&<em className="verified">✓ যাচাইকৃত</em>}</h1><p>{teacher.headline}</p><div className="profile-stats"><span>★ {teacher.rating} রেটিং</span><span>{teacher.experienceYears} বছরের অভিজ্ঞতা</span><span>{money(teacher.hourlyRate)} / ঘণ্টা</span></div></div><div className="profile-cta"><button className="button" onClick={()=>teacher.gigs?.[0]&&setBooking(teacher.gigs[0])}>ক্লাস বুক করুন</button><button className="quiet-btn" onClick={()=>go(user?.role==='STUDENT'?`/messages?with=${encodeURIComponent(teacher.user.id)}`:'/messages')}>বার্তা পাঠান</button></div></div><div className="profile-layout"><div className="profile-content"><Info title="পরিচিতি"><p>{teacher.bio}</p></Info><Info title="শিক্ষাগত যোগ্যতা"><p>{teacher.education} — {teacher.institution}</p></Info><Info title="বিষয় ও দক্ষতা"><div className="chips">{[...teacher.subjects,...teacher.skills].map(x=><span key={x}>{x}</span>)}</div></Info><Info title="পড়ানোর পদ্ধতি"><p>লাইভ ইন্টারঅ্যাক্টিভ ক্লাস, উদাহরণভিত্তিক ব্যাখ্যা এবং ক্লাস-পরবর্তী নোট।</p></Info><Info title="শিক্ষকের পাঠের ভিডিও">{teacher.demoUrl?<iframe className="video" src={teacher.demoUrl} title="শিক্ষকের পাঠের ভিডিও" allowFullScreen/>:<Empty>শিক্ষক এখনো কোনো পাঠের ভিডিও যুক্ত করেননি।</Empty>}</Info><Info title="শিক্ষকের গিগ স্টোরফ্রন্ট"><div className="teacher-gig-storefront">{teacher.gigs?.map(g=><TeacherGigCard key={g.id} gig={g} onBook={()=>setBooking(g)}/>)}</div></Info></div><aside className="aside-card"><h3>সময়সূচি</h3>{Object.entries(teacher.availability).map(([d,t])=><p key={d}><b>{d}</b><br/>{t.join(' • ')}</p>)}<hr/><p>ভাষা: {teacher.languages.join(', ')}</p><p>অবস্থান: {teacher.location}</p></aside></div>{booking&&(user?.role==='STUDENT'?<BookingModal gig={booking} onClose={()=>setBooking(null)} onDone={bid=>go(`/payment/${bid}`)}/>:<LoginHint onClose={()=>setBooking(null)}/>)}</section> }
+export function TeacherPage({user}:{user:User|null}) { const id=location.hash.split('/')[2]?.split('?')[0];const [teacher,setTeacher]=useState<Teacher|null>(null);const [booking,setBooking]=useState<Gig|null>(null);useEffect(()=>{if(id)void api<Teacher>(`/teachers/${id}`).then(setTeacher);},[id]);useEffect(()=>{if(!teacher)return;let secondFrame=0;const firstFrame=requestAnimationFrame(()=>{secondFrame=requestAnimationFrame(()=>window.scrollTo(0,0));});return()=>{cancelAnimationFrame(firstFrame);cancelAnimationFrame(secondFrame);};},[teacher]);if(!teacher)return <Loading/>;return <section className="page"><div className="profile-hero learning-art-header"><Avatar name={teacher.user.name} size="lg" teacherId={teacher.id} photoUrl={photoFromUser(teacher.user)}/><div><p className="eyebrow">{teacher.level}</p><h1>{teacher.user.name} {teacher.verified&&<em className="verified">✓ যাচাইকৃত</em>}</h1><p>{teacher.headline}</p><div className="profile-stats"><span>★ {teacher.rating} রেটিং</span><span>{teacher.experienceYears} বছরের অভিজ্ঞতা</span><span>{money(teacher.hourlyRate)} / ঘণ্টা</span></div></div><div className="profile-cta"><button className="button" onClick={()=>teacher.gigs?.[0]&&setBooking(teacher.gigs[0])}>ক্লাস বুক করুন</button><button className="quiet-btn" onClick={()=>go(user?.role==='STUDENT'?`/messages?with=${encodeURIComponent(teacher.user.id)}`:'/messages')}>বার্তা পাঠান</button></div></div><div className="profile-layout"><div className="profile-content"><Info title="পরিচিতি"><p>{teacher.bio}</p></Info><Info title="শিক্ষাগত যোগ্যতা"><p>{teacher.education} — {teacher.institution}</p></Info><Info title="বিষয় ও দক্ষতা"><div className="chips">{[...teacher.subjects,...teacher.skills].map(x=><span key={x}>{x}</span>)}</div></Info><Info title="পড়ানোর পদ্ধতি"><p>লাইভ ইন্টারঅ্যাক্টিভ ক্লাস, উদাহরণভিত্তিক ব্যাখ্যা এবং ক্লাস-পরবর্তী নোট।</p></Info><Info title="শিক্ষকের পাঠের ভিডিও">{teacher.demoUrl?<iframe className="video" src={teacher.demoUrl} title="শিক্ষকের পাঠের ভিডিও" allowFullScreen/>:<Empty>শিক্ষক এখনো কোনো পাঠের ভিডিও যুক্ত করেননি।</Empty>}</Info><Info title="শিক্ষকের গিগ স্টোরফ্রন্ট"><div className="teacher-gig-storefront">{teacher.gigs?.map(g=><TeacherGigCard key={g.id} gig={g} onBook={()=>setBooking(g)}/>)}</div></Info></div><aside className="aside-card"><h3>সময়সূচি</h3>{Object.entries(teacher.availability).map(([d,t])=><p key={d}><b>{d}</b><br/>{t.join(' • ')}</p>)}<hr/><p>ভাষা: {teacher.languages.join(', ')}</p><p>অবস্থান: {teacher.location}</p></aside></div>{booking&&(user?.role==='STUDENT'?<BookingModal gig={booking} onClose={()=>setBooking(null)} onDone={bid=>go(`/payment/${bid}`)}/>:<LoginHint onClose={()=>setBooking(null)}/>)}</section> }
 
 function TeacherGigCard({gig,onBook}:{gig:Gig;onBook:()=>void}) { return <article className="teacher-gig-card"><div className="teacher-gig-card-head"><div><span className="preview-badge">{gig.subject} · {gig.level}</span><h3>{gig.title}</h3><p>{gig.description}</p></div><strong>{gig.badges?.[0]||'শিক্ষক সেবা'}</strong></div><div className="chips">{gig.tags.map(tag=><span key={tag}>{tag}</span>)}{gig.classType&&<span>{gig.classType}</span>}{gig.duration&&<span>{bn(gig.duration)} মিনিট</span>}{gig.trial?.enabled&&<span>ট্রায়াল ক্লাস</span>}</div>{gig.outcomes?.length&&<div className="gig-detail-block"><b>শিক্ষার্থী যা শিখবেন</b><ul>{gig.outcomes.filter(Boolean).map(outcome=><li key={outcome}>{outcome}</li>)}</ul></div>}<div className="gig-package-grid">{gig.packages.map(pack=><div className="teacher-gig-package" key={pack.id}><b>{pack.name}</b><span>{bn(pack.classes)}টি ক্লাস · {bn(pack.duration)} মিনিট</span><strong>{money(pack.price)}</strong><small>{pack.features.join(' · ')}</small></div>)}</div>{gig.extras?.length&&<div className="gig-detail-block"><b>অতিরিক্ত সেবা</b><p>{gig.extras.map(extra=>`${extra.name} (${money(extra.price)})`).join(' · ')}</p></div>}{gig.media?.length&&<div className="gig-detail-block"><b>মিডিয়া ও উপকরণ</b><p>{gig.media.map(media=>media.caption||media.kind).join(' · ')}</p></div>}{gig.faqs.length>0&&<details className="gig-faq"><summary>সচরাচর জিজ্ঞাসা ({bn(gig.faqs.length)})</summary>{gig.faqs.map(faq=><p key={faq.q}><b>{faq.q}</b><br/>{faq.a}</p>)}</details>}<div className="teacher-gig-footer"><span>{gig.availability&&Object.keys(gig.availability).length?`উপলভ্য: ${Object.keys(gig.availability).join(', ')}`:'সময় শিক্ষককে জিজ্ঞাসা করুন'}</span><button className="button" onClick={onBook}>প্যাকেজ বেছে বুক করুন</button></div></article> }
 function Info({title,children}:{title:string;children:React.ReactNode}) {return <section className="info"><h2>{title}</h2>{children}</section>}
@@ -318,7 +318,7 @@ export function GigPage({user}:{user:User|null}) {
   const outcomes=gig.outcomes?.filter(Boolean)||[];
   return <section className="page gig-detail-page">
     <a className="gig-detail-back" href="#/gigs"><span aria-hidden="true">←</span> সব গিগ দেখুন</a>
-    <header className="gig-detail-hero">
+    <header className="gig-detail-hero learning-art-header">
       <div className="gig-detail-copy">
         <div className="gig-detail-kicker"><span>{gig.subject}</span><i/>{gig.level&&<span>{gig.level}</span>}{gig.language&&<span>{gig.language} মাধ্যমে</span>}{gig.trial?.enabled&&<span className="gig-trial-pill">ট্রায়াল ক্লাস</span>}</div>
         <h1>{gig.title}</h1>
@@ -519,7 +519,7 @@ function StudentDashboard({data,onUserUpdated}:{data:DashboardData;onUserUpdated
   const dateLabel=new Intl.DateTimeFormat('bn-BD',{dateStyle:'full'}).format(new Date());
 
   return <section className="page section student-dashboard">
-    <header className="student-welcome">
+    <header className="student-welcome learning-art-header">
       <div className="student-welcome-copy">
         <div className="student-welcome-identity">
           <Avatar name={data.user.name} size="lg" photoUrl={photoFromUser(data.user)}/>
@@ -621,7 +621,7 @@ function AdminDashboard({data}:{data:DashboardData}){
     {icon:'⌕',title:'মার্কেটপ্লেস',detail:'শিক্ষক ও গিগের তালিকা দেখুন',count:'খুলুন',tone:'mint',action:()=>go('/search')}
   ];
   return <section className="page section admin-dashboard">
-    <header className="admin-welcome"><div><p className="eyebrow">অ্যাডমিন কন্ট্রোল সেন্টার</p><h1>স্বাগতম, {data.user.name}</h1><p>ব্যবহারকারী, ক্লাস ও কনটেন্ট—প্ল্যাটফর্মের সব ব্যবস্থাপনা এক জায়গায়।</p></div><button className="quiet-btn admin-refresh" type="button" onClick={()=>void load()} disabled={loading}>↻ {loading?'আপডেট হচ্ছে…':'ড্যাশবোর্ড আপডেট'}</button><span className="admin-welcome-orbit" aria-hidden="true">✦</span></header>
+    <header className="admin-welcome learning-art-header"><div><p className="eyebrow">অ্যাডমিন কন্ট্রোল সেন্টার</p><h1>স্বাগতম, {data.user.name}</h1><p>ব্যবহারকারী, ক্লাস ও কনটেন্ট—প্ল্যাটফর্মের সব ব্যবস্থাপনা এক জায়গায়।</p></div><button className="quiet-btn admin-refresh" type="button" onClick={()=>void load()} disabled={loading}>↻ {loading?'আপডেট হচ্ছে…':'ড্যাশবোর্ড আপডেট'}</button><span className="admin-welcome-orbit" aria-hidden="true">✦</span></header>
     <div className="admin-metrics" aria-label="প্ল্যাটফর্মের সারসংক্ষেপ">
       <article className="admin-metric metric-mint"><span>♙</span><div><small>মোট ব্যবহারকারী</small><b>{bn(data.admin?.users||0)}</b><em>সব ভূমিকা মিলিয়ে</em></div></article>
       <article className="admin-metric metric-blue"><span>▣</span><div><small>শিক্ষক প্রোফাইল</small><b>{bn(data.admin?.teachers||0)}</b><em>মার্কেটপ্লেসে</em></div></article>
@@ -643,7 +643,7 @@ function AdminDashboard({data}:{data:DashboardData}){
   </section>;
 }
 
-function AdminPageHeading({eyebrow,title,description}:{eyebrow:string;title:string;description:string}){return <header className="admin-page-heading"><div><p className="eyebrow">{eyebrow}</p><h1>{title}</h1><p>{description}</p></div><button className="quiet-btn" type="button" onClick={()=>go('/dashboard')}>← ড্যাশবোর্ড</button></header>}
+function AdminPageHeading({eyebrow,title,description}:{eyebrow:string;title:string;description:string}){return <header className="admin-page-heading learning-art-header"><div><p className="eyebrow">{eyebrow}</p><h1>{title}</h1><p>{description}</p></div><button className="quiet-btn" type="button" onClick={()=>go('/dashboard')}>← ড্যাশবোর্ড</button></header>}
 
 export function AdminUsers(){
   const [users,setUsers]=useState<AdminUserRecord[]|null>(null);const [query,setQuery]=useState('');const [role,setRole]=useState('ALL');const [error,setError]=useState('');
@@ -797,7 +797,7 @@ export function Messages({ user }: { user: User }) {
   };
 
   return <section className={`messages-page page section${mobileThread ? ' show-thread' : ''}`}>
-    <header className="messages-intro">
+    <header className="messages-intro learning-art-header">
       <div><p className="eyebrow">যোগাযোগ</p><h1>বার্তা</h1><p>শিক্ষক ও শিক্ষার্থীর সঙ্গে শেখার প্রয়োজনীয় কথা বলুন—সব কথোপকথন এক জায়গায়।</p></div>
       <div className="messages-summary"><span className="messages-summary-icon" aria-hidden="true">✉</span><span><b>{bn(items.length)}</b><small>টি কথোপকথন</small></span>{unreadTotal > 0 && <span className="unread-total">{bn(unreadTotal)} অপঠিত</span>}</div>
     </header>
@@ -901,7 +901,7 @@ export function Exams({ user }: { user: User }) {
     const seconds = progressSeconds % 60;
     const scorePercent = result?.percentage || 0;
     return <section className="page section exam-session">
-      <header className="exam-session-heading">
+      <header className="exam-session-heading learning-art-header">
         <button className="exam-back-link" type="button" onClick={() => { setActive(null); setResult(null); }}>← <span>সব পরীক্ষা</span></button>
         <div className="exam-session-title"><p className="eyebrow">{active.subject} · {active.topic}</p><h1>{active.title}</h1><p>{active.instructions || active.description || 'প্রতিটি প্রশ্নে একটি সঠিক উত্তর বেছে নিন।'}</p></div>
         <div className={`exam-timer${progressSeconds < 60 ? ' is-urgent' : ''}`} aria-label="অবশিষ্ট সময়"><span aria-hidden="true">◷</span><b>{String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}</b><small>অবশিষ্ট সময়</small></div>
@@ -933,7 +933,7 @@ export function Exams({ user }: { user: User }) {
   const subjects = ['সব বিষয়', ...new Set((exams || []).map(exam => exam.subject))];
   const filtered = (exams || []).filter(exam => (subject === 'সব বিষয়' || exam.subject === subject) && `${exam.title} ${exam.subject} ${exam.topic}`.toLocaleLowerCase('bn').includes(query.trim().toLocaleLowerCase('bn')));
   return <section className="exams-page">
-    <header className="exams-hero"><div className="exams-hero-copy"><p className="eyebrow">শিখুন · অনুশীলন করুন · এগিয়ে যান</p><h1>প্রস্তুতি যাচাইয়ের সেরা সময় এখনই</h1><p>বিষয়ভিত্তিক MCQ পরীক্ষায় নিজের প্রস্তুতি যাচাই করুন। জমা দেওয়ার পর প্রতিটি উত্তরের সঠিক সমাধান ও ব্যাখ্যা দেখে শিখুন।</p><div className="exams-hero-points"><span>✓ সময় ধরে অনুশীলন</span><span>✓ তাৎক্ষণিক স্কোর</span><span>✓ উত্তর ও ব্যাখ্যা</span></div></div><div className="exams-hero-art" aria-hidden="true"><span>✓</span><b>MCQ</b><small>জ্ঞান যাচাই</small><i>✦</i></div></header>
+    <header className="exams-hero learning-art-header"><div className="exams-hero-copy"><p className="eyebrow">শিখুন · অনুশীলন করুন · এগিয়ে যান</p><h1>প্রস্তুতি যাচাইয়ের সেরা সময় এখনই</h1><p>বিষয়ভিত্তিক MCQ পরীক্ষায় নিজের প্রস্তুতি যাচাই করুন। জমা দেওয়ার পর প্রতিটি উত্তরের সঠিক সমাধান ও ব্যাখ্যা দেখে শিখুন।</p><div className="exams-hero-points"><span>✓ সময় ধরে অনুশীলন</span><span>✓ তাৎক্ষণিক স্কোর</span><span>✓ উত্তর ও ব্যাখ্যা</span></div></div><div className="exams-hero-art" aria-hidden="true"><span>✓</span><b>MCQ</b><small>জ্ঞান যাচাই</small><i>✦</i></div></header>
     <section className="exams-catalog page section" aria-labelledby="exams-catalog-title"><div className="exams-catalog-heading"><div><p className="eyebrow">আপনার অনুশীলন</p><h2 id="exams-catalog-title">বিষয়ভিত্তিক পরীক্ষা</h2><p>একটি পরীক্ষা বেছে নিয়ে প্রস্তুতি শুরু করুন।</p></div>{exams&&<span className="exams-total"><b>{bn(exams.length)}</b>টি পরীক্ষা</span>}</div>
       <div className="exams-filter-row"><label className="exam-search"><span aria-hidden="true">⌕</span><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="পরীক্ষা বা বিষয় খুঁজুন" aria-label="পরীক্ষা বা বিষয় খুঁজুন"/><kbd>⌕</kbd></label><div className="exam-subject-filters" aria-label="বিষয় অনুযায়ী ফিল্টার">{subjects.map(item => <button className={subject === item ? 'is-active' : ''} key={item} type="button" onClick={() => setSubject(item)}>{item}</button>)}</div></div>
       {error && !active && <p className="exam-feedback" role="alert">{error}<button type="button" onClick={() => void load()}>আবার চেষ্টা করুন</button></p>}
@@ -974,7 +974,7 @@ export function Problems({user}:{user:User|null}) {
   const onlineTeachers=teachers.filter(teacher=>teacher.isLive).length;
 
   return <section className="page section problem-market-page">
-    <div className="problem-market-hero">
+    <div className="problem-market-hero learning-art-header">
       <div className="problem-hero-copy">
         <p className="eyebrow">শিখুন, বুঝুন, এগিয়ে যান</p>
         <h1>যে প্রশ্নে আটকে আছেন,<br/><span>সেটার সমাধান এখানেই</span></h1>

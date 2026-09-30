@@ -50,7 +50,7 @@ export function TeacherDashboardLive({ data, onUserUpdated }: { data: DashboardD
   ];
 
   return <section className="page section teacher-dashboard">
-    <header className="teacher-dashboard-heading">
+    <header className="teacher-dashboard-heading learning-art-header">
       <div className="teacher-dashboard-heading-copy">
         <p className="eyebrow"><span className="teacher-dashboard-online" />শিক্ষক ড্যাশবোর্ড</p>
         <h1>স্বাগতম, {data.user.name}</h1>

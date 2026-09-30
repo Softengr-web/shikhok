@@ -945,3 +945,65 @@
   .admin-record-card { padding: 11px; }
   .mobile-nav.is-admin small { font-size: .62rem; }
 }
+
+/* Faint, right-aligned learning artwork keeps route headers cohesive without competing with their copy. */
+.learning-art-header {
+  position: relative;
+  isolation: isolate;
+}
+
+.learning-art-header::before {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background: url('/images/teal-learning-journey.webp') no-repeat right center / auto 135%;
+  content: '';
+  opacity: .14;
+  pointer-events: none;
+}
+
+.exams-hero.learning-art-header::before,
+.admin-welcome.learning-art-header::before {
+  opacity: .09;
+}
+
+/* Simple routes share the same treatment when their title is a direct page child. */
+.page.section:has(> .eyebrow + h1),
+.page.section:has(> h1:first-child) {
+  position: relative;
+  isolation: isolate;
+}
+
+.page.section:has(> .eyebrow + h1)::before,
+.page.section:has(> h1:first-child)::before {
+  position: absolute;
+  z-index: -1;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 330px;
+  background: url('/images/teal-learning-journey.webp') no-repeat right top / auto 330px;
+  content: '';
+  opacity: .14;
+  pointer-events: none;
+  mask-image: linear-gradient(to bottom, #000 0%, #000 62%, transparent 100%);
+}
+
+@media (max-width: 560px) {
+  .page.section:has(> .eyebrow + h1)::before,
+  .page.section:has(> h1:first-child)::before {
+    height: 230px;
+    background-size: auto 230px;
+    opacity: .12;
+  }
+
+  .learning-art-header::before {
+    background-size: auto 115%;
+    opacity: .11;
+  }
+
+  .exams-hero.learning-art-header::before,
+  .admin-welcome.learning-art-header::before {
+    opacity: .07;
+  }
+}
