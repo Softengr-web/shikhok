@@ -106,7 +106,7 @@
 .demo-accounts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin: 0; }
 .demo-accounts button { display: flex; min-width: 0; align-items: center; gap: 10px; padding: 11px; border: 1px solid #dce9e5; border-radius: 12px; background: #fff; color: var(--ink); text-align: left; }
 .demo-accounts button:hover, .demo-accounts button:focus-visible { border-color: #6bb4a6; background: #f5fbf8; box-shadow: 0 5px 15px rgba(12,54,51,.08); transform: translateY(-1px); outline: none; }
-.demo-role-icon { display: grid; flex: none; width: 36px; height: 36px; place-items: center; border-radius: 11px; background: #e1f3ec; color: #07554e; font-size: .84rem; font-weight: 700; }
+.demo-role-avatar { display: block; flex: none; width: 38px; height: 38px; border: 1px solid #d7eae4; border-radius: 12px; background: #e1f3ec; object-fit: cover; }
 .demo-role-copy { display: grid; min-width: 0; gap: 1px; }
 .demo-role-copy b { overflow: hidden; color: var(--ink); font-size: .89rem; text-overflow: ellipsis; white-space: nowrap; }
 .demo-role-copy small { overflow: hidden; color: var(--muted); font-size: .73rem; text-overflow: ellipsis; white-space: nowrap; }
@@ -142,7 +142,7 @@
   .demo-count { display: inline-flex; margin-top: 9px; }
   .demo-accounts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .demo-accounts button { gap: 8px; padding: 9px; }
-  .demo-role-icon { width: 32px; height: 32px; }
+  .demo-role-avatar { width: 34px; height: 34px; }
   .auth-form { width: 100%; margin: 0; padding: 25px 20px; border-radius: 20px; }
   .auth-form h2 { font-size: 1.8rem; }
 }

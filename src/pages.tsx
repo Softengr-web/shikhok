@@ -437,22 +437,22 @@ export function AuthPage({ kind, onLogin }: { kind: 'login' | 'register'; onLogi
           </div>
           <div className="demo-accounts">
             <button type="button" onClick={() => chooseDemo('student@demo.local')}>
-              <span className="demo-role-icon" aria-hidden="true">শি</span>
+              <img className="demo-role-avatar" src="/images/teachers/teacher-01.svg" alt="" aria-hidden="true" />
               <span className="demo-role-copy"><b>শিক্ষার্থী</b><small>শিখতে শুরু করুন</small></span>
               <span className="demo-role-arrow" aria-hidden="true">↗</span>
             </button>
             <button type="button" onClick={() => chooseDemo('teacher@demo.local')}>
-              <span className="demo-role-icon" aria-hidden="true">শি</span>
+              <img className="demo-role-avatar" src="/images/teachers/teacher-02.svg" alt="" aria-hidden="true" />
               <span className="demo-role-copy"><b>শিক্ষক</b><small>শিক্ষক ড্যাশবোর্ড</small></span>
               <span className="demo-role-arrow" aria-hidden="true">↗</span>
             </button>
             <button type="button" onClick={() => chooseDemo('parent@demo.local')}>
-              <span className="demo-role-icon" aria-hidden="true">অ</span>
+              <img className="demo-role-avatar" src="/images/teachers/teacher-03.svg" alt="" aria-hidden="true" />
               <span className="demo-role-copy"><b>অভিভাবক</b><small>শেখার অগ্রগতি দেখুন</small></span>
               <span className="demo-role-arrow" aria-hidden="true">↗</span>
             </button>
             <button type="button" onClick={() => chooseDemo('admin@demo.local')}>
-              <span className="demo-role-icon" aria-hidden="true">অ</span>
+              <img className="demo-role-avatar" src="/images/teachers/teacher-04.svg" alt="" aria-hidden="true" />
               <span className="demo-role-copy"><b>অ্যাডমিন</b><small>প্ল্যাটফর্ম পরিচালনা</small></span>
               <span className="demo-role-arrow" aria-hidden="true">↗</span>
             </button>
