@@ -6,7 +6,60 @@ import { TeacherDashboardLive } from './teacher-dashboard';
 import type { Booking, Exam, ExamAttemptResult, Gig, Notification, ProblemPost, Subject, Teacher, User } from './models';
 import { ExamAnswerReview } from './exam-review';
 
-export function Home({user}:{user:User|null}) { const [subjects,setSubjects]=useState<Subject[]>([]);const [teachers,setTeachers]=useState<Teacher[]>([]);const [q,setQ]=useState('');const [compare,setCompare]=useState<Teacher[]>([]);useEffect(()=>{void Promise.all([api<Subject[]>('/subjects'),api<{items:Teacher[]}>('/teachers?perPage=4')]).then(([s,t])=>{setSubjects(s);setTeachers(t.items);});},[]);const toggle=(t:Teacher)=>setCompare(c=>c.some(x=>x.id===t.id)?c.filter(x=>x.id!==t.id):c.length<3?[...c,t]:c);return <><section className="hero"><div><p className="hero-brand" aria-label="Private Tutor">Private <span>Tutor</span><i aria-hidden="true"></i></p><p className="eyebrow">বাংলাদেশের শিক্ষক মার্কেটপ্লেস</p><h1>আপনার জন্য সঠিক শিক্ষক খুঁজে নিন</h1><p>বিষয়, স্তর ও বাজেট অনুযায়ী শিক্ষক বেছে নিন। সুবিধাজনক সময়ে ক্লাস বুক করুন, আর শেখার অগ্রগতি দেখুন এক জায়গায়।</p><form className="searchbar" onSubmit={e=>{e.preventDefault();go(`/search?q=${encodeURIComponent(q)}`)}}><input value={q} onChange={e=>setQ(e.target.value)} placeholder="আপনি কী শিখতে চান?" aria-label="আপনি কী শিখতে চান?"/><button className="button">শিক্ষক খুঁজুন</button></form><div className="hero-points"><span>✓ যাচাইকৃত শিক্ষক</span><span>✓ স্বচ্ছ মূল্য ও প্যাকেজ</span><span>✓ ইন্টারঅ্যাকটিভ ক্লাসরুম</span></div></div><div className="hero-panel"><span className="spark">✦</span><p>আজই শুরু করুন</p><b>বিভিন্ন বিষয়ের শিক্ষক</b><small>বিষয়, স্তর ও বাজেট মিলিয়ে আপনার উপযোগী ক্লাস বেছে নিন</small><a href="#/register" className="button light">বিনামূল্যে শুরু করুন</a></div></section><section className="section"><div className="section-head"><div><p className="eyebrow">বিষয় বেছে নিন</p><h2>জনপ্রিয় বিষয়</h2></div><a href="#/search">সব দেখুন →</a></div><div className="categories">{subjects.slice(0,10).map(s=><button key={s.id} onClick={()=>go(`/search?subject=${encodeURIComponent(s.name)}`)}><i>{s.icon}</i><span>{s.name}</span><small>{s.topics.length}টি টপিক</small></button>)}</div></section><section className="section soft"><div className="section-head"><div><p className="eyebrow">শিক্ষক নির্বাচন</p><h2>জনপ্রিয় শিক্ষক</h2></div><a href="#/search">সব শিক্ষক দেখুন →</a></div><div className="card-grid">{teachers.map(t=><TeacherCard key={t.id} teacher={t} user={user} compare={compare.some(x=>x.id===t.id)} onCompare={toggle}/>)}</div>{compare.length>1&&<CompareBar teachers={compare} onRemove={toggle}/>}</section><section className="how"><p className="eyebrow">সহজ তিন ধাপ</p><h2>কীভাবে শিক্ষক কাজ করে</h2><div><article><b>১</b><h3>শিক্ষক খুঁজুন</h3><p>বিষয়, স্তর ও বাজেট দিয়ে পছন্দের শিক্ষক বাছুন।</p></article><article><b>২</b><h3>ক্লাস বুক করুন</h3><p>পছন্দের প্যাকেজ ও সময় বেছে বুকিং নিশ্চিত করুন। ফি আগে থেকেই দেখে নিন।</p></article><article><b>৩</b><h3>শিখুন ও এগিয়ে যান</h3><p>ক্লাস, নোট, অনুশীলন ও শেখার অগ্রগতি—সব এক জায়গায়।</p></article></div></section></> }
+export function Home({ user }: { user: User | null }) {
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [q, setQ] = useState('');
+  const [compare, setCompare] = useState<Teacher[]>([]);
+
+  useEffect(() => {
+    void Promise.all([
+      api<Subject[]>('/subjects'),
+      api<{ items: Teacher[] }>('/teachers?perPage=4')
+    ]).then(([subjectItems, teacherItems]) => {
+      setSubjects(subjectItems);
+      setTeachers(teacherItems.items);
+    });
+  }, []);
+
+  const toggle = (teacher: Teacher) => setCompare(current =>
+    current.some(item => item.id === teacher.id)
+      ? current.filter(item => item.id !== teacher.id)
+      : current.length < 3 ? [...current, teacher] : current
+  );
+
+  return <>
+    <section className="hero">
+      <div className="hero-copy">
+        <p className="hero-brand" aria-label="Private Tutor">Private <span>Tutor</span><i aria-hidden="true"></i></p>
+        <p className="eyebrow">বাংলাদেশের শিক্ষক মার্কেটপ্লেস</p>
+        <h1>আপনার জন্য সঠিক শিক্ষক খুঁজে নিন</h1>
+        <p>বিষয়, স্তর ও বাজেট অনুযায়ী শিক্ষক বেছে নিন। সুবিধাজনক সময়ে ক্লাস বুক করুন, আর শেখার অগ্রগতি দেখুন এক জায়গায়।</p>
+        <form className="searchbar" onSubmit={event => { event.preventDefault(); go(`/search?q=${encodeURIComponent(q)}`); }}>
+          <input value={q} onChange={event => setQ(event.target.value)} placeholder="আপনি কী শিখতে চান?" aria-label="আপনি কী শিখতে চান?" />
+          <button className="button">শিক্ষক খুঁজুন</button>
+        </form>
+        <div className="hero-points"><span>✓ যাচাইকৃত শিক্ষক</span><span>✓ স্বচ্ছ মূল্য ও প্যাকেজ</span><span>✓ ইন্টারঅ্যাকটিভ ক্লাসরুম</span></div>
+      </div>
+      <div className="hero-visual" aria-hidden="true">
+        <img src="/images/shikhok-hero.webp" alt="" fetchPriority="high" decoding="async" />
+      </div>
+    </section>
+    <section className="section">
+      <div className="section-head"><div><p className="eyebrow">বিষয় বেছে নিন</p><h2>জনপ্রিয় বিষয়</h2></div><a href="#/search">সব দেখুন →</a></div>
+      <div className="categories">{subjects.slice(0, 10).map(subject => <button key={subject.id} onClick={() => go(`/search?subject=${encodeURIComponent(subject.name)}`)}><i>{subject.icon}</i><span>{subject.name}</span><small>{subject.topics.length}টি টপিক</small></button>)}</div>
+    </section>
+    <section className="section soft">
+      <div className="section-head"><div><p className="eyebrow">শিক্ষক নির্বাচন</p><h2>জনপ্রিয় শিক্ষক</h2></div><a href="#/search">সব শিক্ষক দেখুন →</a></div>
+      <div className="card-grid">{teachers.map(teacher => <TeacherCard key={teacher.id} teacher={teacher} user={user} compare={compare.some(item => item.id === teacher.id)} onCompare={toggle} />)}</div>
+      {compare.length > 1 && <CompareBar teachers={compare} onRemove={toggle} />}
+    </section>
+    <section className="how">
+      <p className="eyebrow">সহজ তিন ধাপ</p><h2>কীভাবে শিক্ষক কাজ করে</h2>
+      <div><article><b>১</b><h3>শিক্ষক খুঁজুন</h3><p>বিষয়, স্তর ও বাজেট দিয়ে পছন্দের শিক্ষক বাছুন।</p></article><article><b>২</b><h3>ক্লাস বুক করুন</h3><p>পছন্দের প্যাকেজ ও সময় বেছে বুকিং নিশ্চিত করুন। ফি আগে থেকেই দেখে নিন।</p></article><article><b>৩</b><h3>শিখুন ও এগিয়ে যান</h3><p>ক্লাস, নোট, অনুশীলন ও শেখার অগ্রগতি—সব এক জায়গায়।</p></article></div>
+    </section>
+  </>;
+}
 const gigSubjectIcons: Record<string, string> = {
   'গণিত': '∑', 'পদার্থবিজ্ঞান': '⚛', 'রসায়ন': '⚗', 'জীববিজ্ঞান': '✳', 'ইংরেজি': 'Aa',
   'বাংলা': 'অ', 'আইসিটি': '⌘', 'হিসাববিজ্ঞান': '▤', 'ফিন্যান্স': '৳', 'প্রোগ্রামিং': '</>',
