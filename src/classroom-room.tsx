@@ -15,11 +15,18 @@ type RoomPacket = {
 };
 
 const emptyBoard: BoardState = { pages: [''], page: 0 };
+const fallbackIceServers: RTCIceServer[] = [
+  { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'stun:stun1.l.google.com:19302' }
+];
 
 export function ClassroomRoom({ user }: { user: User }) {
   const bookingId = location.hash.split('/')[2]?.split('?')[0] || '';
   const [booking, setBooking] = useState<Booking | null>(null);
   const [loadError, setLoadError] = useState('');
+  const [iceServers, setIceServers] = useState<RTCIceServer[]>(fallbackIceServers);
+  const [iceReady, setIceReady] = useState(false);
+  const [turnAvailable, setTurnAvailable] = useState(false);
   const [camera, setCamera] = useState(false);
   const [mic, setMic] = useState(false);
   const [sharing, setSharing] = useState(false);
@@ -74,6 +81,22 @@ export function ClassroomRoom({ user }: { user: User }) {
     return () => { active = false; };
   }, [bookingId, user.id]);
 
+  useEffect(() => {
+    if (!booking) return;
+    let active = true;
+    setIceReady(false);
+    void api<{ iceServers: RTCIceServer[]; turnAvailable: boolean }>(`/classroom/${bookingId}/ice-servers`).then(config => {
+      if (!active) return;
+      setIceServers(config.iceServers?.length ? config.iceServers : fallbackIceServers);
+      setTurnAvailable(config.turnAvailable === true);
+      setIceReady(true);
+    }).catch(() => {
+      if (!active) return;
+      setIceServers(fallbackIceServers); setTurnAvailable(false); setIceReady(true);
+    });
+    return () => { active = false; };
+  }, [booking?.id, bookingId, user.id]);
+
   const sendRoom = (payload: Record<string, unknown>) => {
     const socket = roomSocket.current;
     if (!socket || socket.readyState !== WebSocket.OPEN) return false;
@@ -96,10 +119,7 @@ export function ClassroomRoom({ user }: { user: User }) {
     pendingIce.current = [];
     remoteStream.current = new MediaStream();
     if (remoteVideo.current) remoteVideo.current.srcObject = null;
-    const connection = new RTCPeerConnection({ iceServers: [
-      { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun1.l.google.com:19302' }
-    ] });
+    const connection = new RTCPeerConnection({ iceServers });
     connection.addTransceiver('audio', { direction: 'sendrecv' });
     connection.addTransceiver('video', { direction: 'sendrecv' });
     for (const track of stream.current?.getTracks() || []) {
@@ -138,7 +158,9 @@ export function ClassroomRoom({ user }: { user: User }) {
         if (otherId && user.id < otherId && iceRestartAttempts.current < 2) {
           iceRestartAttempts.current += 1;
           window.setTimeout(() => void startOffer(otherId, true), 700 * iceRestartAttempts.current);
-        } else if (otherId) setFeedback('ভিডিও সংযোগ তৈরি হয়নি। আবার চেষ্টা করুন বা অন্য নেটওয়ার্ক ব্যবহার করুন।');
+        } else if (otherId) setFeedback(turnAvailable
+          ? 'নেটওয়ার্ক সংযোগ তৈরি হয়নি। আবার চেষ্টা করুন বা অন্য নেটওয়ার্ক ব্যবহার করুন।'
+          : 'এই নেটওয়ার্কে সরাসরি সংযোগ হচ্ছে না; ক্লাসের TURN relay এখনো কনফিগার করা নেই।');
       }
     };
     peer.current = connection;
@@ -164,7 +186,7 @@ export function ClassroomRoom({ user }: { user: User }) {
   };
 
   useEffect(() => {
-    if (!booking) return;
+    if (!booking || !iceReady) return;
     let active = true;
     let retryTimer: number | undefined;
     let retryDelay = 1000;
@@ -246,7 +268,7 @@ export function ClassroomRoom({ user }: { user: User }) {
       peer.current?.close(); peer.current = null;
       remoteStream.current = null;
     };
-  }, [booking?.id, bookingId, user.id]);
+  }, [booking?.id, bookingId, user.id, iceReady, iceServers, turnAvailable]);
 
   useEffect(() => {
     if (recording === 'recording') {

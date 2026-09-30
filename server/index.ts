@@ -2,7 +2,7 @@ import express, { type Request, type Response, type NextFunction } from 'express
 import { createServer } from 'node:http';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { randomUUID } from 'node:crypto';
+import { createHmac, randomUUID } from 'node:crypto';
 import { store } from './store.js';
 import { DomainError, authenticate, changeBookingStatus, cleanText, conversation, createBooking, createExam, createGig, createProblemSession, createReview, deleteExam, duplicateExam, findTeachers, getExamForStudent, listConversations, listTeacherExams, markConversationRead, matchTeachers, payBooking, privateUser, publicTeacher, publicUser, publishExam, register, requireRole, requireUser, sendMessage, setExamStatus, submitExam, teacherExamResults, updateExam, updateTeacher, updateUserProfile, wallet } from './services.js';
 import { id } from './seed.js';
@@ -43,6 +43,38 @@ app.get('/api/dashboard', auth(), handler((req,res)=> { const state=store.read()
 
 app.put('/api/profile',auth(['STUDENT','TEACHER']),handler((req,res)=>ok(res,store.transaction(state=>{const current=state.users.find(user=>user.id===actor(req).id)!;const user=updateUserProfile(state,current,req.body);const teacherInput=req.body.teacher;const teacher=current.role==='TEACHER'&&teacherInput&&typeof teacherInput==='object'&&!Array.isArray(teacherInput)?updateTeacher(state,user,teacherInput as Record<string,unknown>):undefined;return {user:publicUser(user),teacher};}))));
 app.get('/api/bookings', auth(), handler((req,res)=> { const user=actor(req);const data=store.read().bookings.filter(b=>user.role==='ADMIN'||b.studentId===user.id||b.teacherId===user.id);return ok(res,data); }));
+app.get('/api/classroom/:bookingId/ice-servers',auth(),handler(async(req,res)=>{
+  const user=actor(req);const booking=store.read().bookings.find(item=>item.id===req.params.bookingId);
+  if(!booking||![booking.studentId,booking.teacherId].includes(user.id)||!['CONFIRMED','IN_PROGRESS'].includes(booking.status))throw new DomainError('এই ক্লাসের ICE configuration পাওয়ার অনুমতি নেই।',403);
+  const iceServers:Array<{urls:string|string[];username?:string;credential?:string;credentialType?:'password'}>=[
+    {urls:['stun:stun.l.google.com:19302','stun:stun1.l.google.com:19302']}
+  ];
+  const meteredApp=process.env.METERED_APP_NAME?.trim();const meteredKey=process.env.METERED_API_KEY?.trim();
+  if(meteredApp&&meteredKey&&/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i.test(meteredApp)){
+    try{
+      const response=await fetch(`https://${meteredApp}.metered.live/api/v1/turn/credentials?apiKey=${encodeURIComponent(meteredKey)}`,{headers:{accept:'application/json'},signal:AbortSignal.timeout(5000)});
+      if(response.ok){
+        const payload:unknown=await response.json();
+        if(Array.isArray(payload))for(const item of payload){
+          if(!item||typeof item!=='object')continue;
+          const server=item as {urls?:unknown;username?:unknown;credential?:unknown};
+          const urls=(Array.isArray(server.urls)?server.urls:[server.urls]).filter((url):url is string=>typeof url==='string'&&/^turns?:/i.test(url));
+          if(urls.length&&typeof server.username==='string'&&typeof server.credential==='string')iceServers.push({urls,username:server.username,credential:server.credential,credentialType:'password'});
+        }
+      }
+    }catch{/* Fall through to an explicitly configured coturn server or STUN-only mode. */}
+  }
+  const turnUrls=(process.env.TURN_URLS||'').split(',').map(url=>url.trim()).filter(url=>/^turns?:/i.test(url));
+  const turnSecret=process.env.TURN_SHARED_SECRET;
+  if(turnUrls.length&&turnSecret){
+    const username=`${Math.floor(Date.now()/1000)+8*60*60}:${user.id}`;
+    const credential=createHmac('sha1',turnSecret).update(username).digest('base64');
+    iceServers.push({urls:turnUrls,username,credential,credentialType:'password'});
+  }else if(turnUrls.length&&process.env.TURN_USERNAME&&process.env.TURN_CREDENTIAL){
+    iceServers.push({urls:turnUrls,username:process.env.TURN_USERNAME,credential:process.env.TURN_CREDENTIAL,credentialType:'password'});
+  }
+  return ok(res,{iceServers,turnAvailable:iceServers.length>1});
+}));
 app.post('/api/bookings',auth(['STUDENT']),handler((req,res)=>ok(res,store.transaction(s=>createBooking(s,actor(req),req.body)),201)));
 app.post('/api/bookings/:id/pay',auth(['STUDENT']),handler((req,res)=>ok(res,store.transaction(s=>payBooking(s,actor(req),String(req.params.id))))));
 app.post('/api/bookings/:id/status',auth(),handler((req,res)=> { const status=req.body.status as BookingStatus;if(!['PENDING','CONFIRMED','IN_PROGRESS','COMPLETED','CANCELLED','NO_SHOW','DISPUTED','REFUNDED'].includes(status))throw new DomainError('সঠিক স্ট্যাটাস দিন।');return ok(res,store.transaction(s=>changeBookingStatus(s,actor(req),String(req.params.id),status))); }));
