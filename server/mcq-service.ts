@@ -39,9 +39,17 @@ export async function persistMcqBootstrapAdmin(user: User): Promise<User> {
 
 type Actor = Pick<User, 'id' | 'role'> & Partial<Pick<User, 'email' | 'name' | 'passwordHash' | 'phone' | 'createdAt' | 'active'>>;
 type FilterInput = { classLevel?: unknown; groupName?: unknown; subject?: unknown; part?: unknown; chapters?: unknown };
-const value = (input: unknown) => typeof input === 'string' ? input.trim() : '';
+const cleanText = (input: unknown) => typeof input === 'string' ? input.replace(/\u0000/gu, '') : '';
+const value = (input: unknown) => cleanText(input).trim();
 const nullable = (input: unknown) => value(input) || null;
-const json = (input: unknown): any => input as any;
+const cleanJson = (input: any): any => typeof input === 'string'
+  ? cleanText(input)
+  : Array.isArray(input)
+    ? input.map(cleanJson)
+    : input && typeof input === 'object'
+      ? Object.fromEntries(Object.entries(input).map(([key, child]) => [cleanText(key), cleanJson(child)]))
+      : input;
+const json = (input: unknown): any => cleanJson(input);
 const sha256 = (input: string) => createHash('sha256').update(input, 'utf8').digest('hex');
 const canonical = (text: string) => text.replace(/\s+/gu, ' ').trim().toLocaleLowerCase('bn-BD');
 
@@ -455,7 +463,7 @@ export async function uploadMcqBatch(actor: Actor, body: Record<string, any>) {
     }
     for (const sourceIssue of Array.isArray(body.source_issues) ? body.source_issues : []) {
       const problem = value(sourceIssue.problem) || 'Source page could not be read reliably.';
-      const rawExtractedText = typeof sourceIssue.raw_text === 'string' ? sourceIssue.raw_text : '';
+      const rawExtractedText = cleanText(sourceIssue.raw_text);
       const page = sourceIssue.source_page ? Math.max(1, Math.floor(Number(sourceIssue.source_page))) : null;
       const mediaIds = Array.isArray(sourceIssue.media_sha256) ? [...new Set(sourceIssue.media_sha256.map((digest: string) => assetIds.get(digest)).filter(Boolean))] : [];
       const alreadyRecorded = await transaction.mcqImportIssue.findFirst({ where: { sourceFileId: sourceFile.id, candidateIndex: null, page, problem, rawExtractedText }, select: { id: true } });
@@ -475,11 +483,12 @@ export async function uploadMcqBatch(actor: Actor, body: Record<string, any>) {
       detected++;
       const q = candidate.question;
       const issueInput = candidate.issue;
-      const raw = typeof issueInput?.raw_text === 'string' ? issueInput.raw_text : typeof q?.raw_text === 'string' ? q.raw_text : '';
-      const options = Array.isArray(q?.options) ? q.options.filter((option: any) => option && typeof option.text === 'string').map((option: any) => ({ label: String(option.label || ''), text: option.text, ...(Array.isArray(option.media_sha256) ? { mediaIds: option.media_sha256.map((digest: string) => assetIds.get(digest)).filter(Boolean) } : {}) })) as McqOption[] : [];
+      const raw = cleanText(typeof issueInput?.raw_text === 'string' ? issueInput.raw_text : typeof q?.raw_text === 'string' ? q.raw_text : '');
+      const questionText = cleanText(q?.question);
+      const options = Array.isArray(q?.options) ? q.options.filter((option: any) => option && typeof option.text === 'string').map((option: any) => ({ label: value(option.label), text: cleanText(option.text), ...(Array.isArray(option.media_sha256) ? { mediaIds: option.media_sha256.map((digest: string) => assetIds.get(digest)).filter(Boolean) } : {}) })) as McqOption[] : [];
       const correctOption = Number(q?.correct_option);
-      const valid = Boolean(q && typeof q.question === 'string' && q.question.trim() && options.length >= 2 && options.length <= 8 && Number.isInteger(correctOption) && correctOption >= 0 && correctOption < options.length && source.class_level && source.subject);
-      const candidateHash = sha256(JSON.stringify({ raw: canonical(raw), question: valid ? canonical(q.question) : '', options: valid ? options.map(option => canonical(option.text)) : [] }));
+      const valid = Boolean(q && questionText.trim() && options.length >= 2 && options.length <= 8 && Number.isInteger(correctOption) && correctOption >= 0 && correctOption < options.length && source.class_level && source.subject);
+      const candidateHash = sha256(JSON.stringify({ raw: canonical(raw), question: valid ? canonical(questionText) : '', options: valid ? options.map(option => canonical(option.text)) : [] }));
       let outcome = 'REVIEW';
       let questionId: string | null = null;
       let issueId: string | null = null;
@@ -489,8 +498,8 @@ export async function uploadMcqBatch(actor: Actor, body: Record<string, any>) {
           ...(Array.isArray(q.media_sha256) ? q.media_sha256.filter((digest: unknown): digest is string => typeof digest === 'string') : []),
           ...(Array.isArray(q.options) ? q.options.flatMap((option: any) => Array.isArray(option?.media_sha256) ? option.media_sha256.filter((digest: unknown): digest is string => typeof digest === 'string') : []) : [])
         ])].sort();
-        const contentHash = questionContentHash(q.question, options, scope);
-        const hash = questionHash(q.question, options, scope, mediaHashes);
+        const contentHash = questionContentHash(questionText, options, scope);
+        const hash = questionHash(questionText, options, scope, mediaHashes);
         const exactQuestion = await transaction.mcqQuestion.findFirst({ where: { questionHash: hash }, select: { id: true, correctOption: true, questionHash: true } });
         const similarQuestion = exactQuestion ?? await transaction.mcqQuestion.findFirst({ where: { contentHash }, select: { id: true, correctOption: true, questionHash: true } });
         if (exactQuestion && exactQuestion.correctOption === correctOption) {
@@ -503,7 +512,7 @@ export async function uploadMcqBatch(actor: Actor, body: Record<string, any>) {
           const answerConflict = similarQuestion.correctOption !== correctOption;
           const issue = await transaction.mcqImportIssue.create({ data: {
             id: randomUUID(), sourceFileId: sourceFile.id, candidateIndex, page: q.source_page || null, rawExtractedText: raw,
-            parserInterpretation: json({ question: q.question, options, answer: correctOption, existingQuestionId: similarQuestion.id, existingCorrectOption: similarQuestion.correctOption, existingQuestionHash: similarQuestion.questionHash, incomingQuestionHash: hash }), mediaIds: json(mediaHashes.map(digest => assetIds.get(digest)).filter(Boolean)),
+            parserInterpretation: json({ question: questionText, options, answer: correctOption, existingQuestionId: similarQuestion.id, existingCorrectOption: similarQuestion.correctOption, existingQuestionHash: similarQuestion.questionHash, incomingQuestionHash: hash }), mediaIds: json(mediaHashes.map(digest => assetIds.get(digest)).filter(Boolean)),
             problem: answerConflict ? 'একই প্রশ্নের উত্তর key উৎসভেদে আলাদা; স্বয়ংক্রিয়ভাবে duplicate হিসেবে নেওয়া হয়নি।' : 'একই প্রশ্ন ও option আছে, কিন্তু source image/diagram আলাদা; সঠিক mapping যাচাই প্রয়োজন।',
             suggestedCorrection: 'দুই source মিলিয়ে প্রশ্নের ছবি ও সঠিক উত্তর যাচাই করুন।'
           } });
@@ -511,7 +520,7 @@ export async function uploadMcqBatch(actor: Actor, body: Record<string, any>) {
         } else {
           const mediaIds = Array.isArray(q.media_sha256) ? q.media_sha256.map((digest: string) => assetIds.get(digest)).filter(Boolean) : [];
           const created = await transaction.mcqQuestion.create({ data: {
-            id: randomUUID(), sourceFileId: sourceFile.id, classLevel: value(source.class_level), groupName: nullable(source.group_name), subject: value(source.subject), part: nullable(source.part), chapter: nullable(source.chapter), topic: nullable(source.topic), questionText: q.question, options: json(options), correctOption, explanation: typeof q.explanation === 'string' ? q.explanation : null, difficulty: 'MEDIUM', tags: json([value(source.subject), value(source.chapter)].filter(Boolean)), mediaIds: json(mediaIds), questionHash: hash, contentHash, status: 'PUBLISHED', sourcePage: q.source_page || null, sourceLocation: value(q.source_location) || null
+            id: randomUUID(), sourceFileId: sourceFile.id, classLevel: value(source.class_level), groupName: nullable(source.group_name), subject: value(source.subject), part: nullable(source.part), chapter: nullable(source.chapter), topic: nullable(source.topic), questionText, options: json(options), correctOption, explanation: typeof q.explanation === 'string' ? cleanText(q.explanation) : null, difficulty: 'MEDIUM', tags: json([value(source.subject), value(source.chapter)].filter(Boolean)), mediaIds: json(mediaIds), questionHash: hash, contentHash, status: 'PUBLISHED', sourcePage: q.source_page || null, sourceLocation: value(q.source_location) || null
           } });
           outcome = 'IMPORTED';
           questionId = created.id;
