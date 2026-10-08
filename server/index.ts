@@ -34,16 +34,19 @@ app.get('/api/health', handler(async(_req,res)=>{
 }));
 app.post('/api/auth/login', handler(async(req,res)=> {
   const email=String(req.body.email||'').trim().toLowerCase();
-  const isPublicStudentDemo=process.env.NODE_ENV==='production'&&email==='student@demo.local'&&String(req.body.password||'')==='demo123';
-  if(process.env.NODE_ENV==='production'&&email.endsWith('@demo.local')&&!isPublicStudentDemo)throw new DomainError('ইমেইল বা পাসওয়ার্ড সঠিক নয়।',401);
   let state=store.read();
   let account=state.users.find(user=>user.email===email&&user.active);
+  const isDemoEmail=email.endsWith('@demo.local');
+  const isPublicStudentDemo=process.env.NODE_ENV==='production'&&email==='student@demo.local'&&String(req.body.password||'')==='demo123';
+  const areAllDemoAccountsEnabled=process.env.NODE_ENV==='production'&&process.env.ALLOW_DEMO_ACCOUNTS==='true'&&Boolean(account);
+  const demoLoginAllowed=isPublicStudentDemo||areAllDemoAccountsEnabled;
+  if(process.env.NODE_ENV==='production'&&isDemoEmail&&!demoLoginAllowed)throw new DomainError('ইমেইল বা পাসওয়ার্ড সঠিক নয়।',401);
   let demoAccountVerifiedFromDatabase=false;
-  if(isPublicStudentDemo&&process.env.DATABASE_URL){
+  if(demoLoginAllowed&&process.env.DATABASE_URL){
     const saved=await mcqDatabase().user.findUnique({where:{email}});
     if(saved){
-      if(saved.deletedAt||saved.role!=='STUDENT'||!verifyPassword(String(req.body.password||''),saved.passwordHash))throw new DomainError('ইমেইল বা পাসওয়ার্ড সঠিক নয়।',401);
-      account={id:saved.id,email:saved.email,role:'STUDENT',name:saved.name,passwordHash:saved.passwordHash,phone:saved.phone||undefined,createdAt:saved.createdAt.toISOString(),active:true,profile:{}};
+      if(saved.deletedAt||!account||saved.role!==account.role||!verifyPassword(String(req.body.password||''),saved.passwordHash))throw new DomainError('ইমেইল বা পাসওয়ার্ড সঠিক নয়।',401);
+      account={id:saved.id,email:saved.email,role:saved.role,name:saved.name,passwordHash:saved.passwordHash,phone:saved.phone||undefined,createdAt:saved.createdAt.toISOString(),active:true,profile:{}};
       store.transaction(draft=>{const existing=draft.users.findIndex(user=>user.email===email);if(existing>=0)draft.users[existing]=account!;else draft.users.push(account!);});
       state=store.read();account=state.users.find(user=>user.id===saved.id)!;demoAccountVerifiedFromDatabase=true;
     }

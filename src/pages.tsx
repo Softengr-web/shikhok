@@ -442,10 +442,10 @@ export function AuthPage({ kind, onLogin }: { kind: 'login' | 'register'; onLogi
         {(!import.meta.env.PROD || kind === 'login') && <section className="demo-account-panel" aria-labelledby="demo-account-title">
           <div className="demo-account-heading">
             <div>
-              <h3 id="demo-account-title">{import.meta.env.PROD ? 'ডেমো শিক্ষার্থী হিসেবে প্রবেশ করুন' : 'দ্রুত প্রবেশের জন্য ভূমিকা বেছে নিন'}</h3>
-              <p>{import.meta.env.PROD ? 'ডেমো অ্যাকাউন্টটি সবার জন্য এক—এখানে দেওয়া পরীক্ষার ইতিহাসও সবার সঙ্গে ভাগ হবে।' : 'একটি বাছলে লগইন তথ্য বসবে—তারপর লগইন করুন।'}</p>
+              <h3 id="demo-account-title">{import.meta.env.PROD ? 'ডেমো প্রোফাইলে প্রবেশ করুন' : 'দ্রুত প্রবেশের জন্য ভূমিকা বেছে নিন'}</h3>
+              <p>{import.meta.env.PROD ? 'ডেমো অ্যাকাউন্টগুলো সবার জন্য উন্মুক্ত—ডেমোতে করা কাজ ও ইতিহাস অন্যরাও দেখতে পারবেন।' : 'একটি বাছলে লগইন তথ্য বসবে—তারপর লগইন করুন।'}</p>
             </div>
-            {!import.meta.env.PROD && <span className="demo-count">
+            <span className="demo-count">
               <span className="demo-avatar-stack" aria-hidden="true">
                 <img src="/images/teachers/teacher-01.svg" alt="" />
                 <img src="/images/teachers/teacher-02.svg" alt="" />
@@ -453,37 +453,31 @@ export function AuthPage({ kind, onLogin }: { kind: 'login' | 'register'; onLogi
                 <img src="/images/teachers/teacher-04.svg" alt="" />
               </span>
               <span>৪টি প্রোফাইল</span>
-            </span>}
+            </span>
           </div>
           <div className="demo-accounts">
-            {import.meta.env.PROD ? <button type="button" onClick={() => chooseDemo('student@demo.local')}>
+            <button type="button" onClick={() => chooseDemo('student@demo.local')}>
               <img className="demo-role-avatar" src="/images/teachers/teacher-01.svg" alt="" aria-hidden="true" />
-              <span className="demo-role-copy"><b>শিক্ষার্থী হিসেবে পরীক্ষা করুন</b><small>MCQ পরীক্ষা ও progress দেখুন</small></span>
+              <span className="demo-role-copy"><b>শিক্ষার্থী</b><small>শিখতে শুরু করুন</small></span>
               <span className="demo-role-arrow" aria-hidden="true">↗</span>
-            </button> : <>
-              <button type="button" onClick={() => chooseDemo('student@demo.local')}>
-                <img className="demo-role-avatar" src="/images/teachers/teacher-01.svg" alt="" aria-hidden="true" />
-                <span className="demo-role-copy"><b>শিক্ষার্থী</b><small>শিখতে শুরু করুন</small></span>
-                <span className="demo-role-arrow" aria-hidden="true">↗</span>
-              </button>
-              <button type="button" onClick={() => chooseDemo('teacher@demo.local')}>
-                <img className="demo-role-avatar" src="/images/teachers/teacher-02.svg" alt="" aria-hidden="true" />
-                <span className="demo-role-copy"><b>শিক্ষক</b><small>শিক্ষক ড্যাশবোর্ড</small></span>
-                <span className="demo-role-arrow" aria-hidden="true">↗</span>
-              </button>
-              <button type="button" onClick={() => chooseDemo('parent@demo.local')}>
-                <img className="demo-role-avatar" src="/images/teachers/teacher-03.svg" alt="" aria-hidden="true" />
-                <span className="demo-role-copy"><b>অভিভাবক</b><small>শেখার অগ্রগতি দেখুন</small></span>
-                <span className="demo-role-arrow" aria-hidden="true">↗</span>
-              </button>
-              <button type="button" onClick={() => chooseDemo('admin@demo.local')}>
-                <img className="demo-role-avatar" src="/images/teachers/teacher-04.svg" alt="" aria-hidden="true" />
-                <span className="demo-role-copy"><b>অ্যাডমিন</b><small>প্ল্যাটফর্ম পরিচালনা</small></span>
-                <span className="demo-role-arrow" aria-hidden="true">↗</span>
-              </button>
-            </>}
+            </button>
+            <button type="button" onClick={() => chooseDemo('teacher@demo.local')}>
+              <img className="demo-role-avatar" src="/images/teachers/teacher-02.svg" alt="" aria-hidden="true" />
+              <span className="demo-role-copy"><b>শিক্ষক</b><small>শিক্ষক ড্যাশবোর্ড</small></span>
+              <span className="demo-role-arrow" aria-hidden="true">↗</span>
+            </button>
+            <button type="button" onClick={() => chooseDemo('parent@demo.local')}>
+              <img className="demo-role-avatar" src="/images/teachers/teacher-03.svg" alt="" aria-hidden="true" />
+              <span className="demo-role-copy"><b>অভিভাবক</b><small>শেখার অগ্রগতি দেখুন</small></span>
+              <span className="demo-role-arrow" aria-hidden="true">↗</span>
+            </button>
+            <button type="button" onClick={() => chooseDemo('admin@demo.local')}>
+              <img className="demo-role-avatar" src="/images/teachers/teacher-04.svg" alt="" aria-hidden="true" />
+              <span className="demo-role-copy"><b>অ্যাডমিন</b><small>প্ল্যাটফর্ম পরিচালনা</small></span>
+              <span className="demo-role-arrow" aria-hidden="true">↗</span>
+            </button>
           </div>
-          {kind === 'login' && !import.meta.env.PROD && <section className="demo-classroom-actions" aria-label="ডেমো লাইভ ক্লাসে যোগ দিন">
+          {kind === 'login' && <section className="demo-classroom-actions" aria-label="ডেমো লাইভ ক্লাসে যোগ দিন">
             <b>ডেমো লাইভ ক্লাসে যোগ দিন</b>
             <p>দুই পক্ষকে একসঙ্গে দেখতে শিক্ষার্থী ও শিক্ষককে আলাদা ব্রাউজার বা ডিভাইসে খুলুন।</p>
             <div>
@@ -505,7 +499,7 @@ export function AuthPage({ kind, onLogin }: { kind: 'login' | 'register'; onLogi
           </>}
           <label>ইমেইল<input type="email" value={email} onChange={event => setEmail(event.target.value)} autoComplete="email" required /></label>
           <label>পাসওয়ার্ড<input type="password" value={password} onChange={event => setPassword(event.target.value)} autoComplete={kind === 'login' ? 'current-password' : 'new-password'} required minLength={6} /></label>
-          {kind === 'login' && <p className="help">{import.meta.env.PROD ? 'ডেমো শিক্ষার্থী বেছে নিন, অথবা নিবন্ধিত ইমেইল ও পাসওয়ার্ড দিয়ে প্রবেশ করুন।' : 'একটি ভূমিকা বেছে নিলে লগইন তথ্য স্বয়ংক্রিয়ভাবে এখানে বসবে।'}</p>}
+          {kind === 'login' && <p className="help">{import.meta.env.PROD ? 'ডেমো role বেছে নিন, অথবা নিবন্ধিত ইমেইল ও পাসওয়ার্ড দিয়ে প্রবেশ করুন।' : 'একটি ভূমিকা বেছে নিলে লগইন তথ্য স্বয়ংক্রিয়ভাবে এখানে বসবে।'}</p>}
           {error && <p className="form-error" role="alert">{error}</p>}
           <button className="button wide" disabled={busy}>{busy ? 'অপেক্ষা করুন…' : kind === 'login' ? 'লগইন করুন' : 'অ্যাকাউন্ট তৈরি করুন'}</button>
         </form>
