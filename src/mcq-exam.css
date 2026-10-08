@@ -316,3 +316,49 @@
   .mcq-history>header,.mcq-review-list>header,.mcq-admin-table>header,.mcq-admin-review>header,.mcq-progress-card>header { align-items: flex-start; }
   .mcq-history>header button,.mcq-progress-card>header button { flex: none; padding: 8px 10px; font-size: .76rem; }
 }
+
+/* Easier topic picking, save feedback, and touch-friendly exam controls */
+.mcq-chapter-picker { display: grid; grid-column: 1/-1; gap: 8px; min-width: 0; }
+.mcq-chapter-picker>label { display: grid; gap: 2px; color: #36564c; font-size: .88rem; font-weight: 700; }
+.mcq-chapter-picker>label small { color: #7c9187; font-size: .73rem; font-weight: 400; }
+.mcq-chapter-picker>input { width: 100%; min-height: 44px; padding: 9px 12px; border: 1px solid #d7e4dd; border-radius: 11px; outline: 0; background: #fbfdfb; color: #203d34; }
+.mcq-chapter-picker>input:focus { border-color: #37936d; box-shadow: 0 0 0 3px rgba(55,147,109,.13); }
+.mcq-selected-chapters { display: flex; flex-wrap: wrap; gap: 6px; }
+.mcq-selected-chapters button { display: inline-flex; min-height: 34px; align-items: center; gap: 7px; padding: 5px 9px; border: 1px solid #cce5d4; border-radius: 999px; background: #f0f9f2; color: #326448; font-size: .78rem; }
+.mcq-selected-chapters button span { font-size: 1rem; line-height: 1; }
+.mcq-selected-chapters .mcq-clear-chapters { border-color: transparent; background: transparent; color: #718278; text-decoration: underline; }
+.mcq-chapter-options { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 5px; max-height: 230px; overflow: auto; overscroll-behavior: contain; padding: 7px; border: 1px solid #e2ebe5; border-radius: 12px; background: #fbfdfb; }
+.mcq-chapter-options label { display: flex; min-width: 0; min-height: 42px; align-items: center; gap: 9px; padding: 7px 9px; border: 1px solid transparent; border-radius: 9px; color: #456154; cursor: pointer; font-size: .82rem; font-weight: 500; }
+.mcq-chapter-options label:hover { border-color: #d6eadb; background: #f2f9f3; }
+.mcq-chapter-options label:has(input:checked) { border-color: #cfe5d4; background: #edf8ef; color: #2e6948; font-weight: 700; }
+.mcq-chapter-options input { width: 18px; height: 18px; flex: none; accent-color: #398961; }
+.mcq-chapter-options label span { overflow-wrap: anywhere; }
+.mcq-chapter-options>p { grid-column: 1/-1; margin: 0; padding: 12px; color: #74857a; font-size: .82rem; }
+.mcq-chapter-hint { color: #7c9187; font-size: .73rem; }
+.mcq-exam-progress { flex-wrap: wrap; }
+.mcq-exam-progress>[role="progressbar"] { min-width: 90px; }
+.mcq-sync-status { color: #647c6b; font-size: .75rem; }
+.mcq-sync-status.is-saving { color: #8a6b2d; }
+.mcq-sync-status.is-offline,.mcq-sync-status.is-error { color: #a84f45; }
+.mcq-active .mcq-error,.mcq-active .mcq-save-warning { flex-wrap: wrap; }
+.mcq-current-card { scroll-margin-top: 94px; }
+.mcq-current-card h2:focus { outline: 3px solid rgba(55,147,109,.22); outline-offset: 5px; border-radius: 3px; }
+.mcq-number-grid button { min-height: 38px; min-width: 38px; }
+.mcq-clock.is-urgent { animation: none; }
+.mcq-clock.is-urgent b { font-variant-numeric: tabular-nums; }
+.mcq-submit-dialog button { min-height: 44px; }
+.mcq-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; clip-path: inset(50%); }
+
+@media (max-width: 680px) {
+  .mcq-chapter-options { grid-template-columns: 1fr; max-height: 190px; }
+  .mcq-exam-progress { gap: 8px 10px; }
+  .mcq-exam-progress>span:first-child { width: 100%; }
+  .mcq-sync-status { margin-left: auto; }
+  .mcq-current-card { scroll-margin-top: 14px; }
+  .mcq-number-grid button { min-height: 40px; min-width: 0; }
+  .mcq-submit-dialog { padding: 23px 18px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mcq-clock,.mcq-current-card * { animation-duration: .01ms !important; scroll-behavior: auto !important; }
+}

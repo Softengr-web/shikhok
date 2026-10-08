@@ -179,7 +179,7 @@ app.get('/api/exams/:id',auth(['STUDENT']),handler((req,res)=>ok(res,getExamForS
 app.post('/api/exams/:id/submit',auth(['STUDENT']),handler((req,res)=>ok(res,store.transaction(s=>submitExam(s,actor(req),String(req.params.id),req.body.answers||{})),201)));
 
 // Student-created exam bank: answers stay on the server until the attempt is submitted.
-app.get('/api/mcq/catalog',auth(['STUDENT']),handler(async(req,res)=>ok(res,await mcqCatalog({classLevel:req.query.classLevel,groupName:req.query.groupName,subject:req.query.subject,part:req.query.part,chapters:req.query.chapters?String(req.query.chapters).split(','):[]}))));
+app.get('/api/mcq/catalog',auth(['STUDENT']),handler(async(req,res)=>ok(res,await mcqCatalog(actor(req),{classLevel:req.query.classLevel,groupName:req.query.groupName,subject:req.query.subject,part:req.query.part,chapters:Array.isArray(req.query.chapters)?req.query.chapters.map(String):req.query.chapters?[String(req.query.chapters)]:[],mode:req.query.mode}))));
 app.get('/api/mcq/attempts/active',auth(['STUDENT']),handler(async(req,res)=>ok(res,await getActiveMcqAttempt(actor(req)))));
 app.post('/api/mcq/attempts',auth(['STUDENT']),handler(async(req,res)=>ok(res,await startMcqAttempt(actor(req),req.body),201)));
 app.get('/api/mcq/attempts/:id',auth(['STUDENT']),handler(async(req,res)=>ok(res,await getMcqAttempt(actor(req),String(req.params.id)))));

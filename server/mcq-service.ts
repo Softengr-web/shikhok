@@ -38,7 +38,7 @@ export async function persistMcqBootstrapAdmin(user: User): Promise<User> {
 }
 
 type Actor = Pick<User, 'id' | 'role'> & Partial<Pick<User, 'email' | 'name' | 'passwordHash' | 'phone' | 'createdAt' | 'active'>>;
-type FilterInput = { classLevel?: unknown; groupName?: unknown; subject?: unknown; part?: unknown; chapters?: unknown };
+type FilterInput = { classLevel?: unknown; groupName?: unknown; subject?: unknown; part?: unknown; chapters?: unknown; mode?: unknown };
 const cleanText = (input: unknown) => typeof input === 'string' ? input.replace(/\u0000/gu, '') : '';
 const value = (input: unknown) => cleanText(input).trim();
 const nullable = (input: unknown) => value(input) || null;
@@ -78,16 +78,19 @@ function filters(input: FilterInput): Prisma.McqQuestionWhereInput {
   return where;
 }
 
-export async function mcqCatalog(input: FilterInput = {}) {
+export async function mcqCatalog(actor: Actor, input: FilterInput = {}) {
   const db = mcqDatabase();
   const where = filters(input);
+  const mode = value(input.mode || 'STANDARD').toUpperCase();
+  const scopedIds = await modeQuestionIds(actor, mode, where);
+  const questionWhere: Prisma.McqQuestionWhereInput = scopedIds ? { ...where, id: { in: scopedIds } } : where;
   const [classes, groups, subjects, parts, chapters, availableCount] = await Promise.all([
     db.mcqQuestion.findMany({ where, distinct: ['classLevel'], select: { classLevel: true }, orderBy: { classLevel: 'asc' } }),
     db.mcqQuestion.findMany({ where, distinct: ['groupName'], select: { groupName: true }, orderBy: { groupName: 'asc' } }),
     db.mcqQuestion.findMany({ where, distinct: ['subject'], select: { subject: true }, orderBy: { subject: 'asc' } }),
     db.mcqQuestion.findMany({ where, distinct: ['part'], select: { part: true }, orderBy: { part: 'asc' } }),
     db.mcqQuestion.findMany({ where, distinct: ['chapter'], select: { chapter: true }, orderBy: { chapter: 'asc' } }),
-    db.mcqQuestion.count({ where })
+    db.mcqQuestion.count({ where: questionWhere })
   ]);
   return {
     classes: classes.map(row => row.classLevel),
@@ -200,8 +203,7 @@ export async function getActiveMcqAttempt(actor: Actor) {
   const attempt = await mcqDatabase().mcqExamAttempt.findFirst({ where: { studentId: actor.id, status: 'IN_PROGRESS' }, include: { questions: { orderBy: { position: 'asc' } } } });
   if (!attempt) return null;
   if (attempt.expiresAt && attempt.expiresAt <= new Date()) {
-    await submitMcqAttempt(actor, attempt.id, true);
-    return null;
+    return submitMcqAttempt(actor, attempt.id, true);
   }
   return attemptPayload(attempt);
 }

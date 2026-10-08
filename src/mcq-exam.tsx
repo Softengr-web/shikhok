@@ -11,6 +11,7 @@ type ExamResult = { id: string; status: string; score: number; totalScore: numbe
 type ProfileStats = { totalExams: number; totalQuestions: number; totalAttempted: number; totalCorrect: number; accuracy: number; bestScore: number; averageScore: number; currentStreak: number; longestStreak: number; studyTimeSeconds: number; xp: number; level: number; badges: string[]; recentAttempts: Array<{ id: string; subject: string; questionCount: number; correctCount: number; percentage: number; submittedAt: string }> };
 type SourcePage = { items: any[]; total: number };
 type IssuePage = { items: any[]; total: number };
+type PendingAnswerSave = { attemptId: string; position: number; selectedOption: number | null; markedForReview: boolean };
 const EMPTY_CATALOG: Catalog = { classes: [], groups: [], subjects: [], parts: [], chapters: [], availableCount: 0 };
 const choiceLabel = (index: number) => ['ক', 'খ', 'গ', 'ঘ', 'ঙ', 'চ', 'ছ', 'জ'][index] || String(index + 1);
 const savedKey = (id: string) => `mcq-attempt-${id}`;
@@ -19,7 +20,10 @@ const formatDuration = (seconds: number) => `${bn(Math.floor(seconds / 60))} ম
 export function McqExamPage() {
   const [catalog, setCatalog] = useState<Catalog>(EMPTY_CATALOG);
   const [catalogLoaded, setCatalogLoaded] = useState(false);
+  const [catalogRefreshing, setCatalogRefreshing] = useState(false);
+  const [catalogError, setCatalogError] = useState('');
   const [filters, setFilters] = useState({ classLevel: '', groupName: '', subject: '', part: '', chapters: [] as string[] });
+  const [chapterSearch, setChapterSearch] = useState('');
   const [questionCount, setQuestionCount] = useState(20);
   const [duration, setDuration] = useState(20);
   const [mode, setMode] = useState('STANDARD');
@@ -35,49 +39,142 @@ export function McqExamPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [saveError, setSaveError] = useState('');
-  const saveQueue = useRef<Promise<unknown>>(Promise.resolve());
-  const queueAnswerSave = (attemptId: string, position: number, selectedOption: number | null, markedForReview: boolean, message: string) => {
-    saveQueue.current = saveQueue.current.catch(() => undefined).then(() => post(`/mcq/attempts/${attemptId}/answer`, { position, selectedOption, markedForReview })).catch(() => setSaveError(message));
-  };
+  const [saveState, setSaveState] = useState<'saved' | 'saving' | 'offline' | 'error'>('saved');
+  const pendingSaves = useRef(new Map<string, PendingAnswerSave>());
+  const saveFlush = useRef<Promise<void> | null>(null);
+  const submitLock = useRef(false);
+  const autoSubmitTried = useRef<string | null>(null);
+  const questionCardRef = useRef<HTMLElement | null>(null);
+  const questionHeadingRef = useRef<HTMLHeadingElement | null>(null);
+  const shouldFocusQuestion = useRef(false);
+
+  const flushPendingSaves = useCallback(async () => {
+    if (saveFlush.current) return saveFlush.current;
+    const flush = (async () => {
+      while (pendingSaves.current.size) {
+        if (!navigator.onLine) throw new Error('ইন্টারনেট সংযোগ নেই। উত্তর এই ডিভাইসে রাখা হয়েছে।');
+        const [key, answer] = pendingSaves.current.entries().next().value as [string, PendingAnswerSave];
+        await post(`/mcq/attempts/${answer.attemptId}/answer`, { position: answer.position, selectedOption: answer.selectedOption, markedForReview: answer.markedForReview });
+        if (pendingSaves.current.get(key) === answer) pendingSaves.current.delete(key);
+      }
+    })();
+    saveFlush.current = flush;
+    try {
+      await flush;
+      setSaveError('');
+      setSaveState(pendingSaves.current.size ? 'saving' : 'saved');
+    } catch (reason) {
+      setSaveState(navigator.onLine ? 'error' : 'offline');
+      throw reason;
+    } finally { saveFlush.current = null; }
+  }, []);
+
+  const queueAnswerSave = useCallback((attemptId: string, position: number, selectedOption: number | null, markedForReview: boolean, message: string) => {
+    const key = `${attemptId}:${position}`;
+    pendingSaves.current.set(key, { attemptId, position, selectedOption, markedForReview });
+    setSaveState(navigator.onLine ? 'saving' : 'offline');
+    setSaveError(navigator.onLine ? '' : message);
+    if (navigator.onLine) void flushPendingSaves().catch(() => setSaveError(message));
+  }, [flushPendingSaves]);
 
   const catalogUrl = useMemo(() => {
     const query = new URLSearchParams();
     Object.entries(filters).forEach(([key, value]) => {
-      if (Array.isArray(value)) { if (value.length) query.set(key, value.join(',')); }
+      if (Array.isArray(value)) value.forEach(item => query.append(key, item));
       else if (value) query.set(key, String(value));
     });
+    if (mode !== 'STANDARD') query.set('mode', mode);
     return `/mcq/catalog${query.size ? `?${query}` : ''}`;
-  }, [filters]);
+  }, [filters, mode]);
+  const chapterMatches = useMemo(() => {
+    const query = chapterSearch.trim().toLocaleLowerCase();
+    const matches = catalog.chapters.filter(chapter => !query || chapter.toLocaleLowerCase().includes(query));
+    return matches.slice(0, query ? 60 : 12);
+  }, [catalog.chapters, chapterSearch]);
+  const maxQuestionCount = Math.max(1, Math.min(100, catalog.availableCount || 100));
+
+  const navigateToQuestion = (index: number) => {
+    const destination = Math.max(0, Math.min(attempt?.questionCount ? attempt.questionCount - 1 : 0, index));
+    shouldFocusQuestion.current = true;
+    setCurrent(destination);
+    if (attempt) persistLocal(attempt.id, answers, marked, destination);
+  };
+  const toggleChapter = (chapter: string) => setFilters(previous => ({
+    ...previous,
+    chapters: previous.chapters.includes(chapter) ? previous.chapters.filter(item => item !== chapter) : [...previous.chapters, chapter]
+  }));
+
+  const applyActiveLookup = useCallback((lookup: ActiveAttempt | ExamResult | null) => {
+    if (lookup && lookup.status !== 'IN_PROGRESS') { setResult(lookup as ExamResult); setActive(null); }
+    else { setActive(lookup as ActiveAttempt | null); setResult(null); }
+  }, []);
 
   const loadActive = useCallback(async () => {
-    try { setActive(await api<ActiveAttempt | null>('/mcq/attempts/active')); }
+    try { applyActiveLookup(await api<ActiveAttempt | ExamResult | null>('/mcq/attempts/active')); }
     catch (reason) { setError(reason instanceof Error ? reason.message : 'পরীক্ষার তথ্য লোড করা যায়নি।'); }
-  }, []);
+  }, [applyActiveLookup]);
 
   useEffect(() => {
-    void Promise.all([api<Catalog>('/mcq/catalog'), api<ActiveAttempt | null>('/mcq/attempts/active')]).then(([data, activeAttempt]) => {
-      setCatalog(data); setCatalogLoaded(true); setActive(activeAttempt);
-      if (data.classes.length) setFilters(currentFilters => ({ ...currentFilters, classLevel: currentFilters.classLevel || data.classes[0]! }));
-    }).catch(reason => setError(reason instanceof Error ? reason.message : 'প্রশ্ন ব্যাংক লোড করা যায়নি।')).finally(() => setLoading(false));
-  }, []);
+    let cancelled = false;
+    const load = async () => {
+      const [catalogResult, activeResult] = await Promise.allSettled([api<Catalog>('/mcq/catalog'), api<ActiveAttempt | ExamResult | null>('/mcq/attempts/active')]);
+      if (cancelled) return;
+      if (catalogResult.status === 'fulfilled') {
+        setCatalog(catalogResult.value); setCatalogLoaded(true);
+        if (catalogResult.value.classes.length) setFilters(currentFilters => ({ ...currentFilters, classLevel: currentFilters.classLevel || catalogResult.value.classes[0]! }));
+      } else setError(catalogResult.reason instanceof Error ? catalogResult.reason.message : 'প্রশ্ন ব্যাংক লোড করা যায়নি।');
+      if (activeResult.status === 'fulfilled') applyActiveLookup(activeResult.value);
+      else setError(activeResult.reason instanceof Error ? activeResult.reason.message : 'অসমাপ্ত পরীক্ষার তথ্য লোড করা যায়নি।');
+      setLoading(false);
+    };
+    void load();
+    return () => { cancelled = true; };
+  }, [applyActiveLookup]);
 
   useEffect(() => {
     if (!catalogLoaded) return;
-    void api<Catalog>(catalogUrl).then(setCatalog).catch(reason => setError(reason instanceof Error ? reason.message : 'এই filter-এর প্রশ্ন পাওয়া যায়নি।'));
+    let cancelled = false;
+    setCatalogRefreshing(true); setCatalogError('');
+    void api<Catalog>(catalogUrl).then(data => { if (!cancelled) setCatalog(data); }).catch(reason => {
+      if (!cancelled) setCatalogError(reason instanceof Error ? reason.message : 'এই বাছাইয়ের প্রশ্ন খুঁজে পাওয়া যায়নি।');
+    }).finally(() => { if (!cancelled) setCatalogRefreshing(false); });
+    return () => { cancelled = true; };
   }, [catalogLoaded, catalogUrl]);
 
   useEffect(() => {
+    if (catalog.availableCount < 1) return;
+    const limit = Math.min(100, catalog.availableCount);
+    setQuestionCount(value => Math.min(value, limit));
+  }, [catalog.availableCount]);
+
+  useEffect(() => {
+    const retrySaves = () => { void flushPendingSaves().catch(() => setSaveError('কিছু উত্তর এখনো সার্ভারে যায়নি—আবার পাঠানোর চেষ্টা করুন।')); };
+    const refreshTimer = () => { if (document.visibilityState === 'visible') { setNow(Date.now()); retrySaves(); } };
+    window.addEventListener('online', retrySaves);
+    document.addEventListener('visibilitychange', refreshTimer);
+    return () => { window.removeEventListener('online', retrySaves); document.removeEventListener('visibilitychange', refreshTimer); };
+  }, [flushPendingSaves]);
+
+  useEffect(() => {
+    if (!shouldFocusQuestion.current) return;
+    shouldFocusQuestion.current = false;
+    questionHeadingRef.current?.focus({ preventScroll: true });
+    if (window.matchMedia('(max-width: 680px)').matches) questionCardRef.current?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+  }, [current]);
+
+  useEffect(() => {
     if (!attempt || result) return;
-    const timer = window.setInterval(() => setNow(Date.now()), 500);
+    const timer = attempt.expiresAt ? window.setInterval(() => setNow(Date.now()), 1000) : undefined;
     const preventExit = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ''; };
     window.addEventListener('beforeunload', preventExit);
-    return () => { window.clearInterval(timer); window.removeEventListener('beforeunload', preventExit); };
+    return () => { if (timer) window.clearInterval(timer); window.removeEventListener('beforeunload', preventExit); };
   }, [attempt, result]);
 
   const startAttempt = async (settings: { classLevel: string; groupName: string; subject: string; part: string; chapters: string[]; questionCount: number; durationMinutes: number; mode: string }) => {
     setBusy(true); setError('');
     try {
       const created = await post<ActiveAttempt>('/mcq/attempts', settings);
+      pendingSaves.current.clear(); setSaveError(''); setSaveState('saved'); autoSubmitTried.current = null;
       setActive(null); setAttempt(created); setResult(null); setCurrent(0);
       const local = readSaved(created.id);
       const serverAnswers: Record<number, number> = {};
@@ -100,11 +197,11 @@ export function McqExamPage() {
     } finally { setBusy(false); }
   };
 
-  const readSaved = (id: string): { answers?: Record<number, number>; marked?: Record<number, boolean> } | null => {
+  const readSaved = (id: string): { answers?: Record<number, number>; marked?: Record<number, boolean>; current?: number } | null => {
     try { const raw = localStorage.getItem(savedKey(id)); return raw ? JSON.parse(raw) : null; } catch { return null; }
   };
-  const persistLocal = (id: string, nextAnswers: Record<number, number>, nextMarked: Record<number, boolean>) => {
-    try { localStorage.setItem(savedKey(id), JSON.stringify({ answers: nextAnswers, marked: nextMarked, savedAt: new Date().toISOString() })); } catch { /* Server autosave remains authoritative if browser storage is unavailable. */ }
+  const persistLocal = (id: string, nextAnswers: Record<number, number>, nextMarked: Record<number, boolean>, savedCurrent = current) => {
+    try { localStorage.setItem(savedKey(id), JSON.stringify({ answers: nextAnswers, marked: nextMarked, current: savedCurrent, savedAt: new Date().toISOString() })); } catch { /* Server autosave remains authoritative if browser storage is unavailable. */ }
   };
 
   const resumeAttempt = async () => {
@@ -114,11 +211,12 @@ export function McqExamPage() {
       const resumed = await api<ActiveAttempt | ExamResult>(`/mcq/attempts/${active.id}`);
       if (resumed.status === 'IN_PROGRESS') {
         const live = resumed as ActiveAttempt;
-        setAttempt(live); setActive(null);
+        const local = readSaved(live.id);
+        pendingSaves.current.clear(); setSaveError(''); setSaveState('saved'); autoSubmitTried.current = null;
+        setAttempt(live); setActive(null); setCurrent(Math.max(0, Math.min(live.questionCount - 1, local?.current ?? 0)));
         const serverAnswers: Record<number, number> = {};
         const serverMarked: Record<number, boolean> = {};
         live.questions.forEach(question => { if (question.selectedOption !== null) serverAnswers[question.position] = question.selectedOption; if (question.markedForReview) serverMarked[question.position] = true; });
-        const local = readSaved(live.id);
         const nextAnswers = local?.answers ? { ...serverAnswers, ...local.answers } : serverAnswers;
         const nextMarked = local?.marked ? { ...serverMarked, ...local.marked } : serverMarked;
         setAnswers(nextAnswers); setMarked(nextMarked); persistLocal(live.id, nextAnswers, nextMarked);
@@ -144,44 +242,66 @@ export function McqExamPage() {
   };
 
   const submit = useCallback(async () => {
-    if (!attempt || busy) return;
+    if (!attempt || busy || submitLock.current) return;
+    submitLock.current = true;
     setBusy(true); setError('');
     try {
-      await saveQueue.current.catch(() => undefined);
+      const expired = Boolean(attempt.expiresAt && Date.parse(attempt.expiresAt) <= Date.now());
+      try { await flushPendingSaves(); }
+      catch (reason) {
+        if (!expired) throw new Error('সব উত্তর সার্ভারে সংরক্ষিত হয়নি। সংযোগ ফিরিয়ে আবার জমা দিন।');
+      }
       const submitted = await post<ExamResult>(`/mcq/attempts/${attempt.id}/submit`, {});
-      setResult(submitted); setAttempt(null); setConfirmSubmit(false); localStorage.removeItem(savedKey(attempt.id));
+      for (const [key, answer] of pendingSaves.current) if (answer.attemptId === attempt.id) pendingSaves.current.delete(key);
+      setSaveError(''); setSaveState('saved'); setResult(submitted); setAttempt(null); setConfirmSubmit(false); localStorage.removeItem(savedKey(attempt.id));
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'পরীক্ষা জমা দেওয়া যায়নি।'); }
-    finally { setBusy(false); }
-  }, [attempt, busy]);
+    finally { submitLock.current = false; setBusy(false); }
+  }, [attempt, busy, flushPendingSaves]);
 
   const secondsLeft = attempt?.expiresAt ? Math.max(0, Math.ceil((new Date(attempt.expiresAt).getTime() - now) / 1000)) : null;
-  useEffect(() => { if (attempt && !result && secondsLeft === 0 && !busy) void submit(); }, [attempt, result, secondsLeft, busy, submit]);
+  useEffect(() => {
+    if (!attempt || result || secondsLeft !== 0 || busy || autoSubmitTried.current === attempt.id) return;
+    autoSubmitTried.current = attempt.id;
+    void submit();
+  }, [attempt, result, secondsLeft, busy, submit]);
+  useEffect(() => {
+    const retryExpiredSubmit = () => {
+      setNow(Date.now());
+      if (attempt?.expiresAt && Date.parse(attempt.expiresAt) <= Date.now()) void submit();
+    };
+    window.addEventListener('online', retryExpiredSubmit);
+    return () => window.removeEventListener('online', retryExpiredSubmit);
+  }, [attempt, submit]);
   if (loading) return <section className="page section"><Loading /></section>;
 
   if (result) return <ResultView result={result} onRetryMistakes={() => { setResult(null); setMode('MISTAKES'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} onNewExam={() => { setResult(null); void loadActive(); }} />;
   if (attempt) {
     const question = attempt.questions[current];
-    const answered = Object.keys(answers).length;
+    const answered = attempt.questions.reduce((total, item) => total + (answers[item.position] !== undefined ? 1 : 0), 0);
+    const timerLabel = secondsLeft === null ? 'সময় গণনা বন্ধ' : secondsLeft === 0 ? 'সময় শেষ' : secondsLeft <= 60 ? 'শেষ ১ মিনিট' : secondsLeft <= 300 ? '৫ মিনিটের কম বাকি' : secondsLeft <= 600 ? '১০ মিনিটের কম বাকি' : 'বাকি সময়';
+    const timerAnnouncement = secondsLeft === 600 ? '১০ মিনিট বাকি।' : secondsLeft === 300 ? '৫ মিনিট বাকি।' : secondsLeft === 60 ? '১ মিনিট বাকি।' : secondsLeft === 0 ? 'সময় শেষ। পরীক্ষা জমা হচ্ছে।' : '';
+    const saveLabel = saveState === 'saving' ? 'উত্তর সংরক্ষণ হচ্ছে…' : saveState === 'offline' ? 'অফলাইন · এই ডিভাইসে রাখা আছে' : saveState === 'error' ? 'সার্ভারে সংরক্ষণ হয়নি' : 'সব উত্তর সংরক্ষিত';
     return <section className="mcq-page page section mcq-active">
-      <header className="mcq-exam-top"><div><p className="eyebrow">{attempt.classLevel}{attempt.groupName ? ` · ${attempt.groupName}` : ''} · {attempt.subject}</p><h1>পরীক্ষা</h1><p>{attempt.part || 'সব অংশ'}{attempt.chapters.length ? ` · ${attempt.chapters.join(', ')}` : ''}</p></div><div className={`mcq-clock${secondsLeft !== null && secondsLeft < 60 ? ' is-urgent' : ''}`} aria-live="polite"><small>{secondsLeft === null ? 'সময় গণনা বন্ধ' : secondsLeft <= 60 ? 'শেষ ১ মিনিট' : secondsLeft <= 300 ? '৫ মিনিটের কম বাকি' : secondsLeft <= 600 ? '১০ মিনিটের কম বাকি' : 'বাকি সময়'}</small><b>{secondsLeft === null ? '∞' : `${bn(Math.floor(secondsLeft / 60)).padStart(2, '০')}:${bn(secondsLeft % 60).padStart(2, '০')}`}</b></div></header>
-      <div className="mcq-exam-progress"><span>{bn(answered)} / {bn(attempt.questionCount)} উত্তর দেওয়া</span><div><i style={{ width: `${answered / Math.max(1, attempt.questionCount) * 100}%` }} /></div></div>
-      {error && <p className="mcq-error" role="alert">{error}</p>}{saveError && <p className="mcq-save-warning" role="status">{saveError}</p>}
-      <div className="mcq-exam-layout"><article className="mcq-current-card">
+      <header className="mcq-exam-top"><div><p className="eyebrow">{attempt.classLevel}{attempt.groupName ? ` · ${attempt.groupName}` : ''} · {attempt.subject}</p><h1>পরীক্ষা</h1><p>{attempt.part || 'সব অংশ'}{attempt.chapters.length ? ` · ${attempt.chapters.join(', ')}` : ''}</p></div><div className={`mcq-clock${secondsLeft !== null && secondsLeft < 60 ? ' is-urgent' : ''}`} role="timer" aria-label={secondsLeft === null ? 'সময় গণনা নেই' : `${timerLabel}: ${Math.floor(secondsLeft / 60)} মিনিট ${secondsLeft % 60} সেকেন্ড`}><small>{timerLabel}</small><b>{secondsLeft === null ? '∞' : `${bn(Math.floor(secondsLeft / 60)).padStart(2, '০')}:${bn(secondsLeft % 60).padStart(2, '০')}`}</b></div><span className="mcq-sr-only" aria-live="polite">{timerAnnouncement}</span></header>
+      <div className="mcq-exam-progress"><span>{bn(answered)} / {bn(attempt.questionCount)} উত্তর দেওয়া</span><div role="progressbar" aria-label="উত্তর দেওয়া প্রশ্নের অগ্রগতি" aria-valuemin={0} aria-valuemax={attempt.questionCount} aria-valuenow={answered}><i style={{ width: `${answered / Math.max(1, attempt.questionCount) * 100}%` }} /></div><span className={`mcq-sync-status is-${saveState}`} aria-live="polite">{saveLabel}</span></div>
+      {error && <div className="mcq-error" role="alert"><span>{error}</span>{secondsLeft === 0 && <button type="button" className="quiet-btn" disabled={busy} onClick={() => void submit()}>আবার ফলাফল আনুন</button>}</div>}
+      {saveError && <div className="mcq-save-warning" role="status"><span>{saveError}</span><button type="button" className="quiet-btn" disabled={!navigator.onLine} onClick={() => void flushPendingSaves().catch(() => setSaveError('সংযোগ ফিরলে আবার চেষ্টা করুন।'))}>আবার পাঠান</button></div>}
+      <div className="mcq-exam-layout"><article ref={questionCardRef} className="mcq-current-card">
         {question ? <><div className="mcq-question-number"><span>প্রশ্ন {bn(question.position)} / {bn(attempt.questionCount)}</span><button className={marked[question.position] ? 'is-bookmarked' : ''} type="button" onClick={() => toggleReview(question)}>{marked[question.position] ? '⚑ Review-তে আছে' : '⚑ পরে দেখব'}</button></div>
           {question.chapter && <p className="mcq-topic-label">{question.chapter}{question.topic ? ` · ${question.topic}` : ''}</p>}
-          <h2 lang="bn">{question.question}</h2>
+          <h2 ref={questionHeadingRef} id="mcq-question-title" tabIndex={-1} lang="bn">{question.question}</h2>
           <QuestionMedia mediaIds={question.mediaIds} />
           <div className="mcq-choice-list" role="radiogroup" aria-label={`প্রশ্ন ${question.position} এর উত্তর`}>
             {question.options.map((option, index) => <label key={`${question.position}-${index}`} className={answers[question.position] === index ? 'is-selected' : ''}>
-              <input type="radio" name={`question-${question.position}`} checked={answers[question.position] === index} onChange={() => changeAnswer(question, index)} />
+              <input type="radio" name={`question-${question.position}`} checked={answers[question.position] === index} disabled={busy} onChange={() => changeAnswer(question, index)} />
               <span className="mcq-choice-label">{option.label || choiceLabel(index)}</span><div className="mcq-choice-copy"><span lang="bn">{option.text}</span><QuestionMedia mediaIds={option.mediaIds || []} /></div>
             </label>)}
           </div>
-          <div className="mcq-step-actions"><button type="button" className="quiet-btn" disabled={current === 0} onClick={() => setCurrent(index => Math.max(0, index - 1))}>← আগের প্রশ্ন</button><button type="button" className="button" disabled={current >= attempt.questionCount - 1} onClick={() => setCurrent(index => Math.min(attempt.questionCount - 1, index + 1))}>পরের প্রশ্ন →</button></div>
+          <div className="mcq-step-actions"><button type="button" className="quiet-btn" disabled={current === 0} onClick={() => navigateToQuestion(current - 1)}>← আগের প্রশ্ন</button><button type="button" className="button" disabled={current >= attempt.questionCount - 1} onClick={() => navigateToQuestion(current + 1)}>পরের প্রশ্ন →</button></div>
         </> : <Empty>পরীক্ষার প্রশ্ন পাওয়া যায়নি।</Empty>}
       </article>
-      <aside className="mcq-navigator"><div><b>প্রশ্ন তালিকা</b><small>{bn(answered)}টির উত্তর দেওয়া</small></div><div className="mcq-number-grid">{attempt.questions.map((item, index) => <button key={item.position} type="button" onClick={() => setCurrent(index)} className={`${current === index ? 'is-current ' : ''}${answers[item.position] !== undefined ? 'is-answered ' : ''}${marked[item.position] ? 'is-marked' : ''}`} aria-label={`প্রশ্ন ${item.position}${answers[item.position] !== undefined ? ' উত্তর দেওয়া' : ' উত্তরহীন'}${marked[item.position] ? ', review' : ''}`}>{bn(item.position)}</button>)}</div><div className="mcq-legend"><span><i className="is-answered"/>উত্তর দেওয়া</span><span><i/>বাকি</span><span><i className="is-marked"/>Review</span></div><button className="button mcq-submit-wide" type="button" onClick={() => setConfirmSubmit(true)}>পরীক্ষা জমা দিন</button></aside></div>
-      {confirmSubmit && <div className="mcq-modal-backdrop"><section className="mcq-submit-dialog" role="dialog" aria-modal="true" aria-labelledby="mcq-submit-title"><span>✓</span><h2 id="mcq-submit-title">পরীক্ষা জমা দেবেন?</h2><p>{attempt.questionCount - answered ? `${bn(attempt.questionCount - answered)}টি প্রশ্নের উত্তর বাকি।` : 'সব প্রশ্নের উত্তর দেওয়া হয়েছে।'} জমা দিলে এই attempt আর বদলানো যাবে না।</p><div><button className="quiet-btn" onClick={() => setConfirmSubmit(false)}>ফিরে যান</button><button className="button" disabled={busy} onClick={() => void submit()}>{busy ? 'জমা হচ্ছে…' : 'জমা নিশ্চিত করুন'}</button></div></section></div>}
+      <aside className="mcq-navigator"><div><b>প্রশ্ন তালিকা</b><small>{bn(answered)}টির উত্তর · {bn(attempt.questionCount - answered)}টি বাকি</small></div><div className="mcq-number-grid">{attempt.questions.map((item, index) => <button key={item.position} type="button" onClick={() => navigateToQuestion(index)} className={`${current === index ? 'is-current ' : ''}${answers[item.position] !== undefined ? 'is-answered ' : ''}${marked[item.position] ? 'is-marked' : ''}`} aria-current={current === index ? 'step' : undefined} aria-label={`প্রশ্ন ${item.position}${answers[item.position] !== undefined ? ' উত্তর দেওয়া' : ' উত্তরহীন'}${marked[item.position] ? ', review' : ''}`}>{bn(item.position)}</button>)}</div><div className="mcq-legend" aria-label="প্রশ্নের অবস্থা"><span><i className="is-answered"/>উত্তর দেওয়া</span><span><i/>বাকি</span><span><i className="is-marked"/>Review</span></div><button className="button mcq-submit-wide" type="button" disabled={busy} onClick={() => setConfirmSubmit(true)}>পরীক্ষা জমা দিন</button></aside></div>
+      {confirmSubmit && <div className="mcq-modal-backdrop"><section className="mcq-submit-dialog" role="dialog" aria-modal="true" aria-labelledby="mcq-submit-title" aria-describedby="mcq-submit-description" onKeyDown={event => { if (event.key === 'Escape') setConfirmSubmit(false); }}><span>✓</span><h2 id="mcq-submit-title">পরীক্ষা জমা দেবেন?</h2><p id="mcq-submit-description">{attempt.questionCount - answered ? `${bn(attempt.questionCount - answered)}টি প্রশ্নের উত্তর বাকি।` : 'সব প্রশ্নের উত্তর দেওয়া হয়েছে।'} জমা দিলে এই attempt আর বদলানো যাবে না।</p><div><button type="button" className="quiet-btn" autoFocus onClick={() => setConfirmSubmit(false)}>ফিরে যান</button><button type="button" className="button" disabled={busy} onClick={() => void submit()}>{busy ? 'জমা হচ্ছে…' : 'জমা নিশ্চিত করুন'}</button></div></section></div>}
     </section>;
   }
 
@@ -196,16 +316,30 @@ export function McqExamPage() {
         {catalog.groups.length > 0 && <label>Group<select value={filters.groupName} onChange={event => changeFilter('groupName', event.target.value)}><option value="">সব Group</option>{catalog.groups.map(item => <option key={item}>{item}</option>)}</select></label>}
         <label>Subject<select value={filters.subject} onChange={event => changeFilter('subject', event.target.value)}><option value="">Subject বেছে নিন</option>{catalog.subjects.map(item => <option key={item}>{item}</option>)}</select></label>
         {catalog.parts.length > 0 && <label>Part<select value={filters.part} onChange={event => changeFilter('part', event.target.value)}><option value="">সব Part</option>{catalog.parts.map(item => <option key={item}>{item}</option>)}</select></label>}
-        {catalog.chapters.length > 0 && <label className="mcq-chapter-select">Chapter <small>একাধিক বেছে নিতে Ctrl/⌘ ধরে রাখুন</small><select multiple value={filters.chapters} onChange={event => setFilters(previous => ({ ...previous, chapters: [...event.target.selectedOptions].map(option => option.value) }))}>{catalog.chapters.map(item => <option key={item}>{item}</option>)}</select></label>}
+        {catalog.chapters.length > 0 && <div className="mcq-chapter-picker">
+          <label htmlFor="mcq-chapter-search">Chapter <small>একটি বা একাধিক chapter বেছে নিন</small></label>
+          <input id="mcq-chapter-search" type="search" value={chapterSearch} onChange={event => setChapterSearch(event.target.value)} placeholder="Chapter খুঁজুন…" autoComplete="off" />
+          {filters.chapters.length > 0 && <div className="mcq-selected-chapters" aria-label="বেছে নেওয়া chapter">
+            {filters.chapters.map(chapter => <button type="button" key={chapter} onClick={() => toggleChapter(chapter)} aria-label={`${chapter} বাদ দিন`}>{chapter}<span aria-hidden="true">×</span></button>)}
+            <button type="button" className="mcq-clear-chapters" onClick={() => setFilters(previous => ({ ...previous, chapters: [] }))}>সব বাদ দিন</button>
+          </div>}
+          <div className="mcq-chapter-options" role="group" aria-label="Chapter বেছে নিন">
+            {chapterMatches.length ? chapterMatches.map(chapter => <label key={chapter}>
+              <input type="checkbox" checked={filters.chapters.includes(chapter)} onChange={() => toggleChapter(chapter)} />
+              <span>{chapter}</span>
+            </label>) : <p>এই নামে কোনো chapter পাওয়া যায়নি।</p>}
+          </div>
+          <small className="mcq-chapter-hint">{chapterSearch.trim() ? `${bn(Math.min(catalog.chapters.filter(chapter => chapter.toLocaleLowerCase().includes(chapterSearch.trim().toLocaleLowerCase())).length, 60))}টি মিল দেখানো হচ্ছে` : `${bn(catalog.chapters.length)}টি chapter · খুঁজে দ্রুত বেছে নিন`}</small>
+        </div>}
       </div>
-      <div className="mcq-available"><span><i/>এই বাছাইয়ে প্রশ্ন আছে</span><b>{bn(catalog.availableCount)} <small>টি</small></b></div>
+      <div className="mcq-available"><span><i/>{catalogRefreshing ? 'প্রশ্নের সংখ্যা আপডেট হচ্ছে…' : mode === 'MISTAKES' ? 'এই বাছাইয়ে আগের ভুল প্রশ্ন' : mode === 'BOOKMARKED' ? 'এই বাছাইয়ে সংরক্ষিত প্রশ্ন' : 'এই বাছাইয়ে প্রশ্ন আছে'}</span><b>{catalogRefreshing ? '…' : `${bn(catalog.availableCount)} `}<small>{catalogRefreshing ? '' : 'টি'}</small></b></div>
+      {catalogError && <div className="mcq-error" role="alert"><span>{catalogError}</span><button type="button" className="quiet-btn" onClick={() => { setCatalogError(''); setCatalogRefreshing(true); void api<Catalog>(catalogUrl).then(setCatalog).catch(reason => setCatalogError(reason instanceof Error ? reason.message : 'প্রশ্ন খুঁজে পাওয়া যায়নি।')).finally(() => setCatalogRefreshing(false)); }}>আবার চেষ্টা করুন</button></div>}
       <div className="mcq-session-options"><label>পরীক্ষার ধরন<select value={mode} onChange={event => setMode(event.target.value)}><option value="STANDARD">সব প্রশ্ন থেকে নতুন পরীক্ষা</option><option value="MISTAKES">আগের ভুল প্রশ্ন অনুশীলন</option><option value="BOOKMARKED">সংরক্ষিত প্রশ্ন অনুশীলন</option></select></label>
-        <div className="mcq-config-row"><label>কতটি প্রশ্ন?<div className="mcq-number-input"><button type="button" aria-label="প্রশ্ন কমান" onClick={() => setQuestionCount(value => Math.max(1, value - 5))}>−</button><input type="number" min="1" max={Math.min(100, catalog.availableCount || 100)} value={questionCount} onChange={event => setQuestionCount(Math.max(1, Number(event.target.value) || 1))}/><button type="button" aria-label="প্রশ্ন বাড়ান" onClick={() => setQuestionCount(value => Math.min(Math.min(100, catalog.availableCount || 100), value + 5))}>+</button></div></label>
+        <div className="mcq-config-row"><label>কতটি প্রশ্ন?<div className="mcq-number-input"><button type="button" aria-label="প্রশ্ন কমান" disabled={questionCount <= 1 || catalogRefreshing} onClick={() => setQuestionCount(value => Math.max(1, value - 5))}>−</button><input type="number" min="1" max={maxQuestionCount} value={questionCount} aria-label="পরীক্ষার প্রশ্ন সংখ্যা" onChange={event => setQuestionCount(Math.max(1, Math.min(maxQuestionCount, Number(event.target.value) || 1)))}/><button type="button" aria-label="প্রশ্ন বাড়ান" disabled={questionCount >= maxQuestionCount || catalogRefreshing} onClick={() => setQuestionCount(value => Math.min(maxQuestionCount, value + 5))}>+</button></div></label>
           <label>সময়<select value={duration} onChange={event => setDuration(Number(event.target.value))}><option value={5}>৫ মিনিট</option><option value={10}>১০ মিনিট</option><option value={15}>১৫ মিনিট</option><option value={20}>২০ মিনিট</option><option value={30}>৩০ মিনিট</option><option value={45}>৪৫ মিনিট</option><option value={60}>৬০ মিনিট</option><option value={0}>সময় গণনা নয়</option></select></label></div>
       </div>
       <div className="mcq-exam-summary"><span><b>{bn(questionCount)}</b> প্রশ্ন</span><i>·</i><span><b>{duration ? bn(duration) : '∞'}</b> মিনিট</span><i>·</i><span><b>১</b> নম্বর / প্রশ্ন</span><strong>পূর্ণমান {bn(questionCount)}</strong></div>
-      <button className="button mcq-start-button" disabled={busy || !filters.classLevel || !filters.subject || catalog.availableCount === 0 || questionCount > catalog.availableCount} onClick={() => void startAttempt({ ...filters, questionCount, durationMinutes: duration, mode })}>{busy ? 'প্রস্তুত হচ্ছে…' : 'পরীক্ষা শুরু করুন'} <span>→</span></button>
-      {questionCount > catalog.availableCount && catalog.availableCount > 0 && <p className="mcq-error">এই বাছাইয়ে সর্বোচ্চ {bn(catalog.availableCount)}টি প্রশ্ন আছে।</p>}
+      <button className="button mcq-start-button" disabled={busy || catalogRefreshing || Boolean(catalogError) || !filters.classLevel || !filters.subject || catalog.availableCount === 0 || questionCount > catalog.availableCount} onClick={() => void startAttempt({ ...filters, questionCount, durationMinutes: duration, mode })}>{busy ? 'প্রস্তুত হচ্ছে…' : catalogRefreshing ? 'প্রশ্ন খুঁজছি…' : 'পরীক্ষা শুরু করুন'} <span>→</span></button>
     </section><aside className="mcq-how-card"><p className="eyebrow">আপনার শেখার চক্র</p><h2>পরীক্ষা থেকে উন্নতি</h2><ol><li><i>1</i><div><b>বিষয় বেছে নিন</b><small>Class ও chapter ধরে প্রশ্ন ঠিক করুন</small></div></li><li><i>2</i><div><b>নিজের পরীক্ষা দিন</b><small>সময়, navigation ও উত্তর সংরক্ষণ</small></div></li><li><i>3</i><div><b>ভুল থেকে শিখুন</b><small>ব্যাখ্যা দেখুন, ভুল প্রশ্ন ফেরত দিন</small></div></li><li><i>4</i><div><b>অগ্রগতি ধরে রাখুন</b><small>XP, streak ও achievement সংগ্রহ করুন</small></div></li></ol><button className="quiet-btn" onClick={() => go('/dashboard')}>আমার অগ্রগতি দেখুন →</button></aside></div>
     <HistoryList />
   </section>;
