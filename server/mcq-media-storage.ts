@@ -1,14 +1,18 @@
 import { AwsClient } from 'aws4fetch';
 import process from 'node:process';
 
-const rawEndpoint = process.env.AWS_ENDPOINT_URL_S3?.trim().replace(/^['"]+|['"]+$/g, '');
+function envValue(name: string) {
+  return process.env[name]?.trim().replace(/^['"]+|['"]+$/g, '');
+}
+
+const rawEndpoint = envValue('AWS_ENDPOINT_URL_S3');
 const endpoint = rawEndpoint
   ? `${/^https?:\/\//i.test(rawEndpoint) ? '' : 'https://'}${rawEndpoint}`.replace(/\/+$/, '')
   : undefined;
-const bucket = process.env.MCQ_MEDIA_BUCKET || 'mcq-media';
-const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
-const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
-const region = process.env.AWS_REGION || 'us-east-2';
+const bucket = envValue('MCQ_MEDIA_BUCKET') || 'mcq-media';
+const accessKeyId = envValue('AWS_ACCESS_KEY_ID');
+const secretAccessKey = envValue('AWS_SECRET_ACCESS_KEY');
+const region = envValue('AWS_REGION') || 'us-east-2';
 
 const configured = Boolean(endpoint && accessKeyId && secretAccessKey);
 const s3 = configured ? new AwsClient({ accessKeyId: accessKeyId!, secretAccessKey: secretAccessKey!, service: 's3', region }) : null;
