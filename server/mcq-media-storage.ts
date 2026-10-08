@@ -1,7 +1,7 @@
 import { AwsClient } from 'aws4fetch';
 import process from 'node:process';
 
-const rawEndpoint = process.env.AWS_ENDPOINT_URL_S3?.trim();
+const rawEndpoint = process.env.AWS_ENDPOINT_URL_S3?.trim().replace(/^['"]+|['"]+$/g, '');
 const endpoint = rawEndpoint
   ? `${/^https?:\/\//i.test(rawEndpoint) ? '' : 'https://'}${rawEndpoint}`.replace(/\/+$/, '')
   : undefined;
