@@ -1,7 +1,10 @@
 import { AwsClient } from 'aws4fetch';
 import process from 'node:process';
 
-const endpoint = process.env.AWS_ENDPOINT_URL_S3?.replace(/\/+$/, '');
+const rawEndpoint = process.env.AWS_ENDPOINT_URL_S3?.trim();
+const endpoint = rawEndpoint
+  ? `${/^https?:\/\//i.test(rawEndpoint) ? '' : 'https://'}${rawEndpoint}`.replace(/\/+$/, '')
+  : undefined;
 const bucket = process.env.MCQ_MEDIA_BUCKET || 'mcq-media';
 const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
 const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
