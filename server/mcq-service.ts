@@ -523,7 +523,7 @@ export async function uploadMcqBatch(actor: Actor, body: Record<string, any>) {
       await transaction.mcqImportItem.create({ data: { id: randomUUID(), sourceFileId: sourceFile.id, candidateIndex, candidateHash, outcome, questionId, issueId } });
     }
     if (detected) await transaction.mcqSourceFile.update({ where: { id: sourceFile.id }, data: { totalDetectedMcqs: { increment: detected }, totalImportedMcqs: { increment: imported }, totalDuplicates: { increment: duplicates }, totalRejected: { increment: rejected }, totalAmbiguous: { increment: ambiguous } } });
-  });
+  }, { maxWait: 10000, timeout: 30000 });
   return db.mcqSourceFile.findUnique({ where: { id: sourceFile.id }, select: { id: true, fileHash: true, processingStatus: true, totalDetectedMcqs: true, totalImportedMcqs: true, totalDuplicates: true, totalRejected: true, totalAmbiguous: true } });
 }
 
