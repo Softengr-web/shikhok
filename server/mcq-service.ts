@@ -418,7 +418,11 @@ export async function uploadMcqBatch(actor: Actor, body: Record<string, any>) {
       const mediaType = value(media.mime_type) || 'image/jpeg';
       let objectKey: string | null;
       try { objectKey = await putMcqMediaObject(digest, data, mediaType); }
-      catch { throw new DomainError('MCQ image could not be saved to object storage. Check the Neon storage endpoint and credentials, then retry the import batch.', 503); }
+      catch (error) {
+        const detail = error instanceof Error ? error.message : String(error);
+        console.error(`[mcq-media] Neon object storage write failed: ${detail}`);
+        throw new DomainError('MCQ image could not be saved to object storage. Check the Neon storage endpoint and credentials, then retry the import batch.', 503);
+      }
       preparedMedia.set(digest, { data, mediaType, objectKey, pageNumber: Math.max(0, Math.floor(Number(media.page) || 0)) });
     }
   }
