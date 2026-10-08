@@ -27,6 +27,7 @@
 .mcq-filter-grid select:focus,.mcq-session-options select:focus,.mcq-config-row select:focus,.mcq-admin-edit-dialog select:focus,.mcq-admin-edit-dialog textarea:focus,.mcq-admin-questions input:focus { border-color: #37936d; box-shadow: 0 0 0 3px rgba(55,147,109,.13); }
 .mcq-filter-grid select:disabled { cursor: not-allowed; background: #f1f5f2; color: #84938b; }
 .mcq-filter-grid label>small { color: #73877c; font-size: .74rem; font-weight: 500; }
+.mcq-filter-grid>.mcq-subject-filter { grid-column: 1/-1; }
 .mcq-class-picker { grid-column: 1/-1; min-width: 0; padding: 16px; border: 1px solid #e0eae4; border-radius: 15px; background: linear-gradient(145deg,#fbfdfb,#f6faf7); }
 .mcq-class-picker-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 7px 14px; color: #36564c; font-size: .9rem; }
 .mcq-class-picker-heading>span { color: #72847a; font-size: .76rem; font-weight: 500; }
