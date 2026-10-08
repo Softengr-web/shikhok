@@ -537,7 +537,7 @@ function StudentDashboard({data,onUserUpdated}:{data:DashboardData;onUserUpdated
     .sort((a,b)=>`${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`))[0];
   const quickLinks=[
     {icon:'⌕',title:'শিক্ষক খুঁজুন',description:'আপনার বিষয়ের শিক্ষক বেছে নিন',path:'/search',tone:'mint'},
-    {icon:'✎',title:'Exam Name',description:'নিজের পছন্দে MCQ পরীক্ষা দিন',path:'/mcq-exam',tone:'lilac'},
+    {icon:'✎',title:'পরীক্ষা',description:'নিজের পছন্দে MCQ পরীক্ষা দিন',path:'/mcq-exam',tone:'lilac'},
     {icon:'◈',title:'সমস্যা সমাধান',description:'প্রশ্ন শেয়ার করে সহায়তা নিন',path:'/problems',tone:'peach'},
     {icon:'✉',title:'বার্তা দেখুন',description:'শিক্ষকের সঙ্গে কথা বলুন',path:'/messages',tone:'blue'}
   ];
