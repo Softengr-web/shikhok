@@ -27,7 +27,12 @@ export async function putMcqMediaObject(key: string, data: Buffer, contentType: 
   const body = new Uint8Array(data.length);
   body.set(data);
   const response = await s3.fetch(objectUrl(key), { method: 'PUT', body, headers: { 'content-type': contentType } });
-  if (!response.ok) throw new Error(`MCQ media storage upload failed (${response.status}).`);
+  if (!response.ok) {
+    const errorBody = (await response.text()).slice(0, 4096);
+    const code = errorBody.match(/<Code>([^<]+)<\/Code>/i)?.[1] || errorBody.match(/"code"\s*:\s*"([^"]+)"/i)?.[1];
+    const message = errorBody.match(/<Message>([^<]+)<\/Message>/i)?.[1] || errorBody.match(/"message"\s*:\s*"([^"]+)"/i)?.[1];
+    throw new Error(`MCQ media storage upload failed (${response.status}${code ? ` ${code}` : ''}${message ? `: ${message.slice(0, 180)}` : ''}).`);
+  }
   return key;
 }
 
