@@ -407,6 +407,7 @@ export async function uploadMcqBatch(actor: Actor, body: Record<string, any>) {
   const mediaInputs = Array.isArray(body.media) ? body.media : [];
   if (process.env.NODE_ENV === 'production' && mediaInputs.length && !mcqObjectStorageConfigured()) throw new DomainError('MCQ image storage is not configured. Set Neon Object Storage credentials before importing media.', 503);
   const preparedMedia = new Map<string, { data: Buffer; mediaType: string; objectKey: string | null; pageNumber: number }>();
+  const uniqueMedia = new Map<string, { data: Buffer; mediaType: string; pageNumber: number }>();
   for (const media of mediaInputs) {
     const encoded = value(media.base64);
     if (!encoded || encoded.length > 3_000_000) continue;
@@ -414,11 +415,18 @@ export async function uploadMcqBatch(actor: Actor, body: Record<string, any>) {
     if (data.length > 2_000_000 || !data.length) continue;
     const digest = value(media.sha256) || createHash('sha256').update(data).digest('hex');
     if (!/^[a-f0-9]{64}$/i.test(digest) || createHash('sha256').update(data).digest('hex') !== digest.toLowerCase()) throw new DomainError('MCQ image hash does not match its content.');
-    if (!preparedMedia.has(digest)) {
-      const mediaType = value(media.mime_type) || 'image/jpeg';
-      let objectKey: string | null;
-      try { objectKey = await putMcqMediaObject(digest, data, mediaType); }
-      catch (error) {
+    if (!uniqueMedia.has(digest)) uniqueMedia.set(digest, { data, mediaType: value(media.mime_type) || 'image/jpeg', pageNumber: Math.max(0, Math.floor(Number(media.page) || 0)) });
+  }
+  const mediaEntries = [...uniqueMedia.entries()];
+  let nextMedia = 0;
+  const uploadMedia = async () => {
+    while (nextMedia < mediaEntries.length) {
+      const index = nextMedia++;
+      const [digest, media] = mediaEntries[index];
+      try {
+        const objectKey = await putMcqMediaObject(digest, media.data, media.mediaType);
+        preparedMedia.set(digest, { ...media, objectKey });
+      } catch (error) {
         const nested = error instanceof Error && error.cause instanceof Error ? error.cause : null;
         const nestedCode = nested && 'code' in nested ? String((nested as Error & { code?: unknown }).code || '') : '';
         const detail = error instanceof Error
@@ -427,8 +435,13 @@ export async function uploadMcqBatch(actor: Actor, body: Record<string, any>) {
         console.error(`[mcq-media] Neon object storage write failed: ${detail}`);
         throw new DomainError('MCQ image could not be saved to object storage. Check the Neon storage endpoint and credentials, then retry the import batch.', 503);
       }
-      preparedMedia.set(digest, { data, mediaType, objectKey, pageNumber: Math.max(0, Math.floor(Number(media.page) || 0)) });
     }
+  };
+  const uploads = Math.min(6, mediaEntries.length);
+  if (uploads) {
+    const outcomes = await Promise.allSettled(Array.from({ length: uploads }, () => uploadMedia()));
+    const failedUpload = outcomes.find((outcome): outcome is PromiseRejectedResult => outcome.status === 'rejected');
+    if (failedUpload) throw failedUpload.reason;
   }
   await db.$transaction(async transaction => {
     const assetIds = new Map<string, string>();
