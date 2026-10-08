@@ -419,7 +419,11 @@ export async function uploadMcqBatch(actor: Actor, body: Record<string, any>) {
       let objectKey: string | null;
       try { objectKey = await putMcqMediaObject(digest, data, mediaType); }
       catch (error) {
-        const detail = error instanceof Error ? error.message : String(error);
+        const nested = error instanceof Error && error.cause instanceof Error ? error.cause : null;
+        const nestedCode = nested && 'code' in nested ? String((nested as Error & { code?: unknown }).code || '') : '';
+        const detail = error instanceof Error
+          ? `${error.name}: ${error.message}${nested ? `; cause ${nested.name}${nestedCode ? ` (${nestedCode})` : ''}: ${nested.message}` : ''}`
+          : String(error);
         console.error(`[mcq-media] Neon object storage write failed: ${detail}`);
         throw new DomainError('MCQ image could not be saved to object storage. Check the Neon storage endpoint and credentials, then retry the import batch.', 503);
       }
