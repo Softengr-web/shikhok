@@ -5,6 +5,7 @@ import { GigBuilder } from './gig-builder';
 import { AdminAudit, AdminPayments, AdminReports, AdminUsers, AuthPage, Bookings, Classroom, Compare, Dashboard, Exams, GigPage, GigsPage, Home, Messages, NotificationsPage, PaymentPage, Problems, Search, TeacherPage, Wallet } from './pages';
 import { StudentExamPage, TeacherExamDashboard, TeacherExamEditor } from './exam-pages';
 import { TeacherDashboardLivePage } from './teacher-dashboard';
+import { AdminMcqBankPage, McqExamPage } from './mcq-exam';
 import type { User } from './models';
 
 export function RootApp() {
@@ -28,7 +29,8 @@ export function RootApp() {
   else if (path === '/teacher/dashboard') content = protectedPage(<TeacherDashboardLivePage onUserUpdated={setUser} />);
   else if (path.startsWith('/teacher/')) content = <TeacherPage user={user} />;
   else if (path.startsWith('/gig/')) content = <GigPage user={user} />;
-  else if (path.startsWith('/exam/')) content = protectedPage(<StudentExamPage user={user!} />);
+  else if (path.startsWith('/exam/')) content = protectedPage(<StudentExamPage />);
+  else if (path === '/mcq-exam') content = protectedPage(user?.role==='STUDENT' ? <McqExamPage /> : <section className="page section"><h1>এই পরীক্ষা শুধু শিক্ষার্থীদের জন্য</h1></section>);
   else if (path === '/compare') content = <Compare />;
   else if (path === '/login') content = <AuthPage kind="login" onLogin={setUser} />;
   else if (path === '/register') content = <AuthPage kind="register" onLogin={setUser} />;
@@ -36,6 +38,7 @@ export function RootApp() {
   else if (path === '/admin/payments') content = adminPage(<AdminPayments />);
   else if (path === '/admin/reports') content = adminPage(<AdminReports />);
   else if (path === '/admin/audit') content = adminPage(<AdminAudit />);
+  else if (path === '/admin/mcq-bank') content = adminPage(<AdminMcqBankPage />);
   else if (path === '/dashboard' || path === '/profile') content = protectedPage(user?.role === 'TEACHER' ? <TeacherDashboardLivePage onUserUpdated={setUser} /> : <Dashboard user={user!} onUserUpdated={setUser} />);
   else if (path === '/bookings') content = protectedPage(<Bookings user={user!} />);
   else if (path.startsWith('/payment/')) content = protectedPage(<PaymentPage user={user!} />);

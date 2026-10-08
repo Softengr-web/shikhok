@@ -300,7 +300,7 @@ export function ClassroomRoom({ user }: { user: User }) {
   useEffect(() => () => {
     stream.current?.getTracks().forEach(track => track.stop());
     displayStream.current?.getTracks().forEach(track => { track.onended = null; track.stop(); });
-    recorder.current?.state !== 'inactive' && recorder.current?.stop();
+    if (recorder.current && recorder.current.state !== 'inactive') recorder.current.stop();
   }, []);
   useEffect(() => () => { if (recordUrl) URL.revokeObjectURL(recordUrl); }, [recordUrl]);
 

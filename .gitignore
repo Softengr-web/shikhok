@@ -3,3 +3,5 @@ dist/
 .env
 data/shikhok-demo.json
 coverage/
+__pycache__/
+*.py[cod]

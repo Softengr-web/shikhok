@@ -936,7 +936,8 @@
   .admin-filter-pills button { min-height: 36px; padding: 6px 9px; font-size: .74rem; }
   .admin-audit-card { align-items: flex-start; padding: 13px; }
   .admin-audit-card .admin-role-badge { display: none; }
-  .mobile-nav.is-admin { grid-template-columns: repeat(5,minmax(0,1fr)); }
+  .mobile-nav.is-admin { grid-template-columns: repeat(6,minmax(0,1fr)); }
+  .mobile-nav.has-exam { grid-template-columns: repeat(6,minmax(0,1fr)); }
   .mobile-nav.is-admin small { font-size: .68rem; }
 }
 
@@ -968,7 +969,7 @@
     backdrop-filter: blur(16px);
   }
 
-  .mobile-nav.is-admin { grid-template-columns: repeat(5,minmax(0,1fr)); }
+  .mobile-nav.is-admin { grid-template-columns: repeat(6,minmax(0,1fr)); }
 
   .mobile-nav-item {
     display: grid;
@@ -988,6 +989,7 @@
   .mobile-nav-item[aria-current="page"] { background: #e7f4ef; color: #07554e; }
   .mobile-nav-item[aria-current="page"] small { color: #07554e; font-weight: 700; }
   .mobile-nav-item small { display: block; max-width: 100%; overflow: hidden; color: inherit; font-size: clamp(.57rem,2.05vw,.7rem); line-height: 1.15; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
+  .mobile-nav.has-exam .mobile-nav-item small { font-size: clamp(.54rem,1.9vw,.67rem); }
   .mobile-nav-icon { display: grid; width: 28px; height: 28px; place-items: center; border-radius: 9px; }
   .mobile-nav-icon svg { display: block; width: 21px; height: 21px; }
   .mobile-logout { cursor: pointer; font: inherit; color: #a24646; }

@@ -49,6 +49,7 @@ export function Shell({user,children,onLogout}:{user:User|null;children:ReactNod
   const links=isAdmin?[
     ['/dashboard','অ্যাডমিন ড্যাশবোর্ড'],
     ['/admin/users','ব্যবহারকারী'],
+    ['/admin/mcq-bank','প্রশ্ন ব্যাংক'],
     ['/admin/reports','রিপোর্ট'],
     ['/bookings','বুকিং'],
     ['/gigs','গিগ']
@@ -56,7 +57,8 @@ export function Shell({user,children,onLogout}:{user:User|null;children:ReactNod
     ['/search','শিক্ষক খুঁজুন'],
     ['/gigs','জনপ্রিয় গিগ'],
     ['/problems','সমস্যা সমাধান'],
-    ...(user?[['/exams','পরীক্ষা']]:[])
+    ...(user?[['/exams','পরীক্ষা']]:[]),
+    ...(user?.role==='STUDENT'?[['/mcq-exam','Exam Name']]:[])
   ];
 
   return <>
@@ -102,11 +104,11 @@ function MobileNav({user,onLogout}:{user:User;onLogout:()=>void}) {
   const items:Array<{icon:MobileNavIconName;label:string;href:string}>=user.role==='TEACHER'
     ?[{icon:'home',label:'ড্যাশবোর্ড',href:'/dashboard'},{icon:'booking',label:'বুকিং',href:'/bookings'},{icon:'message',label:'বার্তা',href:'/messages'},{icon:'exam',label:'পরীক্ষা',href:'/teacher/exams'},{icon:'profile',label:'প্রোফাইল',href:'/profile'}]
     :isAdmin
-      ?[{icon:'home',label:'ড্যাশবোর্ড',href:'/dashboard'},{icon:'users',label:'ব্যবহারকারী',href:'/admin/users'},{icon:'booking',label:'বুকিং',href:'/bookings'},{icon:'report',label:'রিপোর্ট',href:'/admin/reports'}]
-      :[{icon:'home',label:'হোম',href:'/'},{icon:'search',label:'খুঁজুন',href:'/search'},{icon:'booking',label:'বুকিং',href:'/bookings'},{icon:'message',label:'বার্তা',href:'/messages'},{icon:'profile',label:'প্রোফাইল',href:'/dashboard'}];
+      ?[{icon:'home',label:'ড্যাশবোর্ড',href:'/dashboard'},{icon:'users',label:'ব্যবহারকারী',href:'/admin/users'},{icon:'exam',label:'প্রশ্ন ব্যাংক',href:'/admin/mcq-bank'},{icon:'booking',label:'বুকিং',href:'/bookings'},{icon:'report',label:'রিপোর্ট',href:'/admin/reports'}]
+      :[{icon:'home',label:'হোম',href:'/'},{icon:'search',label:'খুঁজুন',href:'/search'},{icon:'booking',label:'বুকিং',href:'/bookings'},...(user.role==='STUDENT'?[{icon:'exam' as const,label:'Exam Name',href:'/mcq-exam'}]:[]),{icon:'message',label:'বার্তা',href:'/messages'},{icon:'profile',label:'প্রোফাইল',href:'/dashboard'}];
   const currentPath=location.hash.slice(1).split('?')[0]||'/';
   const active=(href:string)=>currentPath===href||currentPath.startsWith(`${href}/`)||(user.role!=='TEACHER'&&href==='/profile'&&currentPath==='/dashboard');
-  return <nav className={`mobile-nav${isAdmin?' is-admin':''}`} aria-label="মোবাইল নেভিগেশন">
+  return <nav className={`mobile-nav${isAdmin?' is-admin':''}${user.role==='STUDENT'?' has-exam':''}`} aria-label="মোবাইল নেভিগেশন">
     {items.map(item=><a className="mobile-nav-item" href={`#${item.href}`} key={item.label} aria-current={active(item.href)?'page':undefined}>
       <span className="mobile-nav-icon"><MobileNavIcon name={item.icon}/></span><small>{item.label}</small>
     </a>)}

@@ -12,6 +12,7 @@ import './problem-marketplace.css';
 import './classroom.css';
 import './exams-marketplace.css';
 import './messages.css';
+import './mcq-exam.css';
 import { RootApp } from './RootApp';
 
 createRoot(document.getElementById('root')!).render(<StrictMode><RootApp /></StrictMode>);
