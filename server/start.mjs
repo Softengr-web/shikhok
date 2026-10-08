@@ -6,7 +6,7 @@ import dotenv from 'dotenv';
 
 const logger = new Console({ stdout: process.stdout, stderr: process.stderr });
 const storageEnvFile = process.env.MCQ_STORAGE_ENV_FILE || '/etc/secrets/mcq-storage.env';
-if (existsSync(storageEnvFile)) dotenv.config({ path: storageEnvFile, override: false });
+if (existsSync(storageEnvFile)) dotenv.config({ path: storageEnvFile, override: true });
 
 if (process.env.DATABASE_URL) {
   const migrate = spawnSync(process.execPath, ['node_modules/prisma/build/index.js', 'migrate', 'deploy'], { stdio: 'inherit', env: process.env });
