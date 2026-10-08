@@ -101,8 +101,20 @@ model User {
   auditLogs        AuditLog[]           @relation("Actor")
   conversations    ConversationMember[]
   problems         Problem[]
+  authSessions     AuthSession[]
 
   @@index([role, deletedAt])
+}
+
+model AuthSession {
+  tokenHash String   @id
+  userId    String
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@index([expiresAt])
 }
 
 model StudentProfile {

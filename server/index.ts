@@ -2,7 +2,7 @@ import express, { type Request, type Response, type NextFunction } from 'express
 import { createServer } from 'node:http';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { createHmac, randomUUID } from 'node:crypto';
+import { createHash, createHmac, randomUUID } from 'node:crypto';
 import { store } from './store.js';
 import { DomainError, authenticate, changeBookingStatus, cleanText, conversation, createBooking, createExam, createGig, createProblemSession, createReview, deleteExam, duplicateExam, findTeachers, getExamForStudent, listConversations, listTeacherExams, markConversationRead, matchTeachers, payBooking, privateUser, publicTeacher, publicUser, publishExam, register, requireRole, requireUser, sendMessage, setExamStatus, submitExam, teacherExamResults, updateExam, updateTeacher, updateUserProfile, wallet } from './services.js';
 import { id, passwordHash, verifyPassword } from './seed.js';
@@ -13,16 +13,54 @@ import { WebSocket, WebSocketServer } from 'ws';
 import { abandonMcqAttempt, adminMcqIssues, adminMcqQuestions, adminMcqSources, adminMcqSummary, autoSubmitExpiredMcqAttempts, finalizeMcqImport, getActiveMcqAttempt, getMcqAttempt, importFailure, listMcqBookmarks, listMcqHistory, mcqCatalog, mcqDatabase, mcqMedia, mcqProfile, persistMcqBootstrapAdmin, persistMcqUser, resolveMcqIssue, setMcqQuestionStatus, startMcqAttempt, submitMcqAttempt, toggleMcqBookmark, updateMcqAnswer, uploadMcqBatch } from './mcq-service.js';
 
 const app = express();
-const sessions = new Map<string, string>();
+const sessions = new Map<string, { userId: string; expiresAt: number }>();
 const port = Number(process.env.PORT || 3001);
 app.disable('x-powered-by');
 app.use((_req,res,next)=>{res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('X-Frame-Options','SAMEORIGIN');res.setHeader('Referrer-Policy','same-origin');next();});
 app.use(express.json({ limit: '20mb' }));
 
-const cookie = (req: Request, name: string) => req.headers.cookie?.split(';').map(v=>v.trim()).find(v=>v.startsWith(`${name}=`))?.slice(name.length+1);
-const setSession = (res: Response, userId: string) => { const token=randomUUID();sessions.set(token,userId);res.setHeader('Set-Cookie',`shikhok_session=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=28800${process.env.NODE_ENV==='production'?'; Secure':''}`); };
-const currentUser = (req: Request) => { const token=cookie(req,'shikhok_session');const userId=token&&sessions.get(token);return userId?store.read().users.find(u=>u.id===userId):undefined; };
-const auth = (roles?: Role[]) => (req:Request,_res:Response,next:NextFunction) => { try { const user=currentUser(req);if(!user)throw new DomainError('এই পেজটি দেখতে আগে লগইন করুন।',401);if(roles)requireRole(user,roles);(req as Request & { user:User }).user=user;next();}catch(e){next(e);} };
+const cookie = (headers: Request['headers'] | import('node:http').IncomingHttpHeaders, name: string) => headers.cookie?.split(';').map(v=>v.trim()).find(v=>v.startsWith(`${name}=`))?.slice(name.length+1);
+const hashSessionToken = (token: string) => createHash('sha256').update(token).digest('hex');
+const sessionMaxAgeSeconds = 8 * 60 * 60;
+const setSession = async (res: Response, userId: string) => {
+  const token=randomUUID();
+  const expiresAt=new Date(Date.now()+sessionMaxAgeSeconds*1000);
+  if(process.env.DATABASE_URL){
+    const db=mcqDatabase();
+    await db.authSession.deleteMany({where:{expiresAt:{lte:new Date()}}});
+    await db.authSession.create({data:{tokenHash:hashSessionToken(token),userId,expiresAt}});
+  }else sessions.set(token,{userId,expiresAt:expiresAt.getTime()});
+  res.setHeader('Set-Cookie',`shikhok_session=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${sessionMaxAgeSeconds}${process.env.NODE_ENV==='production'?'; Secure':''}`);
+};
+const userForSession = async (token: string) => {
+  if(!process.env.DATABASE_URL){
+    const session=sessions.get(token);
+    if(!session)return undefined;
+    if(session.expiresAt<=Date.now()){sessions.delete(token);return undefined;}
+    return store.read().users.find(user=>user.id===session.userId);
+  }
+  const db=mcqDatabase();
+  const session=await db.authSession.findUnique({where:{tokenHash:hashSessionToken(token)},include:{user:true}});
+  if(!session)return undefined;
+  if(session.expiresAt<=new Date()||session.user.deletedAt){
+    await db.authSession.deleteMany({where:{tokenHash:session.tokenHash}});
+    return undefined;
+  }
+  const saved=session.user;
+  const cached=store.read().users.find(user=>user.id===saved.id);
+  if(cached&&cached.email===saved.email&&cached.passwordHash===saved.passwordHash&&cached.role===saved.role&&cached.name===saved.name&&cached.phone===(saved.phone||undefined))return cached;
+  return store.transaction(state=>{
+    const existing=state.users.find(user=>user.id===saved.id);
+    const restored:User={id:saved.id,email:saved.email,passwordHash:saved.passwordHash,role:saved.role as Role,name:saved.name,phone:saved.phone||undefined,createdAt:saved.createdAt.toISOString(),active:true,profile:existing?.profile||{}};
+    if(existing){Object.assign(existing,restored);return existing;}
+    state.users.push(restored);return restored;
+  });
+};
+const currentUser = async (req: Request) => {
+  const token=cookie(req.headers,'shikhok_session');
+  return token?userForSession(token):undefined;
+};
+const auth = (roles?: Role[]) => async (req:Request,_res:Response,next:NextFunction) => { try { const user=await currentUser(req);if(!user)throw new DomainError('এই পেজটি দেখতে আগে লগইন করুন।',401);if(roles)requireRole(user,roles);(req as Request & { user:User }).user=user;next();}catch(e){next(e);} };
 const handler = (fn:(req:Request,res:Response)=>unknown) => (req:Request,res:Response,next:NextFunction) => { try { void Promise.resolve(fn(req,res)).catch(next); } catch (e) { next(e); } };
 const actor = (req: Request) => (req as Request & { user: User }).user;
 const ok = (res:Response,data:unknown,status=200) => res.status(status).json({ ok:true,data });
@@ -62,7 +100,7 @@ app.post('/api/auth/login', handler(async(req,res)=> {
     state=store.read();account=state.users.find(user=>user.id===saved.id)!;
   }else authenticate(state,email,req.body.password);
   await persistMcqUser(account!);
-  setSession(res,account!.id);
+  await setSession(res,account!.id);
   return ok(res,publicUser(account!));
 }));
 app.post('/api/auth/register', handler(async(req,res)=> {
@@ -70,11 +108,11 @@ app.post('/api/auth/register', handler(async(req,res)=> {
   const user=store.transaction(s=>register(s,req.body));
   const account=store.read().users.find(item=>item.id===user.id)!;
   await persistMcqUser(account);
-  setSession(res,user.id);
+  await setSession(res,user.id);
   return ok(res,user,201);
 }));
-app.post('/api/auth/logout', handler((req,res)=> { const token=cookie(req,'shikhok_session');if(token)sessions.delete(token);res.setHeader('Set-Cookie','shikhok_session=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0');return ok(res,{message:'আপনি সফলভাবে লগআউট করেছেন।'}); }));
-app.get('/api/auth/me', handler((req,res)=> { const user=currentUser(req);if(!user)throw new DomainError('লগইন সেশন নেই।',401);return ok(res,publicUser(user)); }));
+app.post('/api/auth/logout', handler(async(req,res)=> { const token=cookie(req.headers,'shikhok_session');if(token){sessions.delete(token);if(process.env.DATABASE_URL)await mcqDatabase().authSession.deleteMany({where:{tokenHash:hashSessionToken(token)}});}res.setHeader('Set-Cookie','shikhok_session=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0');return ok(res,{message:'আপনি সফলভাবে লগআউট করেছেন।'}); }));
+app.get('/api/auth/me', handler(async(req,res)=> { const user=await currentUser(req);if(!user)throw new DomainError('লগইন সেশন নেই।',401);return ok(res,publicUser(user)); }));
 
 app.get('/api/subjects', handler((_req,res)=>ok(res,store.read().subjects)));
 app.get('/api/teachers', handler((req,res)=>ok(res,findTeachers(store.read(),req.query))));
@@ -220,7 +258,7 @@ const client=resolve(process.cwd(),'dist','client');if(existsSync(client)){app.u
 const httpServer=createServer(app);
 const sockets=new Map<string,Set<WebSocket>>();
 const sendToUser=(userId:string,payload:unknown)=>{for(const socket of sockets.get(userId)||[])if(socket.readyState===WebSocket.OPEN)socket.send(JSON.stringify(payload));};
-const wsUser=(request:import('node:http').IncomingMessage)=>{const token=request.headers.cookie?.split(';').map(v=>v.trim()).find(v=>v.startsWith('shikhok_session='))?.slice('shikhok_session='.length);const userId=token&&sessions.get(token);return userId?store.read().users.find(u=>u.id===userId):undefined;};
+const wsUser=async(request:import('node:http').IncomingMessage)=>{const token=cookie(request.headers,'shikhok_session');return token?userForSession(token):undefined;};
 type ClassroomSocket = { socket: WebSocket; userId: string; user: { id: string; name: string; role: Role }; camera: boolean; mic: boolean; screen: boolean };
 const classroomRooms=new Map<string,Set<ClassroomSocket>>();
 const socketRooms=new Map<WebSocket,{bookingId:string;participant:ClassroomSocket}>();
@@ -229,7 +267,8 @@ const sendClassroom=(bookingId:string,payload:unknown,except?:WebSocket)=>{for(c
 const leaveClassroom=(socket:WebSocket)=>{const current=socketRooms.get(socket);if(!current)return;const room=classroomRooms.get(current.bookingId);room?.delete(current.participant);socketRooms.delete(socket);sendClassroom(current.bookingId,{type:'classroom:peer-left',userId:current.participant.userId},socket);if(!room?.size)classroomRooms.delete(current.bookingId);};
 const wsServer=new WebSocketServer({server:httpServer,path:'/ws',maxPayload:8*1024*1024});
 wsServer.on('connection',(socket,request)=>{
-  const user=wsUser(request); if(!user){socket.close(1008,'Authentication required');return;}
+  void wsUser(request).then(user=>{
+  if(!user){socket.close(1008,'Authentication required');return;}
   const userSockets=sockets.get(user.id)||new Set<WebSocket>(); userSockets.add(socket); sockets.set(user.id,userSockets);
   socket.on('message',raw=>{try{
     const input=JSON.parse(raw.toString()) as {type?:string;to?:string;body?:unknown;bookingId?:string;data?:unknown;board?:ClassroomBoard;camera?:boolean;mic?:boolean;screen?:boolean};
@@ -281,6 +320,7 @@ wsServer.on('connection',(socket,request)=>{
     if(input.type!=='message'||!input.to)throw new DomainError('বার্তার গंतব্য সঠিক নয়।');const message=store.transaction(s=>sendMessage(s,user,input.to!,input.body));const payload={type:'message',data:message};sendToUser(user.id,payload);sendToUser(message.receiverId,payload);
   }catch(error){sendSocket(socket,{type:'error',message:error instanceof Error?error.message:'বার্তা পাঠানো যায়নি।'});}});
   socket.on('close',()=>{leaveClassroom(socket);userSockets.delete(socket);if(!userSockets.size)sockets.delete(user.id);});
+  }).catch(error=>{console.error('WebSocket session lookup failed',error);socket.close(1011,'Authentication unavailable');});
 });
 if(process.env.BOOTSTRAP_ADMIN_EMAIL&&process.env.BOOTSTRAP_ADMIN_PASSWORD){
   const email=process.env.BOOTSTRAP_ADMIN_EMAIL.trim().toLowerCase();
