@@ -41,7 +41,8 @@ app.post('/api/auth/login', handler(async(req,res)=> {
   else if(process.env.DATABASE_URL){
     const saved=await mcqDatabase().user.findUnique({where:{email}});
     const bootstrapAdmin=email===(process.env.BOOTSTRAP_ADMIN_EMAIL||'').trim().toLowerCase();
-    if(!saved||saved.deletedAt||(saved.role!=='STUDENT'&&!(bootstrapAdmin&&saved.role==='ADMIN'))||!verifyPassword(String(req.body.password||''),saved.passwordHash))throw new DomainError('ইমেইল বা পাসওয়ার্ড সঠিক নয়।',401);
+    const allowedRole=saved&&(['STUDENT','TEACHER','PARENT'].includes(saved.role)||(bootstrapAdmin&&saved.role==='ADMIN'));
+    if(!saved||saved.deletedAt||!allowedRole||!verifyPassword(String(req.body.password||''),saved.passwordHash))throw new DomainError('ইমেইল বা পাসওয়ার্ড সঠিক নয়।',401);
     account={id:saved.id,email:saved.email,role:saved.role,name:saved.name,passwordHash:saved.passwordHash,phone:saved.phone||undefined,createdAt:saved.createdAt.toISOString(),active:true,profile:{}};
     store.transaction(draft=>{if(!draft.users.some(user=>user.id===account!.id))draft.users.push(account!);});
     state=store.read();account=state.users.find(user=>user.id===saved.id)!;

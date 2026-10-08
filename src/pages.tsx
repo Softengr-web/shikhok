@@ -386,6 +386,10 @@ export function AuthPage({ kind, onLogin }: { kind: 'login' | 'register'; onLogi
   const [role, setRole] = useState('STUDENT');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const currentAuthPath = location.hash.slice(1).split('?')[0] || '/';
+  const nextPath = new URLSearchParams(location.hash.split('?')[1] || '').get('next');
+  const returnTo = nextPath?.startsWith('/') && !nextPath.startsWith('//') ? nextPath : currentAuthPath;
+  const switchAuthHref = `#/${kind === 'login' ? 'register' : 'login'}${returnTo && !['/login', '/register', '/'].includes(returnTo) ? `?next=${encodeURIComponent(returnTo)}` : ''}`;
 
   const chooseDemo = (demoEmail: string) => {
     setEmail(demoEmail);
@@ -401,8 +405,7 @@ export function AuthPage({ kind, onLogin }: { kind: 'login' | 'register'; onLogi
         ? await post<User>('/auth/login', { email, password })
         : await post<User>('/auth/register', { name, email, password, role });
       onLogin(user);
-      const requestedRoute = location.hash.startsWith('#/') ? location.hash.slice(1) : '';
-      go(requestedRoute && !['/login', '/register', '/'].includes(requestedRoute) ? requestedRoute : '/dashboard');
+      go(returnTo && !['/login', '/register', '/'].includes(returnTo) ? returnTo : '/dashboard');
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'সমস্যা হয়েছে');
     } finally {
@@ -436,7 +439,7 @@ export function AuthPage({ kind, onLogin }: { kind: 'login' | 'register'; onLogi
           <p className="auth-description">শিক্ষার্থী, শিক্ষক, অভিভাবক বা অ্যাডমিন—নিজের ভূমিকা বেছে নিয়ে শিখোকের সুবিধাগুলো ব্যবহার করুন। এই পরিবেশে বাস্তব অর্থ লেনদেন চালু নেই।</p>
         </div>
 
-        <section className="demo-account-panel" aria-labelledby="demo-account-title">
+        {!import.meta.env.PROD && <section className="demo-account-panel" aria-labelledby="demo-account-title">
           <div className="demo-account-heading">
             <div>
               <h3 id="demo-account-title">দ্রুত প্রবেশের জন্য ভূমিকা বেছে নিন</h3>
@@ -482,7 +485,7 @@ export function AuthPage({ kind, onLogin }: { kind: 'login' | 'register'; onLogi
               <button type="button" disabled={busy} onClick={() => void joinDemoClass('teacher@demo.local')}>শিক্ষক হিসেবে যোগ দিন</button>
             </div>
           </section>}
-        </section>
+        </section>}
       </aside>
 
       <div className="auth-form">
@@ -496,11 +499,11 @@ export function AuthPage({ kind, onLogin }: { kind: 'login' | 'register'; onLogi
           </>}
           <label>ইমেইল<input type="email" value={email} onChange={event => setEmail(event.target.value)} autoComplete="email" required /></label>
           <label>পাসওয়ার্ড<input type="password" value={password} onChange={event => setPassword(event.target.value)} autoComplete={kind === 'login' ? 'current-password' : 'new-password'} required minLength={6} /></label>
-          {kind === 'login' && <p className="help">একটি ভূমিকা বেছে নিলে লগইন তথ্য স্বয়ংক্রিয়ভাবে এখানে বসবে।</p>}
+          {kind === 'login' && <p className="help">{import.meta.env.PROD ? 'নিরাপত্তার জন্য ডেমো অ্যাকাউন্ট বন্ধ। নিবন্ধিত ইমেইল ও পাসওয়ার্ড দিয়ে প্রবেশ করুন।' : 'একটি ভূমিকা বেছে নিলে লগইন তথ্য স্বয়ংক্রিয়ভাবে এখানে বসবে।'}</p>}
           {error && <p className="form-error" role="alert">{error}</p>}
           <button className="button wide" disabled={busy}>{busy ? 'অপেক্ষা করুন…' : kind === 'login' ? 'লগইন করুন' : 'অ্যাকাউন্ট তৈরি করুন'}</button>
         </form>
-        <p className="auth-switch">{kind === 'login' ? 'অ্যাকাউন্ট নেই?' : 'ইতোমধ্যে নিবন্ধিত?'} <a href={kind === 'login' ? '#/register' : '#/login'}>{kind === 'login' ? 'নিবন্ধন করুন' : 'লগইন করুন'}</a></p>
+        <p className="auth-switch">{kind === 'login' ? 'অ্যাকাউন্ট নেই?' : 'ইতোমধ্যে নিবন্ধিত?'} <a href={switchAuthHref}>{kind === 'login' ? 'নিবন্ধন করুন' : 'লগইন করুন'}</a></p>
       </div>
     </section>
   );

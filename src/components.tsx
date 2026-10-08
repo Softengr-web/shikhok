@@ -57,7 +57,8 @@ export function Shell({user,children,onLogout}:{user:User|null;children:ReactNod
     ['/search','শিক্ষক খুঁজুন'],
     ['/gigs','জনপ্রিয় গিগ'],
     ['/problems','সমস্যা সমাধান'],
-    ...(user?.role==='STUDENT'?[['/mcq-exam','পরীক্ষা'],['/exams','প্রকাশিত পরীক্ষা']]:user?[['/exams','পরীক্ষা']]:[])
+    ...(!user||user.role==='STUDENT'?[['/mcq-exam','পরীক্ষা']]:[]),
+    ...(user?.role==='STUDENT'?[['/exams','প্রকাশিত পরীক্ষা']]:user?[['/exams','পরীক্ষা']]:[])
   ];
 
   return <>
