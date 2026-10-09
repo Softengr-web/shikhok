@@ -809,6 +809,7 @@ def main() -> int:
     parser.add_argument("--password", default=os.getenv("SHIKHOK_ADMIN_PASSWORD"))
     parser.add_argument("--ocr-languages", default="ben+eng", help="Tesseract trained languages (default ben+eng)")
     parser.add_argument("--max-files", type=int, help="Process at most N files; useful for a pilot")
+    parser.add_argument("--include-path", action="append", default=[], help="Process only paths containing this case-insensitive relative path fragment; may be repeated")
     parser.add_argument("--workers", type=int, default=min(4, max(1, os.cpu_count() or 1)), help="Maximum concurrent file conversions (default: up to 4)")
     parser.add_argument("--resume", action="store_true", help="Keep existing audit records and skip files with saved successful extraction records")
     parser.add_argument("--batch-size", type=int, default=20)
@@ -834,6 +835,9 @@ def main() -> int:
             parser.error("--api-url requires --email/--password or SHIKHOK_ADMIN_EMAIL/SHIKHOK_ADMIN_PASSWORD")
         client = ApiClient(args.api_url, args.email, args.password)
     files = [path for path in root.rglob("*") if path.is_file() and path.suffix.casefold() in SUPPORTED and output_dir not in path.parents]
+    include_paths = [fragment.replace("\\", "/").strip("/").casefold() for fragment in args.include_path if fragment.strip(" /\\")]
+    if include_paths:
+        files = [path for path in files if any(fragment in path.relative_to(root).as_posix().casefold() for fragment in include_paths)]
     files.sort(key=lambda value: value.relative_to(root).as_posix().casefold())
     discovered_count = len(files)
     if args.max_files:

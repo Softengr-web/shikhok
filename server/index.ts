@@ -83,7 +83,10 @@ app.post('/api/auth/login', handler(async(req,res)=> {
   if(demoLoginAllowed&&process.env.DATABASE_URL){
     const saved=await mcqDatabase().user.findUnique({where:{email}});
     if(saved){
-      if(saved.deletedAt||!account||saved.role!==account.role||!verifyPassword(String(req.body.password||''),saved.passwordHash))throw new DomainError('ইমেইল বা পাসওয়ার্ড সঠিক নয়।',401);
+      const password=String(req.body.password||'');
+      // Public demo roles use the documented demo password without changing the saved account hash.
+      const matchesSeedDemoPassword=(isPublicStudentDemo||areAllDemoAccountsEnabled)&&password==='demo123';
+      if(saved.deletedAt||!account||saved.role!==account.role||(!verifyPassword(password,saved.passwordHash)&&!matchesSeedDemoPassword))throw new DomainError('ইমেইল বা পাসওয়ার্ড সঠিক নয়।',401);
       account={id:saved.id,email:saved.email,role:saved.role,name:saved.name,passwordHash:saved.passwordHash,phone:saved.phone||undefined,createdAt:saved.createdAt.toISOString(),active:true,profile:{}};
       store.transaction(draft=>{const existing=draft.users.findIndex(user=>user.email===email);if(existing>=0)draft.users[existing]=account!;else draft.users.push(account!);});
       state=store.read();account=state.users.find(user=>user.id===saved.id)!;demoAccountVerifiedFromDatabase=true;
